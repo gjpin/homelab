@@ -6,7 +6,7 @@ sudo docker network create caddy
 # Create directories
 mkdir -p ${DATA_PATH}/caddy/docker
 mkdir -p ${DATA_PATH}/caddy/configs
-mkdir -p ${DATA_PATH}/caddy/volumes/{data,config,webdav}
+mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 
 ################################################
 ##### Dockerfile
@@ -47,9 +47,8 @@ services:
       - vaultwarden
     volumes:
       - ${DATA_PATH}/caddy/configs/Caddyfile:/etc/caddy/Caddyfile
-      - ${DATA_PATH}/caddy/volumes/data:/data
-      - ${DATA_PATH}/caddy/volumes/config:/config
-      - ${DATA_PATH}/caddy/volumes/webdav:/data/webdav
+      - ${DATA_PATH}/caddy/volumes/caddy:/data/caddy
+      - ${DATA_PATH}/caddy/volumes/bookmarks:/data/bookmarks
 
 networks:
   caddy:
@@ -108,7 +107,7 @@ tee ${DATA_PATH}/caddy/configs/Caddyfile << EOF
 
 # WebDAV - Bookmarks
 bookmarks.${BASE_DOMAIN} {
-    root * /data/webdav
+    root * /data/bookmarks
     basicauth {
         admin ${CADDY_HASHED_PASSWORD}
     }

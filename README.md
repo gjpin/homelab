@@ -63,7 +63,7 @@ export PIHOLE_ADMIN_TOKEN=$(openssl rand -hex 48)
 export PIHOLE_WEBPASSWORD=$(openssl rand -hex 48)
 
 export RADICALE_PASSWORD=$(openssl rand -hex 48)
-export RADICALE_USER_PASSWORD=$(htpasswd -n -b admin ${RADICALE_USER_PASSWORD})
+export RADICALE_USER_PASSWORD=$(htpasswd -n -b admin ${RADICALE_PASSWORD})
 
 export VAULTWARDEN_ADMIN_TOKEN=$(openssl rand -hex 48)
 ```

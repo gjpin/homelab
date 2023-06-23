@@ -60,7 +60,7 @@ EOF
 tee ${DATA_PATH}/radicale/configs/config << EOF
 [auth]
 type = htpasswd
-htpasswd_filename = ${DATA_PATH}/radicale/configs/users
+htpasswd_filename = /etc/radicale/users
 htpasswd_encryption = bcrypt
 
 [server]
