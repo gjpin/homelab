@@ -1,6 +1,6 @@
 # Services
 | Name | URL | Description | Access to internet |
-| --- | --- | --- |
+| --- | --- | --- | --- |
 | [Caddy](https://github.com/caddyserver/caddy) | bookmarks.${BASE_DOMAIN} | Web server and reverse proxy | Yes |
 | [Immich](https://github.com/immich-app/immich) | photos.${BASE_DOMAIN} | Photo and video backup solution | No |
 | [Obsidian LiveSync](https://github.com/vrtmrz/obsidian-livesync) | obsidian.${BASE_DOMAIN} | Community-implemented synchronization plugin | No |
@@ -34,17 +34,22 @@ sudo docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up -d
 ```
 
 # Paths
+```bash
 ${DATA_PATH}/${SERVICE}/docker: Dockerfile / docker-compose.yml / config.env
 ${DATA_PATH}/${SERVICE}/configs: service configurations
 ${DATA_PATH}/${SERVICE}/volumes: persistent data created by the services
+```
 
 # Env vars
 ## Common
+```bash
 export BASE_DOMAIN=domain.com
 export DATA_PATH=/data/containers
 export BACKUP_PATH=/backup/containers
+```
 
 ## New vars
+```bash
 export CADDY_PASSWORD=$(openssl rand -hex 48)
 export CADDY_HASHED_PASSWORD=$(sudo docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
@@ -61,8 +66,10 @@ export RADICALE_PASSWORD=$(openssl rand -hex 48)
 export RADICALE_USER_PASSWORD=$(htpasswd -n -b admin ${RADICALE_USER_PASSWORD})
 
 export VAULTWARDEN_ADMIN_TOKEN=$(openssl rand -hex 48)
+```
 
 ## Re-use vars
+```bash
 export CADDY_HASHED_PASSWORD=
 export CADDY_CLOUDFLARE_TOKEN=
 
@@ -77,6 +84,7 @@ export PIHOLE_WEBPASSWORD=
 export RADICALE_USER_PASSWORD=
 
 export VAULTWARDEN_ADMIN_TOKEN=
+```
 
 # Cheat sheet
 ## Stop all containers
