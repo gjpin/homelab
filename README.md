@@ -98,6 +98,11 @@ sudo docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 sudo docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
 ```
 
+## Restore Immich
+1. Restore volumes to correct directories
+2. Start only postgres: `docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
+3. Start the rest of the containers: `docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
+
 # Setup disks
 ## Main data disk
 ```bash
