@@ -1,5 +1,4 @@
 #!/usr/bin/bash
-export DEBIAN_FRONTEND=noninteractive
 
 ################################################
 ##### Update system and install base packages
@@ -15,7 +14,8 @@ sudo apt install -y \
   wireguard \
   zstd \
   tar \
-  apt-transport-https
+  apt-transport-https \
+  apache2-utils
 
 ################################################
 ##### AppArmor
@@ -58,63 +58,28 @@ EOF
 sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-#############################
-# Automatic Docker volumes backup
-#############################
+################################################
+##### Kernel configurations
+################################################
 
-mkdir -p /databackup/containers
+# References:
+# https://www.kernel.org/doc/Documentation/vm/overcommit-accounting
+# https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size
 
-# Backup script
-sudo tee /usr/local/bin/automatic-backups.sh << 'EOF'
-#!/usr/bin/bash
-
-VOLUME_NAME_ARRAY=("caddy-webdav" "obsidian" "radicale" "vaultwarden")
-
-for VOLUME_NAME in ${VOLUME_NAME_ARRAY[@]}; do
-  tar -I zstd -cf /databackup/containers/$VOLUME_NAME-$(date +'%d-%m-%Y').tar.zstd -C /var/lib/docker/volumes/$VOLUME_NAME ./
-  chown -R pi:pi /databackup/containers
-done
+sudo sysctl vm.overcommit_memory=1
+sudo tee /etc/sysctl.d/99-overcommit-memory.conf << EOF
+vm.overcommit_memory=1
 EOF
 
-sudo chmod +x /usr/local/bin/automatic-backups.sh
-
-# Shutdown containers, backup their volumes and restart them every day
-sudo tee /etc/systemd/system/automatic-backups.service << EOF
-[Unit]
-Description=Automatically backup docker containers
-
-[Service]
-Type=oneshot
-
-ExecStart=/usr/bin/docker compose -f /etc/selfhosted/caddy/docker-compose.yml down
-ExecStart=/usr/bin/docker compose -f /etc/selfhosted/obsidian/docker-compose.yml down
-ExecStart=/usr/bin/docker compose -f /etc/selfhosted/radicale/docker-compose.yml down
-ExecStart=/usr/bin/docker compose -f /etc/selfhosted/vaultwarden/docker-compose.yml down
-
-ExecStart=/usr/local/bin/automatic-backups.sh
-
-ExecStart=/usr/bin/docker compose -f /etc/selfhosted/caddy/docker-compose.yml up -d
-ExecStart=/usr/bin/docker compose -f /etc/selfhosted/obsidian/docker-compose.yml up -d
-ExecStart=/usr/bin/docker compose -f /etc/selfhosted/radicale/docker-compose.yml up -d
-ExecStart=/usr/bin/docker compose -f /etc/selfhosted/vaultwarden/docker-compose.yml up -d
+sudo sysctl net.core.rmem_max=2500000
+sudo tee /etc/sysctl.d/99-udp-max-buffer-size.conf << EOF
+net.core.rmem_max=2500000
 EOF
 
-sudo tee /etc/systemd/system/automatic-backups.timer << EOF
-[Unit]
-Description=Automatically backup docker containers
-RefuseManualStart=no
-RefuseManualStop=no
-
-[Timer]
-Unit=automatic-backups.service
-OnCalendar=*-*-* 04:00:00
-
-[Install]
-WantedBy=timers.target
+sudo sysctl net.ipv4.ip_forward=1
+sudo tee /etc/sysctl.d/99-ipv4-ip-forward.conf << EOF
+net.ipv4.ip_forward=1
 EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable automatic-backups.timer
 
 ################################################
 ##### Setup containers

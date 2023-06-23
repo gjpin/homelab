@@ -1,45 +1,36 @@
 #!/usr/bin/bash
-export DEBIAN_FRONTEND=noninteractive
 
 # References:
 # https://github.com/vrtmrz/obsidian-livesync/blob/main/docs/setup_own_server.md
 
-# Create directory
-sudo mkdir -p /etc/selfhosted/obsidian
-
 # Create Docker network
-sudo docker network create obsidian
+sudo docker network create --internal obsidian
 
-# Create Docker volumes
-sudo docker volume create obsidian
+# Create directories
+mkdir -p ${DATA_PATH}/obsidian/docker
+mkdir -p ${DATA_PATH}/obsidian/configs
+mkdir -p ${DATA_PATH}/obsidian/volumes/obsidian
 
 ################################################
 ##### Docker Compose
 ################################################
 
-sudo tee /etc/selfhosted/obsidian/docker-compose.yml << EOF
+tee ${DATA_PATH}/obsidian/docker/docker-compose.yml << EOF
 services:
   obsidian:
     image: couchdb:latest
     container_name: obsidian
+    volumes:
+      - ${DATA_PATH}/obsidian/configs/local.ini:/opt/couchdb/etc/local.ini
+      - ${DATA_PATH}/obsidian/volumes/obsidian:/opt/couchdb/data
+    env_file:
+      - config.env
     restart: always
     networks:
       - obsidian
-      - caddy
-    volumes:
-      - /etc/selfhosted/obsidian/local.ini:/opt/couchdb/etc/local.ini
-      - obsidian:/opt/couchdb/data
-    env_file:
-      - config.env
-
-volumes:
-  obsidian:
-    external: true
 
 networks:
   obsidian:
-    external: true
-  caddy:
     external: true
 EOF
 
@@ -47,16 +38,16 @@ EOF
 ##### Environment variables
 ################################################
 
-sudo tee /etc/selfhosted/obsidian/config.env << EOF
+tee ${DATA_PATH}/obsidian/docker/config.env << EOF
 COUCHDB_USER=admin
-COUCHDB_PASSWORD=$(openssl rand -hex 48)
+COUCHDB_PASSWORD=${OBSIDIAN_COUCHDB_PASSWORD}
 EOF
 
 ################################################
 ##### CouchDB configuration
 ################################################
 
-sudo tee /etc/selfhosted/obsidian/local.ini << EOF
+tee ${DATA_PATH}/obsidian/configs/local.ini << EOF
 [couchdb]
 single_node=true
 max_document_size = 50000000
@@ -79,22 +70,4 @@ credentials = true
 headers = accept, authorization, content-type, origin, referer
 methods = GET, PUT, POST, HEAD, DELETE
 max_age = 3600
-EOF
-
-################################################
-##### Caddyfile
-################################################
-
-sudo tee -a /etc/selfhosted/caddy/Caddyfile << EOF
-
-# Obsidian
-obsidian.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        reverse_proxy obsidian:5984 {
-                header_up X-Real-IP {remote_host}
-        }
-}
 EOF

@@ -1,24 +1,22 @@
 #!/usr/bin/bash
-export DEBIAN_FRONTEND=noninteractive
 
 # References:
 # https://radicale.org/v3.html#basic-configuration
 # https://caddy.community/t/radicale-reverse-proxy-caddy-2-0/8580/5
 
-# Create directory
-sudo mkdir -p /etc/selfhosted/radicale
-
 # Create Docker network
-sudo docker network create radicale
+sudo docker network create --internal radicale
 
-# Create Docker volumes
-sudo docker volume create radicale
+# Create directories
+mkdir -p ${DATA_PATH}/radicale/docker
+mkdir -p ${DATA_PATH}/radicale/configs
+mkdir -p ${DATA_PATH}/radicale/volumes/radicale
 
 ################################################
 ##### Dockerfile
 ################################################
 
-sudo tee /etc/selfhosted/radicale/Dockerfile << EOF
+tee ${DATA_PATH}/radicale/docker/Dockerfile << EOF
 FROM alpine:edge
 
 RUN apk add --update --no-cache radicale py3-bcrypt
@@ -30,68 +28,41 @@ EOF
 ##### Docker Compose
 ################################################
 
-sudo tee /etc/selfhosted/radicale/docker-compose.yml << EOF
+tee ${DATA_PATH}/radicale/docker/docker-compose.yml << EOF
 services:
   radicale:
     build:
-      context: /etc/selfhosted/radicale
+      context: ${DATA_PATH}/radicale/docker
     container_name: radicale
     restart: always
     networks:
       - radicale
-      - caddy
     volumes:
-      - /etc/selfhosted/radicale/users:/etc/radicale/users
-      - /etc/selfhosted/radicale/config:/etc/radicale/config
-      - radicale:/var/lib/radicale/collections
-
-volumes:
-  radicale:
-    external: true
+      - ${DATA_PATH}/radicale/configs/users:/etc/radicale/users
+      - ${DATA_PATH}/radicale/configs/config:/etc/radicale/config
+      - ${DATA_PATH}/radicale/volumes/radicale:/var/lib/radicale/collections
 
 networks:
   radicale:
     external: true
-  caddy:
-    external: true
 EOF
 
 ################################################
-##### Configuration
+##### Configurations
 ################################################
 
-# Install dependencies
-sudo apt install -y apache2-utils
-
 # Create user
-PASSWORD=$(openssl rand -hex 48)
-sudo htpasswd -c -b -B /etc/selfhosted/radicale/users admin ${PASSWORD}
+tee ${DATA_PATH}/radicale/configs/users << EOF
+${RADICALE_USER_PASSWORD}
+EOF
 
 # Create configuration
-sudo tee /etc/selfhosted/radicale/config << EOF
+tee ${DATA_PATH}/radicale/configs/config << EOF
 [auth]
 type = htpasswd
-htpasswd_filename = /etc/radicale/users
+htpasswd_filename = ${DATA_PATH}/radicale/configs/users
 htpasswd_encryption = bcrypt
 
 [server]
 hosts = 0.0.0.0:5232, [::]:5232
-EOF
-
-################################################
-##### Caddyfile
-################################################
-
-sudo tee -a /etc/selfhosted/caddy/Caddyfile << EOF
-
-# Radicale - Contacts/Calendar
-contacts.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        reverse_proxy radicale:5232 {
-                header_up X-Real-IP {remote_host}
-        }
-}
 EOF

@@ -1,42 +1,23 @@
 #!/usr/bin/bash
-export DEBIAN_FRONTEND=noninteractive
-
-# Create directory
-sudo mkdir -p /data/caddy
 
 # Create Docker network
 sudo docker network create caddy
 
-# Create Docker volumes
-sudo docker volume create caddy-data
-sudo docker volume create caddy-config
-sudo docker volume create caddy-webdav
-
-# Generate WebDAV password
-PASSWORD=$(openssl rand -hex 48)
-HASHED_PASSWORD=$(sudo docker run caddy:2-alpine caddy hash-password --plaintext ${PASSWORD})
-
-################################################
-##### Kernel configurations
-################################################
-
-# References:
-# https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size
-
-sudo sysctl net.core.rmem_max=2500000
-sudo tee /etc/sysctl.d/99-udp-max-buffer-size.conf << EOF
-net.core.rmem_max=2500000
-EOF
+# Create directories
+mkdir -p ${DATA_PATH}/caddy/docker
+mkdir -p ${DATA_PATH}/caddy/configs
+mkdir -p ${DATA_PATH}/caddy/volumes/{data,config,webdav}
 
 ################################################
 ##### Dockerfile
 ################################################
 
-sudo tee /etc/selfhosted/caddy/Dockerfile << EOF
+tee ${DATA_PATH}/caddy/docker/Dockerfile << EOF
 FROM caddy:2-builder-alpine AS builder
 
 RUN xcaddy build \
-    --with github.com/mholt/caddy-webdav
+    --with github.com/mholt/caddy-webdav \
+    --with github.com/caddy-dns/cloudflare
 
 FROM caddy:2-alpine
 
@@ -47,33 +28,43 @@ EOF
 ##### Docker Compose
 ################################################
 
-sudo tee /etc/selfhosted/caddy/docker-compose.yml << EOF
+tee ${DATA_PATH}/caddy/docker/docker-compose.yml << EOF
 services:
   caddy:
     build:
-      context: /etc/selfhosted/caddy
+      context: ${DATA_PATH}/caddy/docker
     container_name: caddy
     restart: always
     ports:
       - 443:443
     networks:
       - caddy
+      - immich
+      - obsidian
+      - pihole
+      - radicale
+      - syncthing
+      - vaultwarden
     volumes:
-      - /etc/selfhosted/caddy/Caddyfile:/etc/caddy/Caddyfile
-      - caddy-data:/data
-      - caddy-config:/config
-      - caddy-webdav:/data/webdav
-
-volumes:
-  caddy-data:
-    external: true
-  caddy-config:
-    external: true
-  caddy-webdav:
-    external: true
+      - ${DATA_PATH}/caddy/configs/Caddyfile:/etc/caddy/Caddyfile
+      - ${DATA_PATH}/caddy/volumes/data:/data
+      - ${DATA_PATH}/caddy/volumes/config:/config
+      - ${DATA_PATH}/caddy/volumes/webdav:/data/webdav
 
 networks:
   caddy:
+    external: true
+  immich:
+    external: true
+  obsidian:
+    external: true
+  pihole:
+    external: true
+  radicale:
+    external: true
+  syncthing:
+    external: true
+  vaultwarden:
     external: true
 EOF
 
@@ -81,8 +72,9 @@ EOF
 ##### Caddyfile
 ################################################
 
-sudo tee /etc/selfhosted/caddy/Caddyfile << EOF
+tee ${DATA_PATH}/caddy/configs/Caddyfile << EOF
 {
+        acme_dns cloudflare ${CADDY_CLOUDFLARE_TOKEN}
         order webdav before file_server
 }
 
@@ -114,12 +106,95 @@ sudo tee /etc/selfhosted/caddy/Caddyfile << EOF
         }
 }
 
-# WebDAV
-webdav.${BASE_DOMAIN} {
+# WebDAV - Bookmarks
+bookmarks.${BASE_DOMAIN} {
     root * /data/webdav
     basicauth {
-        admin ${HASHED_PASSWORD}
+        admin ${CADDY_HASHED_PASSWORD}
     }
     webdav
+}
+
+# Immich
+photos.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        handle_path /api* {
+                reverse_proxy immich-server:3001 {
+                        header_up X-Real-IP {remote_host}
+                }
+        }
+
+        reverse_proxy immich-web:3000 {
+                header_up X-Real-IP {remote_host}
+        }
+}
+
+# Obsidian
+obsidian.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy obsidian:5984 {
+                header_up X-Real-IP {remote_host}
+        }
+}
+
+# Pi-hole
+pihole.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy pihole:80 {
+                header_up X-Real-IP {remote_host}
+        }
+}
+
+# Radicale
+contacts.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy radicale:5232 {
+                header_up X-Real-IP {remote_host}
+        }
+}
+
+# Syncthing
+syncthing.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy syncthing:8384 {
+                header_up X-Real-IP {remote_host}
+        }
+}
+
+# Vaultwarden
+vault.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        # Vaultwarden HTTP server
+        reverse_proxy vaultwarden:80 {
+                header_up X-Real-IP {remote_host}
+        }
+
+        # Websockets server
+        reverse_proxy /notifications/hub vaultwarden:3012 {
+                header_up X-Real-IP {remote_host}
+        }
+
+        # Negotiation endpoint
+        reverse_proxy /notifications/hub/negotiate vaultwarden:8080 {
+                header_up X-Real-IP {remote_host}
+        }
 }
 EOF
