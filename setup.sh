@@ -82,13 +82,81 @@ net.ipv4.ip_forward=1
 EOF
 
 ################################################
-##### Setup containers
+##### Automated backups and updates
 ################################################
 
-sudo ./applications/caddy.sh
-sudo ./applications/immich.sh
-sudo ./applications/obsidian.sh
-sudo ./applications/pihole.sh
-sudo ./applications/radicale.sh
-sudo ./applications/syncthing.sh
-sudo ./applications/vaultwarden.sh
+# References:
+# https://wiki.archlinux.org/title/Borg_backup
+
+# Install borgbackup
+sudo apt install -y borgbackup
+
+# Create backup and update script
+sudo tee /usr/local/bin/backup-update-containers.sh << EOF
+#!/usr/bin/bash
+
+# Shutdown containers
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/obsidian/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
+
+# Backup containers data
+borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
+borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
+
+# Update system
+apt update
+apt upgrade -y
+apt autoremove -y
+
+# Update containers
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/obsidian/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
+
+# Start containers
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up -d
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d
+docker compose -f ${DATA_PATH}/obsidian/docker/docker-compose.yml up -d
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up -d
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up -d
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up -d
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up -d
+EOF
+
+sudo chmod +x /usr/local/bin/backup-update-containers.sh
+
+# Create systemd timer
+sudo tee /etc/systemd/system/backup-update-containers.service << EOF
+[Unit]
+Description=Automatically backup and update system/containers
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/backup-update-containers.sh
+EOF
+
+sudo tee /etc/systemd/system/backup-update-containers.timer << EOF
+[Unit]
+Description=Automatically backup and update system/containers
+RefuseManualStart=no
+RefuseManualStop=no
+
+[Timer]
+Unit=backup-update-containers.service
+OnCalendar=Sat *-*-* 05:00:00
+
+[Install]
+WantedBy=timers.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable backup-update-containers.timer

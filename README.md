@@ -32,6 +32,7 @@ sudo docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up -d
 sudo docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up -d
 sudo docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up -d
 ```
+6. Create borg repo (if not created yet): `borg init --encryption=none /backup/containers`
 
 # Paths
 ```bash
