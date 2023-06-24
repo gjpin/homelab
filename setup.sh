@@ -159,4 +159,12 @@ WantedBy=timers.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl enable backup-update-containers.timer
+sudo systemctl enable --now backup-update-containers.timer
+
+################################################
+##### Next steps
+################################################
+
+# Reboot
+# Go through applications/*.sh
+# Start the containers
