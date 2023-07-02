@@ -18,6 +18,17 @@ sudo apt install -y \
   apache2-utils
 
 ################################################
+##### Swap
+################################################
+
+# Disable swap temporarily
+sudo swapoff -a
+
+# Disable swap permanently
+sudo dphys-swapfile swapoff
+sudo systemctl disable --now dphys-swapfile.service
+
+################################################
 ##### AppArmor
 ################################################
 
