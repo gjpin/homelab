@@ -127,7 +127,7 @@ sudo mount -t ext4 /dev/sda1 /data
 sudo tee -a /etc/fstab << EOF
 
 # data disk
-$(lsblk -n -o UUID /dev/sda1) /data ext4 defaults 0 0
+UUID=$(lsblk -n -o UUID /dev/sda1) /data ext4 defaults 0 0
 EOF
 
 # Change ownership to user
@@ -156,7 +156,7 @@ sudo mount -t ext4 /dev/sdb1 /backup
 sudo tee -a /etc/fstab << EOF
 
 # backup disk
-$(lsblk -n -o UUID /dev/sdb1) /backup ext4 defaults 0 0
+UUID=$(lsblk -n -o UUID /dev/sdb1) /backup ext4 defaults 0 0
 EOF
 
 # Change ownership to user
