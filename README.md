@@ -90,13 +90,13 @@ export VAULTWARDEN_ADMIN_TOKEN=
 # Cheat sheet
 ## Stop all containers
 ```bash
-sudo docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
 sudo docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
 sudo docker compose -f ${DATA_PATH}/obsidian/docker/docker-compose.yml down
 sudo docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
 sudo docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
 sudo docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 sudo docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
+sudo docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
 ```
 
 ## Restore Immich
