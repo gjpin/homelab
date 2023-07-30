@@ -15,7 +15,8 @@ sudo apt install -y \
   zstd \
   tar \
   apt-transport-https \
-  apache2-utils
+  apache2-utils \
+  wakeonlan
 
 ################################################
 ##### Swap
