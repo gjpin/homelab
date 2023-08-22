@@ -142,6 +142,9 @@ docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up -d
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up -d
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up -d
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up -d
+
+# Clear docker data
+docker system prune -af
 EOF
 
 sudo chmod +x /usr/local/bin/backup-update-containers.sh
