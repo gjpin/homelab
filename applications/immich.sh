@@ -22,7 +22,7 @@ services:
   immich-server:
     image: ghcr.io/immich-app/immich-server:release
     container_name: immich-server
-    entrypoint: ["/bin/sh", "./start-server.sh"]
+    command: [ "start.sh", "immich" ]
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
     env_file:
@@ -37,7 +37,7 @@ services:
   immich-microservices:
     image: ghcr.io/immich-app/immich-server:release
     container_name: immich-microservices
-    entrypoint: ["/bin/sh", "./start-microservices.sh"]
+    command: [ "start.sh", "microservices" ]
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
     env_file:
@@ -52,7 +52,6 @@ services:
   immich-web:
     image: ghcr.io/immich-app/immich-web:release
     container_name: immich-web
-    entrypoint: ["/bin/sh", "./entrypoint.sh"]
     env_file:
       - config.env
     restart: always
@@ -80,10 +79,13 @@ services:
   immich-proxy:
     container_name: immich-proxy
     image: ghcr.io/immich-app/immich-proxy:release
+    env_file:
+      - config.env
     logging:
       driver: none
     depends_on:
       - immich-server
+      - immich-web
     restart: always
     networks:
       - immich
