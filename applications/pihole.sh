@@ -24,7 +24,8 @@ RUN apk update && \
     sed -i "s|^listen_addresses.*$|listen_addresses = ['0.0.0.0:53']|g" /etc/dnscrypt-proxy/dnscrypt-proxy.toml && \
     sed -i "s|^doh_servers.*$|doh_servers = true|g" /etc/dnscrypt-proxy/dnscrypt-proxy.toml && \
     sed -i "s|^dnscrypt_servers.*$|dnscrypt_servers = false|g" /etc/dnscrypt-proxy/dnscrypt-proxy.toml && \
-    sed -i "s|^require_dnssec.*$|require_dnssec = true|g" /etc/dnscrypt-proxy/dnscrypt-proxy.toml
+    sed -i "s|^require_dnssec.*$|require_dnssec = true|g" /etc/dnscrypt-proxy/dnscrypt-proxy.toml && \
+    sed -i "s|^# lb_strategy.*$|lb_strategy = 'ph'|g" /etc/dnscrypt-proxy/dnscrypt-proxy.toml
 
 ENTRYPOINT dnscrypt-proxy -config /etc/dnscrypt-proxy/dnscrypt-proxy.toml
 EOF
