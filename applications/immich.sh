@@ -2,7 +2,7 @@
 
 # References:
 # https://github.com/immich-app/immich/blob/main/docker/docker-compose.yml
-# https://github.com/immich-app/immich/blob/main/docker/.env.example
+# https://github.com/immich-app/immich/blob/main/docker/example.env
 # https://github.com/immich-app/immich/blob/main/nginx/nginx.conf
 
 # Create Docker network
@@ -25,6 +25,7 @@ services:
     command: [ "start.sh", "immich" ]
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
     env_file:
       - config.env
     depends_on:
@@ -40,6 +41,7 @@ services:
     command: [ "start.sh", "microservices" ]
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
     env_file:
       - config.env
     depends_on:
@@ -120,6 +122,7 @@ JWT_SECRET=${IMMICH_JWT_SECRET}
 
 NODE_ENV=production
 
+IMMICH_VERSION=release
 IMMICH_WEB_URL=http://immich-web:3000
 IMMICH_SERVER_URL=http://immich-server:3001
 

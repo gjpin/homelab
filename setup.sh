@@ -6,7 +6,7 @@
 
 # Update system
 sudo apt update
-sudo apt upgrade -y
+sudo apt full-upgrade -y
 sudo apt autoremove -y
 
 # Install base packages
@@ -109,7 +109,7 @@ sudo tee /usr/local/bin/backup-update-containers.sh << EOF
 
 # Update system
 apt update
-apt upgrade -y
+apt full-upgrade -y
 apt autoremove -y
 
 # Update containers
