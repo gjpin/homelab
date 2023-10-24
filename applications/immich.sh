@@ -20,8 +20,8 @@ mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres}
 tee ${DATA_PATH}/immich/docker/docker-compose.yml << EOF
 services:
   immich-server:
-    image: ghcr.io/immich-app/immich-server:release
     container_name: immich-server
+    image: ghcr.io/immich-app/immich-server:release
     command: [ "start.sh", "immich" ]
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
@@ -36,8 +36,8 @@ services:
       - immich
 
   immich-microservices:
-    image: ghcr.io/immich-app/immich-server:release
     container_name: immich-microservices
+    image: ghcr.io/immich-app/immich-server:release
     command: [ "start.sh", "microservices" ]
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
@@ -52,8 +52,8 @@ services:
       - immich
 
   immich-web:
-    image: ghcr.io/immich-app/immich-web:release
     container_name: immich-web
+    image: ghcr.io/immich-app/immich-web:release
     env_file:
       - config.env
     restart: always
