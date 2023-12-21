@@ -11,7 +11,7 @@ sudo docker network create --internal immich
 # Create directories
 mkdir -p ${DATA_PATH}/immich/docker
 mkdir -p ${DATA_PATH}/immich/configs
-mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres}
+mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres,machine-learning}
 
 ################################################
 ##### Docker Compose
@@ -51,9 +51,11 @@ services:
     networks:
       - immich
 
-  immich-web:
-    container_name: immich-web
-    image: ghcr.io/immich-app/immich-web:release
+  immich-machine-learning:
+    container_name: immich-machine-learning
+    image: ghcr.io/immich-app/immich-machine-learning:release
+    volumes:
+      - ${DATA_PATH}/immich/volumes/machine-learning:/cache
     env_file:
       - config.env
     restart: always
@@ -69,25 +71,11 @@ services:
 
   immich-postgres:
     container_name: immich-postgres
-    image: postgres:15
+    image: tensorchord/pgvecto-rs:pg15-v0.1.11
     env_file:
       - config.env
     volumes:
       - ${DATA_PATH}/immich/volumes/postgres:/var/lib/postgresql/data
-    restart: always
-    networks:
-      - immich
-
-  immich-proxy:
-    container_name: immich-proxy
-    image: ghcr.io/immich-app/immich-proxy:release
-    env_file:
-      - config.env
-    logging:
-      driver: none
-    depends_on:
-      - immich-server
-      - immich-web
     restart: always
     networks:
       - immich
@@ -116,7 +104,7 @@ REDIS_HOSTNAME=immich-redis
 
 TYPESENSE_ENABLED=false
 
-LOG_LEVEL=simple
+LOG_LEVEL=warn
 
 JWT_SECRET=${IMMICH_JWT_SECRET}
 
