@@ -114,8 +114,6 @@ apt autoremove -y
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/obsidian/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
@@ -123,8 +121,6 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 
 # Shutdown containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/obsidian/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
@@ -135,13 +131,11 @@ borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
 borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
 
 # Start containers
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d
-docker compose -f ${DATA_PATH}/obsidian/docker/docker-compose.yml up -d
-docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up -d
-docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up -d
-docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up -d
-docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up -d
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up -d
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
 
 # Clear docker data
 docker system prune -af
