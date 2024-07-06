@@ -19,6 +19,7 @@ tee ${DATA_PATH}/syncthing/docker/docker-compose.yml << EOF
 services:
   syncthing:
     image: syncthing/syncthing:latest
+    pull_policy: always
     container_name: syncthing
     hostname: ${HOSTNAME}
     restart: always

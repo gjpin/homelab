@@ -38,6 +38,7 @@ tee ${DATA_PATH}/pihole/docker/docker-compose.yml << EOF
 services:
   pihole:
     image: pihole/pihole:latest
+    pull_policy: always
     container_name: pihole
     restart: always
     networks:

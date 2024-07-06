@@ -16,6 +16,7 @@ tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml << EOF
 services:
   vaultwarden:
     image: vaultwarden/server:alpine
+    pull_policy: always
     container_name: vaultwarden
     restart: always
     networks:
