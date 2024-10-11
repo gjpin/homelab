@@ -120,13 +120,7 @@ photos.${BASE_DOMAIN} {
 
         encode gzip
 
-        handle_path /api* {
-                reverse_proxy immich-server:3001 {
-                        header_up X-Real-IP {remote_host}
-                }
-        }
-
-        reverse_proxy immich-web:3000 {
+        reverse_proxy immich-server:3001 {
                 header_up X-Real-IP {remote_host}
         }
 }

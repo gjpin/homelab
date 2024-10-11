@@ -10,8 +10,7 @@ sudo docker network create --internal immich
 
 # Create directories
 mkdir -p ${DATA_PATH}/immich/docker
-mkdir -p ${DATA_PATH}/immich/configs
-mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres,machine-learning}
+mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres}
 
 ################################################
 ##### Docker Compose
@@ -21,7 +20,7 @@ tee ${DATA_PATH}/immich/docker/docker-compose.yml << EOF
 services:
   immich-server:
     container_name: immich-server
-    image: ghcr.io/immich-app/immich-server:release
+    image: ghcr.io/immich-app/immich-server:v1.117.0
     command: [ "start.sh", "immich" ]
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
@@ -35,47 +34,28 @@ services:
     networks:
       - immich
 
-  immich-microservices:
-    container_name: immich-microservices
-    image: ghcr.io/immich-app/immich-server:release
-    command: [ "start.sh", "microservices" ]
-    volumes:
-      - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
-      - /etc/localtime:/etc/localtime:ro
-    env_file:
-      - config.env
-    depends_on:
-      - immich-redis
-      - immich-postgres
-    restart: always
-    networks:
-      - immich
-
-  immich-machine-learning:
-    container_name: immich-machine-learning
-    image: ghcr.io/immich-app/immich-machine-learning:release
-    volumes:
-      - ${DATA_PATH}/immich/volumes/machine-learning:/cache
-    env_file:
-      - config.env
-    restart: always
-    networks:
-      - immich
-
   immich-redis:
     container_name: immich-redis
-    image: redis:alpine
+    image: docker.io/redis:6.2.16-alpine
+    healthcheck:
+      test: redis-cli ping || exit 1
     restart: always
     networks:
       - immich
 
   immich-postgres:
     container_name: immich-postgres
-    image: tensorchord/pgvecto-rs:pg15-v0.1.11
+    image: docker.io/tensorchord/pgvecto-rs:pg15-v0.3.0
     env_file:
       - config.env
     volumes:
       - ${DATA_PATH}/immich/volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: pg_isready --dbname='immich' --username='immich' || exit 1; Chksum="$$(psql --dbname='immich' --username='immich' --tuples-only --no-align --command='SELECT COALESCE(SUM(checksum_failures), 0) FROM pg_stat_database')"; echo "checksum failure count is $$Chksum"; [ "$$Chksum" = '0' ] || exit 1
+      interval: 5m
+      start_interval: 30s
+      start_period: 5m
+    command: ["postgres", "-c", "shared_preload_libraries=vectors.so", "-c", 'search_path="$$user", public, vectors', "-c", "logging_collector=on", "-c", "max_wal_size=2GB", "-c", "shared_buffers=512MB", "-c", "wal_compression=on"]
     restart: always
     networks:
       - immich
@@ -93,27 +73,17 @@ sudo tee ${DATA_PATH}/immich/docker/config.env << EOF
 POSTGRES_PASSWORD=${IMMICH_DATABASE_PASSWORD}
 POSTGRES_USER=immich
 POSTGRES_DB=immich
+POSTGRES_INITDB_ARGS="--data-checksums"
 
 DB_HOSTNAME=immich-postgres
 DB_USERNAME=immich
 DB_PASSWORD=${IMMICH_DATABASE_PASSWORD}
 DB_DATABASE_NAME=immich
-PG_DATA=/var/lib/postgresql/data
 
 REDIS_HOSTNAME=immich-redis
 
-TYPESENSE_ENABLED=false
-
-LOG_LEVEL=warn
-
-JWT_SECRET=${IMMICH_JWT_SECRET}
-
-NODE_ENV=production
-
-IMMICH_VERSION=release
-IMMICH_WEB_URL=http://immich-web:3000
-IMMICH_SERVER_URL=http://immich-server:3001
+UPLOAD_LOCATION=./library
+DB_DATA_LOCATION=./postgres
 
 MACHINE_LEARNING_ENABLED=false
-DISABLE_REVERSE_GEOCODING=true
 EOF
