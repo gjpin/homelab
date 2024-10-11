@@ -21,7 +21,6 @@ services:
   immich-server:
     container_name: immich-server
     image: ghcr.io/immich-app/immich-server:v1.117.0
-    command: [ "start.sh", "immich" ]
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
       - /etc/localtime:/etc/localtime:ro
