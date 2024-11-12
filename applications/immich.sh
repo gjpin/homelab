@@ -20,7 +20,7 @@ tee ${DATA_PATH}/immich/docker/docker-compose.yml << EOF
 services:
   immich-server:
     container_name: immich-server
-    image: ghcr.io/immich-app/immich-server:v1.117.0
+    image: ghcr.io/immich-app/immich-server:v1.120.2
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
       - /etc/localtime:/etc/localtime:ro
@@ -35,7 +35,7 @@ services:
 
   immich-redis:
     container_name: immich-redis
-    image: docker.io/redis:6.2.16-alpine
+    image: docker.io/redis:7.4.1-alpine
     healthcheck:
       test: redis-cli ping || exit 1
     restart: always
