@@ -4,7 +4,7 @@
 # https://github.com/pi-hole/docker-pi-hole/
 
 # Create Docker network
-sudo docker network create pihole
+docker network create pihole
 
 # Create directories
 mkdir -p ${DATA_PATH}/pihole/docker
@@ -37,7 +37,7 @@ EOF
 tee ${DATA_PATH}/pihole/docker/docker-compose.yml << EOF
 services:
   pihole:
-    image: pihole/pihole:latest
+    image: pihole/pihole:2024.07.0
     pull_policy: always
     container_name: pihole
     restart: always
@@ -74,7 +74,7 @@ EOF
 tee ${DATA_PATH}/pihole/docker/config.env << EOF
 ADMIN_TOKEN=${PIHOLE_ADMIN_TOKEN}
 WEBPASSWORD=${PIHOLE_WEBPASSWORD}
-FTLCONF_LOCAL_IPV4=$(ip addr show wlan0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)
+FTLCONF_LOCAL_IPV4=$(ip addr show eth0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)
 TZ=$(cat /etc/timezone)
 VIRTUAL_HOST=pihole.${BASE_DOMAIN}
 DNSMASQ_LISTENING=all

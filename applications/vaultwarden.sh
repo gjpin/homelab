@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 # Create Docker network
-sudo docker network create --internal vaultwarden
+docker network create --internal vaultwarden
 
 # Create directories
 mkdir -p ${DATA_PATH}/vaultwarden/docker
@@ -15,7 +15,7 @@ mkdir -p ${DATA_PATH}/vaultwarden/volumes/vaultwarden
 tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml << EOF
 services:
   vaultwarden:
-    image: vaultwarden/server:1.32.5
+    image: vaultwarden/server:1.32.7
     pull_policy: always
     container_name: vaultwarden
     restart: always

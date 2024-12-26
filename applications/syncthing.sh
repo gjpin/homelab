@@ -4,7 +4,7 @@
 # https://github.com/syncthing/syncthing/blob/main/README-Docker.md
 
 # Create Docker network
-sudo docker network create syncthing
+docker network create syncthing
 
 # Create directories
 mkdir -p ${DATA_PATH}/syncthing/docker
@@ -18,7 +18,7 @@ mkdir -p ${DATA_PATH}/syncthing/volumes/syncthing
 tee ${DATA_PATH}/syncthing/docker/docker-compose.yml << EOF
 services:
   syncthing:
-    image: syncthing/syncthing:1.28.0
+    image: syncthing/syncthing:1.28.1
     pull_policy: always
     container_name: syncthing
     hostname: ${HOSTNAME}

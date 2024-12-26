@@ -11,7 +11,7 @@
 # https://github.com/immich-app/immich/blob/main/nginx/nginx.conf
 
 # Create Docker network
-sudo docker network create --internal immich
+docker network create --internal immich
 
 # Create directories
 mkdir -p ${DATA_PATH}/immich/docker
@@ -25,7 +25,7 @@ tee ${DATA_PATH}/immich/docker/docker-compose.yml << EOF
 services:
   immich-server:
     container_name: immich-server
-    image: ghcr.io/immich-app/immich-server:v1.122.0
+    image: ghcr.io/immich-app/immich-server:v1.123.0
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
       - /etc/localtime:/etc/localtime:ro

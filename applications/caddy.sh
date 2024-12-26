@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 # Create Docker network
-sudo docker network create caddy
+docker network create caddy
 
 # Create directories
 mkdir -p ${DATA_PATH}/caddy/docker
@@ -143,6 +143,18 @@ pihole.${BASE_DOMAIN} {
         encode gzip
 
         reverse_proxy pihole:80 {
+                header_up X-Real-IP {remote_host}
+        }
+}
+
+# Technitium
+technitium.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        # Web Console (HTTP)
+        reverse_proxy technitium:5380 {
                 header_up X-Real-IP {remote_host}
         }
 }

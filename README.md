@@ -4,33 +4,32 @@
 | [Caddy](https://github.com/caddyserver/caddy) | bookmarks.${BASE_DOMAIN} | Web server and reverse proxy | Yes |
 | [Immich](https://github.com/immich-app/immich) | photos.${BASE_DOMAIN} | Photo and video backup solution | No |
 | [Obsidian LiveSync](https://github.com/vrtmrz/obsidian-livesync) | obsidian.${BASE_DOMAIN} | Community-implemented synchronization plugin | No |
-| [Pi-hole](https://github.com/pi-hole/pi-hole) | pihole.${BASE_DOMAIN} | DNS sinkhole | Yes |
+| [Pi-hole](https://github.com/pi-hole/pi-hole) | pihole.${BASE_DOMAIN} | DNS server | Yes |
+| [Technitium](https://github.com/TechnitiumSoftware/DnsServer) | technitium.${BASE_DOMAIN} | DNS server | Yes |
 | [Radicale](https://github.com/Kozea/Radicale) | contacts.${BASE_DOMAIN} | CardDAV (contact) server | No |
 | [Syncthing](https://github.com/syncthing/syncthing) | syncthing.${BASE_DOMAIN} | Continuous File Synchronization | Yes |
 | [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | vault.${BASE_DOMAIN} | Unofficial Bitwarden compatible server | No |
 
-# How to
+# Getting started
 1. Create DNS entries in Cloudflare, pointing to Wireguard's internal address
-2. Set env vars
+2. Set env vars (see below)
 3. Go through setup.sh
 4. Configure and enable WireGuard `sudo systemctl enable --now wg-quick@wg0`
 5. Start containers:
 ```bash
-sudo docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-sudo docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-sudo docker compose -f ${DATA_PATH}/obsidian/docker/docker-compose.yml pull
-sudo docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
-sudo docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
-sudo docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
-sudo docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml pull
 
-sudo docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up -d
-sudo docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d
-sudo docker compose -f ${DATA_PATH}/obsidian/docker/docker-compose.yml up -d
-sudo docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up -d
-sudo docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up -d
-sudo docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up -d
-sudo docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up -d
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml up --force-recreate -d
 ```
 6. Create borg repo (if not created yet): `borg init --encryption=none /backup/containers`
 
@@ -52,7 +51,7 @@ export BACKUP_PATH=/backup/containers
 ## New vars
 ```bash
 export CADDY_PASSWORD=$(openssl rand -hex 48)
-export CADDY_HASHED_PASSWORD=$(sudo docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
+export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 
 export IMMICH_DATABASE_PASSWORD=$(openssl rand -hex 48)
@@ -62,6 +61,8 @@ export OBSIDIAN_COUCHDB_PASSWORD=$(openssl rand -hex 48)
 
 export PIHOLE_ADMIN_TOKEN=$(openssl rand -hex 48)
 export PIHOLE_WEBPASSWORD=$(openssl rand -hex 48)
+
+export TECHNITIUM_ADMIN_PASSWORD=$(openssl rand -hex 48)
 
 export RADICALE_PASSWORD=$(openssl rand -hex 48)
 export RADICALE_USER_PASSWORD=$(htpasswd -n -b admin ${RADICALE_PASSWORD})
@@ -82,21 +83,64 @@ export OBSIDIAN_COUCHDB_PASSWORD=
 export PIHOLE_ADMIN_TOKEN=
 export PIHOLE_WEBPASSWORD=
 
+export TECHNITIUM_ADMIN_PASSWORD=
+
 export RADICALE_USER_PASSWORD=
 
 export VAULTWARDEN_ADMIN_TOKEN=
 ```
 
 # Cheat sheet
+## Update all containers
+```bash
+# Update system
+apt update
+apt full-upgrade -y
+apt autoremove -y
+
+# Update containers
+# docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
+
+# Shutdown containers
+# docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+
+# Backup containers data
+borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
+borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
+
+# Start containers
+# docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+
+# Clear docker data
+docker system prune -af
+```
+
 ## Stop all containers
 ```bash
-sudo docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-sudo docker compose -f ${DATA_PATH}/obsidian/docker/docker-compose.yml down
-sudo docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
-sudo docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
-sudo docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
-sudo docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
-sudo docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml down
 ```
 
 ## Restore Immich
