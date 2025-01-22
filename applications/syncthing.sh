@@ -18,7 +18,7 @@ mkdir -p ${DATA_PATH}/syncthing/volumes/syncthing
 tee ${DATA_PATH}/syncthing/docker/docker-compose.yml << EOF
 services:
   syncthing:
-    image: syncthing/syncthing:1.28.1
+    image: syncthing/syncthing:1.29.2
     pull_policy: always
     container_name: syncthing
     hostname: ${HOSTNAME}
