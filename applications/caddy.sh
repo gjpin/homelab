@@ -21,7 +21,6 @@ FROM caddy:2.9.1-builder-alpine AS builder
 
 RUN xcaddy build \
     --with github.com/mholt/caddy-webdav \
-    --with github.com/mholt/caddy-l4 \
     --with github.com/caddy-dns/cloudflare
 
 FROM caddy:2.9.1-alpine
@@ -83,19 +82,6 @@ tee ${DATA_PATH}/caddy/configs/Caddyfile << EOF
 {
         acme_dns cloudflare ${CADDY_CLOUDFLARE_TOKEN}
         order webdav before file_server
-        layer4 {
-                :443 {
-                        @secure tls sni git.${BASE_DOMAIN}
-                        route @secure {
-                                proxy gitea:3000
-                        }
-                        @ssh ssh
-                        route @ssh {
-                                proxy gitea:22
-                        }
-
-                }
-        }
 }
 
 (default-header) {

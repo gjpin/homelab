@@ -32,7 +32,6 @@ services:
       - config.env
     volumes:
       - ${DATA_PATH}/gitea/volumes/gitea:/data
-      - ${DATA_PATH}/gitea/configs:/etc/gitea
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     depends_on:
