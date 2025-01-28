@@ -9,6 +9,7 @@
 | [Radicale](https://github.com/Kozea/Radicale) | contacts.${BASE_DOMAIN} | CardDAV (contact) server | No |
 | [Syncthing](https://github.com/syncthing/syncthing) | syncthing.${BASE_DOMAIN} | Continuous File Synchronization | Yes |
 | [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | vault.${BASE_DOMAIN} | Unofficial Bitwarden compatible server | No |
+| [Gitea](https://github.com/go-gitea/gitea) | git.${BASE_DOMAIN} | Git server / DevOps platform | Yes |
 
 # Getting started
 1. Create DNS entries in Cloudflare, pointing to Wireguard's internal address
@@ -68,6 +69,8 @@ export RADICALE_PASSWORD=$(openssl rand -hex 48)
 export RADICALE_USER_PASSWORD=$(htpasswd -n -b admin ${RADICALE_PASSWORD})
 
 export VAULTWARDEN_ADMIN_TOKEN=$(openssl rand -hex 48)
+
+export GITEA_DATABASE_PASSWORD=$(openssl rand -hex 48)
 ```
 
 ## Re-use vars
@@ -88,6 +91,8 @@ export TECHNITIUM_ADMIN_PASSWORD=
 export RADICALE_USER_PASSWORD=
 
 export VAULTWARDEN_ADMIN_TOKEN=
+
+export GITEA_DATABASE_PASSWORD=
 ```
 
 # Cheat sheet
@@ -106,6 +111,7 @@ docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --n
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
 
 # Shutdown containers
 # docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml down
@@ -115,6 +121,7 @@ docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
 
 # Backup containers data
 borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
@@ -128,19 +135,10 @@ docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recre
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
 
 # Clear docker data
 docker system prune -af
-```
-
-## Stop all containers
-```bash
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml down
 ```
 
 ## Restore Immich

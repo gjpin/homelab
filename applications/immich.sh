@@ -74,11 +74,13 @@ EOF
 ################################################
 
 sudo tee ${DATA_PATH}/immich/docker/config.env << EOF
+# Postgres env vars
 POSTGRES_PASSWORD=${IMMICH_DATABASE_PASSWORD}
 POSTGRES_USER=immich
 POSTGRES_DB=immich
 POSTGRES_INITDB_ARGS="--data-checksums"
 
+# Immich env vars
 DB_HOSTNAME=immich-postgres
 DB_USERNAME=immich
 DB_PASSWORD=${IMMICH_DATABASE_PASSWORD}

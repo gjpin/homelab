@@ -1,5 +1,9 @@
 #!/usr/bin/bash
 
+# References:
+# https://github.com/mholt/caddy-l4
+# https://caddy.community/t/need-help-configuring-caddy-l4-for-git-ssh-access-on-domain/26405/7
+
 # Create Docker network
 docker network create caddy
 
@@ -17,6 +21,7 @@ FROM caddy:2.9.1-builder-alpine AS builder
 
 RUN xcaddy build \
     --with github.com/mholt/caddy-webdav \
+    --with github.com/mholt/caddy-l4 \
     --with github.com/caddy-dns/cloudflare
 
 FROM caddy:2.9.1-alpine
@@ -45,6 +50,7 @@ services:
       - radicale
       - syncthing
       - vaultwarden
+      - gitea
     volumes:
       - ${DATA_PATH}/caddy/configs/Caddyfile:/etc/caddy/Caddyfile
       - ${DATA_PATH}/caddy/volumes/caddy:/data/caddy
@@ -65,6 +71,8 @@ networks:
     external: true
   vaultwarden:
     external: true
+  gitea:
+    external: true
 EOF
 
 ################################################
@@ -75,6 +83,19 @@ tee ${DATA_PATH}/caddy/configs/Caddyfile << EOF
 {
         acme_dns cloudflare ${CADDY_CLOUDFLARE_TOKEN}
         order webdav before file_server
+        layer4 {
+                :443 {
+                        @secure tls sni git.${BASE_DOMAIN}
+                        route @secure {
+                                proxy gitea:3000
+                        }
+                        @ssh ssh
+                        route @ssh {
+                                proxy gitea:22
+                        }
+
+                }
+        }
 }
 
 (default-header) {
@@ -199,6 +220,17 @@ vault.${BASE_DOMAIN} {
 
         # Negotiation endpoint
         reverse_proxy /notifications/hub/negotiate vaultwarden:8080 {
+                header_up X-Real-IP {remote_host}
+        }
+}
+
+# Gitea
+git.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy gitea:3000 {
                 header_up X-Real-IP {remote_host}
         }
 }
