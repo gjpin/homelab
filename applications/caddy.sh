@@ -118,7 +118,7 @@ tee ${DATA_PATH}/caddy/configs/Caddyfile << EOF
 # WebDAV - Bookmarks
 bookmarks.${BASE_DOMAIN} {
     root * /data/bookmarks
-    basicauth {
+    basic_auth {
         admin ${CADDY_HASHED_PASSWORD}
     }
     webdav
@@ -224,7 +224,7 @@ git.${BASE_DOMAIN} {
         }
 }
 
-# Librechat
+# LibreChat
 chat.${BASE_DOMAIN} {
         import default-header
 

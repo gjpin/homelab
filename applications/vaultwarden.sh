@@ -15,7 +15,7 @@ mkdir -p ${DATA_PATH}/vaultwarden/volumes/vaultwarden
 tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml << EOF
 services:
   vaultwarden:
-    image: vaultwarden/server:1.32.7
+    image: vaultwarden/server:1.33.2
     pull_policy: always
     container_name: vaultwarden
     restart: always

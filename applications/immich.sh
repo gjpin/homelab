@@ -25,7 +25,7 @@ tee ${DATA_PATH}/immich/docker/docker-compose.yml << EOF
 services:
   immich-server:
     container_name: immich-server
-    image: ghcr.io/immich-app/immich-server:v1.124.2
+    image: ghcr.io/immich-app/immich-server:v1.126.1
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
       - /etc/localtime:/etc/localtime:ro

@@ -14,10 +14,12 @@ docker network create librechat
 # Create directories
 mkdir -p ${DATA_PATH}/librechat/docker
 mkdir -p ${DATA_PATH}/librechat/configs
-mkdir -p ${DATA_PATH}/librechat/volumes/{librechat,mongodb,pgvector,meilisearch}
+mkdir -p ${DATA_PATH}/librechat/volumes/librechat/{logs,images}
+mkdir -p ${DATA_PATH}/librechat/volumes/{mongodb,pgvector,meilisearch}
 
-sudo chown 1000:1000 ${DATA_PATH}/librechat/configs
-sudo chown 1000:1000 ${DATA_PATH}/librechat/volumes/librechat
+# Fix permissions
+sudo chown -R 1000:1000 ${DATA_PATH}/librechat/configs
+sudo chown -R 1000:1000 ${DATA_PATH}/librechat/volumes
 
 ################################################
 ##### Docker Compose
@@ -30,7 +32,7 @@ services:
     pull_policy: always
     container_name: librechat
     restart: always
-    user: $USER
+    user: "${UID}:${GID}"
     networks:
       - librechat
     env_file:
@@ -38,6 +40,7 @@ services:
     volumes:
       - ${DATA_PATH}/librechat/volumes/librechat/images:/app/client/public/images
       - ${DATA_PATH}/librechat/volumes/librechat/logs:/app/api/logs
+      - ${DATA_PATH}/librechat/configs/librechat.yaml:/app/librechat.yaml
     depends_on:
       - librechat-mongodb
       - librechat-rag
@@ -46,7 +49,7 @@ services:
     container_name: librechat-mongodb
     image: ghcr.io/gjpin/mongodb-raspberrypi-docker:7.0.14
     restart: always
-    user: $USER
+    user: "${UID}:${GID}"
     volumes:
       - ${DATA_PATH}/librechat/volumes/mongodb:/data/db
     command: mongod --noauth
@@ -58,7 +61,7 @@ services:
     image: docker.io/getmeili/meilisearch:v1.12.8
     env_file:
       - config.env
-    user: $USER
+    user: "${UID}:${GID}"
     volumes:
       - ${DATA_PATH}/librechat/volumes/meilisearch:/meili_data
     restart: always
@@ -99,7 +102,7 @@ EOF
 
 tee ${DATA_PATH}/librechat/docker/config.env << EOF
 # Server
-HOST=localhost
+HOST=0.0.0.0
 PORT=3080
 MONGO_URI=mongodb://librechat-mongodb:27017/LibreChat
 DOMAIN_CLIENT=${LIBRECHAT_DOMAIN_CLIENT}
@@ -161,4 +164,84 @@ HELP_AND_FAQ_URL=https://librechat.ai
 POSTGRES_PASSWORD=${LIBRECHAT_POSTGRES_PASSWORD}
 POSTGRES_USER=librechat
 POSTGRES_DB=librechat
+EOF
+
+################################################
+##### Config
+################################################
+
+tee ${DATA_PATH}/librechat/configs/librechat.yaml << EOF
+version: 1.2.1
+ 
+cache: true
+ 
+interface:
+  privacyPolicy:
+    externalUrl: 'https://librechat.ai/privacy-policy'
+    openNewTab: true
+ 
+  termsOfService:
+    externalUrl: 'https://librechat.ai/tos'
+    openNewTab: true
+
+  endpointsMenu: true
+  modelSelect: true
+  parameters: true
+  sidePanel: true
+  presets: true
+  prompts: true
+  bookmarks: true
+  multiConvo: true
+  agents: true
+ 
+registration:
+  socialLogins: []
+ 
+endpoints:
+  custom:
+ 
+    # groq
+    - name: "groq"
+      apiKey: "${LIBRECHAT_GROQ_API_KEY}"
+      baseURL: "https://api.groq.com/openai/v1/"
+      models:
+        default: [
+          "deepseek-r1-distill-llama-70b",
+          "deepseek-r1-distill-qwen-32b",
+          "llama-3.3-70b-versatile",
+          "qwen-2.5-32b",
+          "mixtral-8x7b-32768"
+          ]
+        fetch: false
+      titleConvo: true
+      titleModel: "deepseek-r1-distill-llama-70b"
+      modelDisplayLabel: "Deepseek R1 Distill Lama"
+ 
+    # Mistral AI API
+    - name: "Mistral"
+      apiKey: "${LIBRECHAT_MISTRAL_API_KEY}"
+      baseURL: "https://api.mistral.ai/v1"
+      models:
+        default: [
+          "mistral-large-2411",
+          "open-mixtral-8x22b",
+          "open-mixtral-8x7b",
+          "codestral-2501"
+          ]
+        fetch: true
+      titleConvo: true
+      titleModel: "mistral-large-2411"
+      modelDisplayLabel: "Mistral Large"
+      dropParams: ["stop", "user", "frequency_penalty", "presence_penalty"]
+
+    # Deepseek
+    - name: "Deepseek"
+      apiKey: "${LIBRECHAT_DEEPSEEK_API_KEY}"
+      baseURL: "https://api.deepseek.com/v1"
+      models:
+        default: ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]
+        fetch: false
+      titleConvo: true
+      titleModel: "deepseek-chat"
+      modelDisplayLabel: "Deepseek Chat"
 EOF

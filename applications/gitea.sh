@@ -12,8 +12,9 @@ mkdir -p ${DATA_PATH}/gitea/docker
 mkdir -p ${DATA_PATH}/gitea/configs
 mkdir -p ${DATA_PATH}/gitea/volumes/{gitea,postgres}
 
-sudo chown 1000:1000 ${DATA_PATH}/gitea/configs
-sudo chown 1000:1000 ${DATA_PATH}/gitea/volumes/gitea
+# Fix permissions
+sudo chown -R 1000:1000 ${DATA_PATH}/gitea/configs
+sudo chown -R 1000:1000 ${DATA_PATH}/gitea/volumes/gitea
 
 ################################################
 ##### Docker Compose
@@ -22,7 +23,7 @@ sudo chown 1000:1000 ${DATA_PATH}/gitea/volumes/gitea
 tee ${DATA_PATH}/gitea/docker/docker-compose.yml << EOF
 services:
   gitea:
-    image: docker.io/gitea/gitea:1.23.1
+    image: docker.io/gitea/gitea:1.23.3
     pull_policy: always
     container_name: gitea
     restart: always
