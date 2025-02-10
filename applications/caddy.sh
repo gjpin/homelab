@@ -50,6 +50,7 @@ services:
       - syncthing
       - vaultwarden
       - gitea
+      - librechat
     volumes:
       - ${DATA_PATH}/caddy/configs/Caddyfile:/etc/caddy/Caddyfile
       - ${DATA_PATH}/caddy/volumes/caddy:/data/caddy
@@ -71,6 +72,8 @@ networks:
   vaultwarden:
     external: true
   gitea:
+    external: true
+  librechat:
     external: true
 EOF
 
@@ -217,6 +220,17 @@ git.${BASE_DOMAIN} {
         encode gzip
 
         reverse_proxy gitea:3000 {
+                header_up X-Real-IP {remote_host}
+        }
+}
+
+# Librechat
+chat.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy librechat:3080 {
                 header_up X-Real-IP {remote_host}
         }
 }

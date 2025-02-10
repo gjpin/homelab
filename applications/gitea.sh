@@ -58,12 +58,12 @@ EOF
 ################################################
 
 tee ${DATA_PATH}/gitea/docker/config.env << EOF
-# Postgres env vars
+# Postgres
 POSTGRES_PASSWORD=${GITEA_DATABASE_PASSWORD}
 POSTGRES_USER=gitea
 POSTGRES_DB=gitea
 
-# Gitea env vars
+# Gitea
 USER_UID=1000
 USER_GID=1000
 

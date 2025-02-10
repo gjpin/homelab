@@ -10,6 +10,7 @@
 | [Syncthing](https://github.com/syncthing/syncthing) | syncthing.${BASE_DOMAIN} | Continuous File Synchronization | Yes |
 | [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | vault.${BASE_DOMAIN} | Unofficial Bitwarden compatible server | No |
 | [Gitea](https://github.com/go-gitea/gitea) | git.${BASE_DOMAIN} | Git server / DevOps platform | Yes |
+| [LibreChat](https://github.com/danny-avila/LibreChat) | chat.${BASE_DOMAIN} | Enhanced ChatGPT Clone | Yes |
 
 # Getting started
 1. Create DNS entries in Cloudflare, pointing to Wireguard's internal address
@@ -23,14 +24,16 @@ docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull -
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 ```
 6. Create borg repo (if not created yet): `borg init --encryption=none /backup/containers`
 
@@ -49,50 +52,51 @@ export DATA_PATH=/data/containers
 export BACKUP_PATH=/backup/containers
 ```
 
-## New vars
+## Configuration
 ```bash
+# Caddy
 export CADDY_PASSWORD=$(openssl rand -hex 48)
 export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 
+# Immich
 export IMMICH_DATABASE_PASSWORD=$(openssl rand -hex 48)
 export IMMICH_JWT_SECRET=$(openssl rand -hex 48)
 
+# Obsidian
 export OBSIDIAN_COUCHDB_PASSWORD=$(openssl rand -hex 48)
 
+# Pi-Hole
 export PIHOLE_ADMIN_TOKEN=$(openssl rand -hex 48)
 export PIHOLE_WEBPASSWORD=$(openssl rand -hex 48)
 
+# Technitium
 export TECHNITIUM_ADMIN_PASSWORD=$(openssl rand -hex 48)
 
+# Radicale
 export RADICALE_PASSWORD=$(openssl rand -hex 48)
 export RADICALE_USER_PASSWORD=$(htpasswd -n -b admin ${RADICALE_PASSWORD})
 
+# Vaultwarden
 export VAULTWARDEN_ADMIN_TOKEN=$(openssl rand -hex 48)
 
+# Gitea
 export GITEA_DATABASE_PASSWORD=$(openssl rand -hex 48)
-```
 
-## Re-use vars
-```bash
-export CADDY_HASHED_PASSWORD=
-export CADDY_CLOUDFLARE_TOKEN=
-
-export IMMICH_DATABASE_PASSWORD=
-export IMMICH_JWT_SECRET=
-
-export OBSIDIAN_COUCHDB_PASSWORD=
-
-export PIHOLE_ADMIN_TOKEN=
-export PIHOLE_WEBPASSWORD=
-
-export TECHNITIUM_ADMIN_PASSWORD=
-
-export RADICALE_USER_PASSWORD=
-
-export VAULTWARDEN_ADMIN_TOKEN=
-
-export GITEA_DATABASE_PASSWORD=
+# LibreChat
+export LIBRECHAT_DOMAIN_CLIENT=https://chat.${BASE_DOMAIN}
+export LIBRECHAT_DOMAIN_SERVER=https://chat.${BASE_DOMAIN}
+export LIBRECHAT_CREDS_KEY=$(openssl rand -hex 32)
+export LIBRECHAT_CREDS_IV=$(openssl rand -hex 16)
+export LIBRECHAT_MEILI_MASTER_KEY=$(openssl rand -hex 16)
+export LIBRECHAT_JWT_SECRET=$(openssl rand -hex 32)
+export LIBRECHAT_JWT_REFRESH_SECRET=$(openssl rand -hex 32)
+export LIBRECHAT_POSTGRES_PASSWORD=$(openssl rand -hex 32)
+export LIBRECHAT_RAG_OPENAI_API_KEY=
+export LIBRECHAT_OPENAI_API_KEY=
+export LIBRECHAT_GROQ_API_KEY=
+export LIBRECHAT_MISTRAL_API_KEY=
+export LIBRECHAT_DEEPSEEK_API_KEY=
 ```
 
 # Cheat sheet
@@ -112,6 +116,7 @@ docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 
 # Shutdown containers
 # docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml down
@@ -122,6 +127,7 @@ docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
 
 # Backup containers data
 borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
@@ -136,6 +142,7 @@ docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-re
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 
 # Clear docker data
 docker system prune -af
