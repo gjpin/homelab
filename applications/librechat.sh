@@ -231,6 +231,7 @@ endpoints:
       titleConvo: true
       titleModel: "mistral-large-latest"
       modelDisplayLabel: "Mistral Large"
+      dropParams: ["stop", "user", "frequency_penalty", "presence_penalty"]
 
     # Deepseek
     - name: "Deepseek"
