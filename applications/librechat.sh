@@ -211,7 +211,7 @@ endpoints:
           "llama-3.3-70b-versatile",
           "qwen-2.5-32b",
           "mixtral-8x7b-32768"
-          ]
+        ]
         fetch: false
       titleConvo: true
       titleModel: "deepseek-r1-distill-llama-70b"
@@ -223,23 +223,25 @@ endpoints:
       baseURL: "https://api.mistral.ai/v1"
       models:
         default: [
-          "mistral-large-2411",
-          "open-mixtral-8x22b",
-          "open-mixtral-8x7b",
-          "codestral-2501"
-          ]
+          "codestral-latest",
+          "mistral-large-latest",
+          "pixtral-large-latest"
+        ]
         fetch: true
       titleConvo: true
-      titleModel: "mistral-large-2411"
+      titleModel: "mistral-large-latest"
       modelDisplayLabel: "Mistral Large"
-      dropParams: ["stop", "user", "frequency_penalty", "presence_penalty"]
 
     # Deepseek
     - name: "Deepseek"
       apiKey: "${LIBRECHAT_DEEPSEEK_API_KEY}"
       baseURL: "https://api.deepseek.com/v1"
       models:
-        default: ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]
+        default: [
+          "deepseek-chat", 
+          "deepseek-coder", 
+          "deepseek-reasoner"
+        ]
         fetch: false
       titleConvo: true
       titleModel: "deepseek-chat"
