@@ -110,7 +110,7 @@ sudo apt-get update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
 # Add user to Docker group
-sudo gpasswd -a $USER docker
+sudo usermod -aG docker $USER
 
 ################################################
 ##### Next steps
