@@ -1,9 +1,5 @@
 #!/usr/bin/bash
 
-# Become root, in case sudo is not yet installed
-# su -
-# adduser $username sudo
-
 ################################################
 ##### Update system and install base packages
 ################################################
@@ -29,56 +25,29 @@ sudo apt install -y \
 sudo apt install -y borgbackup
 
 ################################################
-##### GRUB
+##### Swap
 ################################################
 
-# Disable the GRUB menu selection
-sudo sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
-sudo sed -i 's/^GRUB_HIDDEN_TIMEOUT=.*/GRUB_HIDDEN_TIMEOUT=0/' /etc/default/grub
-sudo sed -i 's/^GRUB_HIDDEN_TIMEOUT_QUIET=.*/GRUB_HIDDEN_TIMEOUT_QUIET=true/' /etc/default/grub
+# Disable swap temporarily
+sudo swapoff -a
 
-# If the above settings are missing, add them
-grep -q '^GRUB_TIMEOUT=' /etc/default/grub || echo 'GRUB_TIMEOUT=0' | sudo tee -a /etc/default/grub
-grep -q '^GRUB_HIDDEN_TIMEOUT=' /etc/default/grub || echo 'GRUB_HIDDEN_TIMEOUT=0' | sudo tee -a /etc/default/grub
-grep -q '^GRUB_HIDDEN_TIMEOUT_QUIET=' /etc/default/grub || echo 'GRUB_HIDDEN_TIMEOUT_QUIET=true' | sudo tee -a /etc/default/grub
-
-# Regenerate GRUB configuration
-sudo update-grub
-
-################################################
-##### Auto-unlock LUKS with TPM2
-################################################
-
-# Install tpm2-tools
-sudo apt install -y tpm2-tools
-
-# Enroll TPM2 Key in LUKS
-sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/nvme0n1p3
-
-# Update /etc/crypttab
-sudo sed -i 's/\bluks\b/tpm2-device=auto,&/' /etc/crypttab
-
-# Regenerate the initramfs to include TPM2 unlock support
-sudo update-initramfs -u -k all
-
-# Ensure GRUB includes the correct kernel parameters
-sudo update-grub
-
-# TPM2 LUKS unlock kernel params
-# echo "GRUB_CMDLINE_LINUX_DEFAULT=\"\$GRUB_CMDLINE_LINUX_DEFAULT rd.luks.options=$(blkid -s UUID -o value /dev/nvme0n1p3)\"" \
-#   | sudo tee /etc/default/grub.d/tpm2.cfg
+# Disable swap permanently
+sudo dphys-swapfile swapoff
+sudo systemctl disable --now dphys-swapfile.service
 
 ################################################
 ##### AppArmor
 ################################################
 
-# Install AppArmor utils
+# Install AppArmor
 sudo apt -y install \
   apparmor \
   apparmor-utils \
   apparmor-profiles \
-  apparmor-profiles-extra \
-  auditd
+  apparmor-profiles-extra
+
+# Enable AppArmor
+sudo sed -i 's/rootwait/rootwait lsm=apparmor/g' /boot/cmdline.txt
 
 ################################################
 ##### Docker
@@ -108,7 +77,30 @@ sudo apt update
 sudo apt install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 # Add user to Docker group
-sudo gpasswd -a $USER docker
+sudo gpasswd -a pi docker
+
+################################################
+##### Kernel configurations
+################################################
+
+# References:
+# https://www.kernel.org/doc/Documentation/vm/overcommit-accounting
+# https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size
+
+sudo sysctl vm.overcommit_memory=1
+sudo tee /etc/sysctl.d/99-overcommit-memory.conf << EOF
+vm.overcommit_memory=1
+EOF
+
+sudo sysctl net.core.rmem_max=2500000
+sudo tee /etc/sysctl.d/99-udp-max-buffer-size.conf << EOF
+net.core.rmem_max=2500000
+EOF
+
+sudo sysctl net.ipv4.ip_forward=1
+sudo tee /etc/sysctl.d/99-ipv4-ip-forward.conf << EOF
+net.ipv4.ip_forward=1
+EOF
 
 ################################################
 ##### Next steps

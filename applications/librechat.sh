@@ -28,7 +28,7 @@ sudo chown -R 1000:1000 ${DATA_PATH}/librechat/volumes
 tee ${DATA_PATH}/librechat/docker/docker-compose.yml << EOF
 services:
   librechat:
-    image: ghcr.io/danny-avila/librechat-dev:15c55d226e1e19abcda140335f30b5cbf9c299e6
+    image: ghcr.io/danny-avila/librechat-dev:e3b5c599495c917a46d2f09361915351c85cfe65
     pull_policy: always
     container_name: librechat
     restart: always
@@ -47,7 +47,7 @@ services:
 
   librechat-mongodb:
     container_name: librechat-mongodb
-    image: ghcr.io/gjpin/mongodb-raspberrypi-docker:7.0.14
+    image: docker.io/mongo:8.0.4-noble
     restart: always
     user: "${UID}:${GID}"
     volumes:
