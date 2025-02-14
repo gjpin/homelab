@@ -28,6 +28,14 @@ sudo apt install -y \
 # Install borgbackup
 sudo apt install -y borgbackup
 
+# Install AppArmor utils
+sudo apt -y install \
+  apparmor \
+  apparmor-utils \
+  apparmor-profiles \
+  apparmor-profiles-extra \
+  auditd
+
 ################################################
 ##### GRUB
 ################################################
@@ -63,18 +71,6 @@ sudo update-initramfs -u -k all
 
 # Ensure GRUB includes the correct kernel parameters
 sudo update-grub
-
-################################################
-##### AppArmor
-################################################
-
-# Install AppArmor utils
-sudo apt -y install \
-  apparmor \
-  apparmor-utils \
-  apparmor-profiles \
-  apparmor-profiles-extra \
-  auditd
 
 ################################################
 ##### Docker
