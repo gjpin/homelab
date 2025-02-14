@@ -4,17 +4,36 @@
 # su -
 # adduser $username sudo
 
+# Update system
+sudo apt update
+sudo apt full-upgrade -y
+sudo apt autoremove -y
+
+################################################
+##### Setup backports
+################################################
+
+# References:
+# https://backports.debian.org/Instructions/
+# https://backports.debian.org/changes/bookworm-backports.html
+
+# Add backports repo
+tee /etc/apt/sources.list.d/bookworm-backports.list << EOF
+deb http://deb.debian.org/debian bookworm-backports main
+EOF
+
+# Update repos
+apt update
+
+# Install latest kernel from backports
+apt install -y linux/bookworm-backports
+
 ################################################
 ##### Update system and install base packages
 ################################################
 
 # References:
 # https://wiki.archlinux.org/title/Borg_backup
-
-# Update system
-sudo apt update
-sudo apt full-upgrade -y
-sudo apt autoremove -y
 
 # Install base packages
 sudo apt install -y \
