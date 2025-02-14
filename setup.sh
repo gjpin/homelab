@@ -18,15 +18,15 @@ sudo apt autoremove -y
 # https://backports.debian.org/changes/bookworm-backports.html
 
 # Add backports repo
-tee /etc/apt/sources.list.d/bookworm-backports.list << EOF
+sudo tee /etc/apt/sources.list.d/bookworm-backports.list << EOF
 deb http://deb.debian.org/debian bookworm-backports main
 EOF
 
 # Update repos
-apt update
+sudo apt update
 
 # Install latest kernel from backports
-apt install -y linux/bookworm-backports
+sudo apt install -y linux-image-amd64/bookworm-backports
 
 ################################################
 ##### Update system and install base packages
