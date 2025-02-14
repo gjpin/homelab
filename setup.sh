@@ -64,10 +64,6 @@ sudo update-initramfs -u -k all
 # Ensure GRUB includes the correct kernel parameters
 sudo update-grub
 
-# TPM2 LUKS unlock kernel params
-# echo "GRUB_CMDLINE_LINUX_DEFAULT=\"\$GRUB_CMDLINE_LINUX_DEFAULT rd.luks.options=$(blkid -s UUID -o value /dev/nvme0n1p3)\"" \
-#   | sudo tee /etc/default/grub.d/tpm2.cfg
-
 ################################################
 ##### AppArmor
 ################################################
