@@ -1,127 +1,84 @@
 #!/usr/bin/bash
 
-# Become root, in case sudo is not yet installed
-# su -
-# adduser $username sudo
+################################################
+##### Set variables
+################################################
+
+read -p "Hostname: " NEW_HOSTNAME
+export NEW_HOSTNAME
+
+################################################
+##### General
+################################################
+
+# Set hostname
+sudo hostnamectl set-hostname --pretty "${NEW_HOSTNAME}"
+sudo hostnamectl set-hostname --static "${NEW_HOSTNAME}"
 
 # Update system
-sudo apt update
-sudo apt full-upgrade -y
-sudo apt autoremove -y
+sudo dnf upgrade -y --refresh
+
+# Install common packages
+sudo dnf install -y \
+  bind-utils \
+  kernel-tools \
+  unzip \
+  p7zip \
+  p7zip-plugins \
+  unrar \
+  zstd \
+  htop \
+  xq \
+  jq \
+  fd-find \
+  fzf
+
+# Set SSH folder permissions
+chmod 700 ${HOME}/.ssh
+
 
 ################################################
-##### Setup backports
+##### WireGuard
 ################################################
 
-# References:
-# https://backports.debian.org/Instructions/
-# https://backports.debian.org/changes/bookworm-backports.html
+# Install wireguard-tools
+sudo dnf install -y wireguard-tools
 
-# Add backports repo
-sudo tee /etc/apt/sources.list.d/bookworm-backports.list << EOF
-deb http://deb.debian.org/debian bookworm-backports main
+# Create WireGuard folder
+sudo mkdir -p /etc/wireguard/
+sudo chmod 700 /etc/wireguard/
+
+################################################
+##### Podman
+################################################
+
+# Set podman alias
+tee ${HOME}/.bashrc.d/podman << EOF
+alias docker="podman"
 EOF
 
-# Update repos
-sudo apt update
-
-# Install latest kernel from backports
-sudo apt install -y linux-image-amd64/bookworm-backports
+# Enable Podman socket
+systemctl --user enable podman.socket
 
 ################################################
-##### Update system and install base packages
+##### Unlock LUKS2 with TPM2 token
 ################################################
 
 # References:
-# https://wiki.archlinux.org/title/Borg_backup
+# https://fedoramagazine.org/use-systemd-cryptenroll-with-fido-u2f-or-tpm2-to-decrypt-your-disk/
+# https://www.freedesktop.org/software/systemd/man/systemd-cryptenroll.html
 
-# Install base packages
-sudo apt install -y \
-  wireguard \
-  zstd \
-  tar \
-  apt-transport-https \
-  apache2-utils \
-  wakeonlan
+# Add tpm2-tss module to dracut
+echo 'add_dracutmodules+=" tpm2-tss "' | sudo tee /etc/dracut.conf.d/tpm2.conf
 
-# Install borgbackup
-sudo apt install -y borgbackup
+# Enroll TPM2 as LUKS' decryption factor
+sudo systemd-cryptenroll --wipe-slot=tpm2 --tpm2-device auto /dev/nvme0n1p3
 
-# Install AppArmor utils
-sudo apt -y install \
-  apparmor \
-  apparmor-utils \
-  apparmor-profiles \
-  apparmor-profiles-extra \
-  auditd
+# Update crypttab
+sudo sed -i "s|discard|&,tpm2-device=auto|" /etc/crypttab
 
-################################################
-##### GRUB
-################################################
-
-# Disable the GRUB menu selection
-sudo sed -i 's/^GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/' /etc/default/grub
-sudo sed -i 's/^GRUB_HIDDEN_TIMEOUT=.*/GRUB_HIDDEN_TIMEOUT=0/' /etc/default/grub
-sudo sed -i 's/^GRUB_HIDDEN_TIMEOUT_QUIET=.*/GRUB_HIDDEN_TIMEOUT_QUIET=true/' /etc/default/grub
-
-# If the above settings are missing, add them
-grep -q '^GRUB_TIMEOUT=' /etc/default/grub || echo 'GRUB_TIMEOUT=0' | sudo tee -a /etc/default/grub
-grep -q '^GRUB_HIDDEN_TIMEOUT=' /etc/default/grub || echo 'GRUB_HIDDEN_TIMEOUT=0' | sudo tee -a /etc/default/grub
-grep -q '^GRUB_HIDDEN_TIMEOUT_QUIET=' /etc/default/grub || echo 'GRUB_HIDDEN_TIMEOUT_QUIET=true' | sudo tee -a /etc/default/grub
-
-# Regenerate GRUB configuration
-sudo update-grub
-
-################################################
-##### Auto-unlock LUKS with TPM2
-################################################
-
-# Install tpm2-tools
-sudo apt install -y tpm2-tools
-
-# Enroll TPM2 Key in LUKS
-sudo systemd-cryptenroll --tpm2-device=auto --tpm2-pcrs=0+7 /dev/nvme0n1p3
-
-# Update /etc/crypttab
-sudo sed -i 's/\bluks\b/tpm2-device=auto,&/' /etc/crypttab
-
-# Regenerate the initramfs to include TPM2 unlock support
-sudo update-initramfs -u -k all
-
-# Ensure GRUB includes the correct kernel parameters
-sudo update-grub
-
-################################################
-##### Docker
-################################################
-
-# References:
-# https://docs.docker.com/engine/install/debian/#install-using-the-repository
-
-# Install dependencies
-sudo apt install -y \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release
-
-# Add Docker's official GPG key
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-# Add Docker's repository to Apt sources:
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
-
-# Install Docker packages
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Add user to Docker group
-sudo usermod -aG docker $USER
+# Regenerate initramfs
+sudo dracut --regenerate-all --force
 
 ################################################
 ##### Next steps
