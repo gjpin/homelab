@@ -42,6 +42,32 @@ chmod 700 ${HOME}/.ssh
 mkdir -p ${HOME}/.bashrc.d
 
 ################################################
+##### Kernel configurations
+################################################
+
+# References:
+# https://www.kernel.org/doc/Documentation/vm/overcommit-accounting
+# https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size
+
+sudo sysctl vm.overcommit_memory=1
+sudo tee /etc/sysctl.d/99-overcommit-memory.conf << EOF
+vm.overcommit_memory=1
+EOF
+
+sudo sysctl net.core.rmem_max=2500000
+sudo tee /etc/sysctl.d/99-udp-max-buffer-size.conf << EOF
+net.core.rmem_max=2500000
+EOF
+
+sudo sysctl net.ipv4.ip_forward=1
+sudo tee /etc/sysctl.d/99-ipv4-ip-forward.conf << EOF
+net.ipv4.ip_forward=1
+EOF
+
+# Reload configurations
+sudo sysctl --system
+
+################################################
 ##### Networking and Firewall
 ################################################
 
@@ -51,16 +77,22 @@ mkdir -p ${HOME}/.bashrc.d
 # TODO: create separate zone for WireGuard network
 
 # Forward traffic of privileged ports
-sudo firewall-cmd --permanent --add-forward-port=port=5353:proto=udp:toport=53;
-sudo firewall-cmd --permanent --add-forward-port=port=5353:proto=tcp:toport=53;
+sudo firewall-cmd --permanent --zone=FedoraServer --add-forward-port=port=443:proto=tcp:toport=4443
+sudo firewall-cmd --permanent --zone=FedoraServer --add-forward-port=port=53:proto=tcp:toport=5353
+sudo firewall-cmd --permanent --zone=FedoraServer --add-forward-port=port=53:proto=udp:toport=5353
 
-sudo firewall-cmd --permanent --add-forward-port=port=4443:proto=udp:toport=443;
-
-# Open doors for WireGuard and Caddy TLS
+# Open doors for WireGuard, Caddy and Pi-Hole
 sudo firewall-cmd --permanent --zone=FedoraServer --add-port=51901/udp
-sudo firewall-cmd --permanent --zone=FedoraServer --add-port=4443/tcp
-sudo firewall-cmd --permanent --zone=FedoraServer --add-port=5353/udp
-sudo firewall-cmd --permanent --zone=FedoraServer --add-port=5353/tcp
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=443/tcp
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=53/udp
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=53/tcp
+
+# syncthing
+      # - 22000:22000/tcp
+      # - 22000:22000/udp
+      # - 21027:21027/udp
+
+sudo firewall-cmd --reload
 
 ################################################
 ##### WireGuard
