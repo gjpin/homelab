@@ -13,6 +13,10 @@
 | [LibreChat](https://github.com/danny-avila/LibreChat) | chat.${BASE_DOMAIN} | Enhanced ChatGPT Clone | Yes |
 
 # Getting started
+0. Copy SSH public key to PC. If it's on a USB, mount it and copy to $HOME/.ssh:
+```bash
+sudo udisksctl mount -b /dev/sda
+```
 1. Create DNS entries in Cloudflare, pointing to Wireguard's internal address
 2. Set env vars (see below)
 3. Go through setup.sh

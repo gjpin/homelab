@@ -31,11 +31,15 @@ sudo dnf install -y \
   xq \
   jq \
   fd-find \
-  fzf
+  fzf \
+  nano
 
-# Set SSH folder permissions
+# Create SSH directory and set permissions
+mkdir -p ${HOME}/.ssh
 chmod 700 ${HOME}/.ssh
 
+# Create directory for bash configs
+mkdir -p ${HOME}/.bashrc.d
 
 ################################################
 ##### WireGuard
@@ -52,13 +56,22 @@ sudo chmod 700 /etc/wireguard/
 ##### Podman
 ################################################
 
+# References:
+# https://docs.redhat.com/en/documentation/red_hat_enterprise_linux_atomic_host/7/html/managing_containers/running_containers_as_systemd_services_with_podman#starting_containers_with_systemd
+
+# Install Podman
+sudo dnf install -y podman
+
+# Enable Podman socket
+systemctl --user enable podman.socket
+
 # Set podman alias
 tee ${HOME}/.bashrc.d/podman << EOF
 alias docker="podman"
 EOF
 
-# Enable Podman socket
-systemctl --user enable podman.socket
+# Turn on the container_manage_cgroup boolean to run containers with systemd
+sudo setsebool -P container_manage_cgroup on
 
 ################################################
 ##### Unlock LUKS2 with TPM2 token
