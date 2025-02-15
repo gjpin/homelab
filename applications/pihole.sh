@@ -4,7 +4,7 @@
 # https://github.com/pi-hole/docker-pi-hole/
 
 # Create Docker network
-docker network create pihole
+sudo podman network create pihole
 
 # Create directories
 mkdir -p ${DATA_PATH}/pihole/docker
@@ -52,8 +52,8 @@ services:
     networks:
       - pihole
     ports:
-      - 53:53/tcp
-      - 53:53/udp
+      - 5353:53/tcp
+      - 5353:53/udp
     env_file:
       - config.env
     depends_on:

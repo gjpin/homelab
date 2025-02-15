@@ -5,7 +5,7 @@
 # https://caddy.community/t/need-help-configuring-caddy-l4-for-git-ssh-access-on-domain/26405/2
 
 # Create Docker network
-docker network create gitea
+sudo podman network create gitea
 
 # Create directories
 mkdir -p ${DATA_PATH}/gitea/docker

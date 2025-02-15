@@ -50,26 +50,17 @@ mkdir -p ${HOME}/.bashrc.d
 
 # TODO: create separate zone for WireGuard network
 
-# Disable systemd-resolved (binds to port 53)
-sudo systemctl disable --now systemd-resolved
-sudo systemctl mask systemd-resolved
+# Forward traffic of privileged ports
+sudo firewall-cmd --permanent --add-forward-port=port=5353:proto=udp:toport=53;
+sudo firewall-cmd --permanent --add-forward-port=port=5353:proto=tcp:toport=53;
 
-# Set Cloudflare as default DNS server
-# /etc/resolv.conf
-# nameserver 127.0.0.53
-# options edns0 trust-ad
-# search lan
-echo -e "nameserver 1.1.1.1\nnameserver 1.0.0.1" | sudo tee /etc/resolv.conf
-
-# Restart Network Manager
-sudo systemctl restart NetworkManager
+sudo firewall-cmd --permanent --add-forward-port=port=4443:proto=udp:toport=443;
 
 # Open doors for WireGuard and Caddy TLS
-sudo firewall-cmd --zone=FedoraServer --add-port=51901/udp
-sudo firewall-cmd --zone=FedoraServer --add-port=443/tcp
-sudo firewall-cmd --zone=FedoraServer --add-port=53/udp
-sudo firewall-cmd --zone=FedoraServer --add-port=53/tcp
-sudo firewall-cmd --runtime-to-permanent
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=51901/udp
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=4443/tcp
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=5353/udp
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=5353/tcp
 
 ################################################
 ##### WireGuard
@@ -88,27 +79,30 @@ sudo chmod 700 /etc/wireguard/
 
 # References:
 # https://docs.redhat.com/en/documentation/red_hat_enterprise_linux_atomic_host/7/html/managing_containers/running_containers_as_systemd_services_with_podman#starting_containers_with_systemd
+# https://wiki.archlinux.org/title/Podman#Networking
+# https://blog.podman.io/2024/03/podman-5-0-breaking-changes-in-detail/
 
 # Install Podman
 sudo dnf install -y podman podman-compose
 
-# Enable Podman socket
-systemctl --user enable podman.socket
-
-# Set podman alias
-tee ${HOME}/.bashrc.d/podman << EOF
-alias docker="podman"
-EOF
-
 # Turn on the container_manage_cgroup boolean to run containers with systemd
 sudo setsebool -P container_manage_cgroup on
 
-# Allow rootless containers to bind to port 53 and up
-sudo tee /etc/sysctl.d/99-unprivileged-port.conf << EOF
-net.ipv4.ip_unprivileged_port_start=53
-EOF
+# Enable Podman socket
+# systemctl --user enable podman.socket
 
-sudo sysctl --system
+# Allow rootless containers to bind to port 53 and up
+# sudo tee /etc/sysctl.d/99-unprivileged-port.conf << EOF
+# net.ipv4.ip_unprivileged_port_start=53
+# EOF
+
+# sudo sysctl --system
+
+# Allow inter-containers communication with Pasta
+# sudo tee /etc/containers/containers.conf << EOF
+# [network]
+# pasta_options = ["-a", "10.0.2.0", "-n", "24", "-g", "10.0.2.2", "--dns-forward", "10.0.2.3"]
+# EOF
 
 ################################################
 ##### Unlock LUKS2 with TPM2 token

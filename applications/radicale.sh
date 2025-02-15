@@ -5,7 +5,7 @@
 # https://caddy.community/t/radicale-reverse-proxy-caddy-2-0/8580/5
 
 # Create Docker network
-docker network create --internal radicale
+sudo podman network create --internal radicale
 
 # Create directories
 mkdir -p ${DATA_PATH}/radicale/docker

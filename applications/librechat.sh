@@ -9,7 +9,7 @@
 # https://www.librechat.ai/docs/configuration/dotenv
 
 # Create Docker network
-docker network create librechat
+sudo podman network create librechat
 
 # Create directories
 mkdir -p ${DATA_PATH}/librechat/docker

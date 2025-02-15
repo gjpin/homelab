@@ -5,7 +5,7 @@
 # https://caddy.community/t/need-help-configuring-caddy-l4-for-git-ssh-access-on-domain/26405/7
 
 # Create Docker network
-docker network create caddy
+sudo podman network create caddy
 
 # Create directories
 mkdir -p ${DATA_PATH}/caddy/docker
@@ -40,7 +40,7 @@ services:
     container_name: caddy
     restart: always
     ports:
-      - 443:443
+      - 4443:443
     networks:
       - caddy
       - immich

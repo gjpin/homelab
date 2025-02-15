@@ -115,25 +115,25 @@ apt autoremove -y
 
 # Update containers
 # podman compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml pull
-podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
-podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
-podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
-podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
-podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
-podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
+sudo podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+sudo podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
+sudo podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
+sudo podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
+sudo podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
+sudo podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
+sudo podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
+sudo podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 
 # Shutdown containers
 # podman compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml down
-podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
-podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
-podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
-podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
-podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
-podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
-podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
+sudo podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+sudo podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
+sudo podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
+sudo podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
+sudo podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
+sudo podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+sudo podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
+sudo podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
 
 # Backup containers data
 borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
@@ -141,14 +141,14 @@ borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
 
 # Start containers
 # podman compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
+sudo podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+sudo podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
+sudo podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
+sudo podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
+sudo podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
+sudo podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+sudo podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
+sudo podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 
 # Clear docker data
 docker system prune -af
