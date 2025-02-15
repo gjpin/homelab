@@ -27,8 +27,7 @@ services:
     container_name: immich-server
     image: ghcr.io/immich-app/immich-server:v1.126.1
     volumes:
-      - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload
-      - /etc/localtime:/etc/localtime:ro
+      - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload:Z
     env_file:
       - config.env
     depends_on:
@@ -53,13 +52,13 @@ services:
     env_file:
       - config.env
     volumes:
-      - ${DATA_PATH}/immich/volumes/postgres:/var/lib/postgresql/data
+      - ${DATA_PATH}/immich/volumes/postgres:/var/lib/postgresql/data:Z
     healthcheck:
-      test: pg_isready --dbname='immich' --username='immich' || exit 1; Chksum="$$(psql --dbname='immich' --username='immich' --tuples-only --no-align --command='SELECT COALESCE(SUM(checksum_failures), 0) FROM pg_stat_database')"; echo "checksum failure count is $$Chksum"; [ "$$Chksum" = '0' ] || exit 1
+      test: pg_isready --dbname='immich' --username='immich' || exit 1; Chksum="\$\$(psql --dbname='immich' --username='immich' --tuples-only --no-align --command='SELECT COALESCE(SUM(checksum_failures), 0) FROM pg_stat_database')"; echo "checksum failure count is $\$Chksum"; [ "$\$Chksum" = '0' ] || exit 1
       interval: 5m
       start_interval: 30s
       start_period: 5m
-    command: ["postgres", "-c", "shared_preload_libraries=vectors.so", "-c", 'search_path="$$user", public, vectors', "-c", "logging_collector=on", "-c", "max_wal_size=2GB", "-c", "shared_buffers=512MB", "-c", "wal_compression=on"]
+    command: ["postgres", "-c", "shared_preload_libraries=vectors.so", "-c", 'search_path="\$\$user", public, vectors', "-c", "logging_collector=on", "-c", "max_wal_size=2GB", "-c", "shared_buffers=512MB", "-c", "wal_compression=on"]
     restart: always
     networks:
       - immich

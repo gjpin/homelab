@@ -17,7 +17,7 @@ mkdir -p ${DATA_PATH}/radicale/volumes/radicale
 ################################################
 
 tee ${DATA_PATH}/radicale/docker/Dockerfile << EOF
-FROM alpine:edge
+FROM docker.io/alpine:edge
 
 RUN apk add --update --no-cache radicale py3-bcrypt
 
@@ -38,9 +38,9 @@ services:
     networks:
       - radicale
     volumes:
-      - ${DATA_PATH}/radicale/configs/users:/etc/radicale/users
-      - ${DATA_PATH}/radicale/configs/config:/etc/radicale/config
-      - ${DATA_PATH}/radicale/volumes/radicale:/var/lib/radicale/collections
+      - ${DATA_PATH}/radicale/configs/users:/etc/radicale/users:Z
+      - ${DATA_PATH}/radicale/configs/config:/etc/radicale/config:Z
+      - ${DATA_PATH}/radicale/volumes/radicale:/var/lib/radicale/collections:Z
 
 networks:
   radicale:

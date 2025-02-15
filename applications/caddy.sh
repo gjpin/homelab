@@ -17,13 +17,13 @@ mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 ################################################
 
 tee ${DATA_PATH}/caddy/docker/Dockerfile << EOF
-FROM caddy:2.9.1-builder-alpine AS builder
+FROM docker.io/caddy:2.9.1-builder-alpine AS builder
 
 RUN xcaddy build \
     --with github.com/mholt/caddy-webdav \
     --with github.com/caddy-dns/cloudflare
 
-FROM caddy:2.9.1-alpine
+FROM docker.io/caddy:2.9.1-alpine
 
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 EOF
@@ -52,9 +52,9 @@ services:
       - gitea
       - librechat
     volumes:
-      - ${DATA_PATH}/caddy/configs/Caddyfile:/etc/caddy/Caddyfile
-      - ${DATA_PATH}/caddy/volumes/caddy:/data/caddy
-      - ${DATA_PATH}/caddy/volumes/bookmarks:/data/bookmarks
+      - ${DATA_PATH}/caddy/configs/Caddyfile:/etc/caddy/Caddyfile:Z
+      - ${DATA_PATH}/caddy/volumes/caddy:/data/caddy:Z
+      - ${DATA_PATH}/caddy/volumes/bookmarks:/data/bookmarks:Z
 
 networks:
   caddy:

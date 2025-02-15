@@ -20,24 +20,26 @@ sudo udisksctl mount -b /dev/sda
 1. Create DNS entries in Cloudflare, pointing to Wireguard's internal address
 2. Set env vars (see below)
 3. Go through setup.sh
-4. Configure and enable WireGuard `sudo systemctl enable --now wg-quick@wg0`
+4. Configure and enable WireGuard `sudo nmcli con import type wireguard file /etc/wireguard/wg0.conf`
 5. Start containers:
 ```bash
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
+podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
+podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --pull --no-cache
+podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
+podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
+podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
+podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
+podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 ```
 6. Create borg repo (if not created yet): `borg init --encryption=none /backup/containers`
 
@@ -112,41 +114,41 @@ apt full-upgrade -y
 apt autoremove -y
 
 # Update containers
-# docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
+# podman compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml pull
+podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
+podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
+podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
+podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
+podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
+podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
+podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 
 # Shutdown containers
-# docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
+# podman compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml down
+podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
+podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
+podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
+podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
+podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
+podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
 
 # Backup containers data
 borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
 borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
 
 # Start containers
-# docker compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
+# podman compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
+podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 
 # Clear docker data
 docker system prune -af
@@ -154,40 +156,33 @@ docker system prune -af
 
 ## Restore Immich
 1. Restore volumes to correct directories
-2. Start only postgres: `docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
-3. Start the rest of the containers: `docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
+2. Start only postgres: `podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
+3. Start the rest of the containers: `podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
 
 # Setup disks
-## Main data disk
+## Existing disks
 ```bash
-# Delete old partition layout and re-read partition table
-sudo wipefs -af /dev/sda
-sudo sgdisk --zap-all --clear /dev/sda
-sudo partprobe /dev/sda
-
-# Partition disk and re-read partition table
-sudo sgdisk -n 1:0:0 -t 1:8300 /dev/sda
-sudo partprobe /dev/sda
-
-# Format partition to EXT4
-sudo mkfs.ext4 /dev/sda1
-
-# Mount
-sudo mkdir -p /data
-sudo mount -t ext4 /dev/sda1 /data
+# Mount data device
+sudo mkdir -p {/data,/backup}
+sudo mount -t ext4 /dev/sdb1 /data
+sudo mount -t ext4 /dev/sda1 /backup
 
 # Auto-mount
 sudo tee -a /etc/fstab << EOF
 
 # data disk
-UUID=$(lsblk -n -o UUID /dev/sda1) /data ext4 defaults 0 0
+UUID=$(lsblk -n -o UUID /dev/sdb1) /data ext4 defaults 0 0
+
+# backup disk
+UUID=$(lsblk -n -o UUID /dev/sda1) /backup ext4 defaults 0 0
 EOF
 
 # Change ownership to user
-sudo chown -R $USER:$USER /data
+sudo chown -R $USER:$USER {/data,/backup}
 ```
 
-## Backup disk
+## New disks
+### Main data disk
 ```bash
 # Delete old partition layout and re-read partition table
 sudo wipefs -af /dev/sdb
@@ -202,16 +197,56 @@ sudo partprobe /dev/sdb
 sudo mkfs.ext4 /dev/sdb1
 
 # Mount
+sudo mkdir -p /data
+sudo mount -t ext4 /dev/sdb1 /data
+
+# Auto-mount
+sudo tee -a /etc/fstab << EOF
+
+# data disk
+UUID=$(lsblk -n -o UUID /dev/sdb1) /data ext4 defaults 0 0
+EOF
+
+# Change ownership to user
+sudo chown -R $USER:$USER /data
+```
+
+### Backup disk
+```bash
+# Delete old partition layout and re-read partition table
+sudo wipefs -af /dev/sda
+sudo sgdisk --zap-all --clear /dev/sda
+sudo partprobe /dev/sda
+
+# Partition disk and re-read partition table
+sudo sgdisk -n 1:0:0 -t 1:8300 /dev/sda
+sudo partprobe /dev/sda
+
+# Format partition to EXT4
+sudo mkfs.ext4 /dev/sda1
+
+# Mount
 sudo mkdir -p /backup
-sudo mount -t ext4 /dev/sdb1 /backup
+sudo mount -t ext4 /dev/sda1 /backup
 
 # Auto-mount
 sudo tee -a /etc/fstab << EOF
 
 # backup disk
-UUID=$(lsblk -n -o UUID /dev/sdb1) /backup ext4 defaults 0 0
+UUID=$(lsblk -n -o UUID /dev/sda1) /backup ext4 defaults 0 0
 EOF
 
 # Change ownership to user
 sudo chown -R $USER:$USER /backup
+```
+
+# Set static IP
+```bash
+# Check network settings
+sudo nmcli
+
+# Change IP address
+sudo nmcli con modify 'enp34s0' ifname enp34s0 ipv4.method manual ipv4.addresses 10.100.100.253/24 gw4 10.100.100.1
+sudo nmcli con down 'enp34s0'
+sudo nmcli con up 'enp34s0' 
 ```

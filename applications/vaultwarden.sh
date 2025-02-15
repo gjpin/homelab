@@ -15,7 +15,7 @@ mkdir -p ${DATA_PATH}/vaultwarden/volumes/vaultwarden
 tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml << EOF
 services:
   vaultwarden:
-    image: vaultwarden/server:1.33.2
+    image: docker.io/vaultwarden/server:1.33.2
     pull_policy: always
     container_name: vaultwarden
     restart: always
@@ -24,7 +24,7 @@ services:
     env_file:
       - config.env
     volumes:
-      - ${DATA_PATH}/vaultwarden/volumes/vaultwarden:/data
+      - ${DATA_PATH}/vaultwarden/volumes/vaultwarden:/data:Z
 
 networks:
   vaultwarden:

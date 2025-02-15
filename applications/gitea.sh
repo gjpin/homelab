@@ -32,9 +32,7 @@ services:
     env_file:
       - config.env
     volumes:
-      - ${DATA_PATH}/gitea/volumes/gitea:/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      - ${DATA_PATH}/gitea/volumes/gitea:/data:Z
     depends_on:
       - gitea-postgres
 
@@ -44,7 +42,7 @@ services:
     env_file:
       - config.env
     volumes:
-      - ${DATA_PATH}/gitea/volumes/postgres:/var/lib/postgresql/data
+      - ${DATA_PATH}/gitea/volumes/postgres:/var/lib/postgresql/data:Z
     restart: always
     networks:
       - gitea

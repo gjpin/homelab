@@ -18,11 +18,11 @@ mkdir -p ${DATA_PATH}/obsidian/volumes/obsidian
 tee ${DATA_PATH}/obsidian/docker/docker-compose.yml << EOF
 services:
   obsidian:
-    image: couchdb:latest
+    image: docker.io/couchdb:latest
     container_name: obsidian
     volumes:
-      - ${DATA_PATH}/obsidian/configs/local.ini:/opt/couchdb/etc/local.ini
-      - ${DATA_PATH}/obsidian/volumes/obsidian:/opt/couchdb/data
+      - ${DATA_PATH}/obsidian/configs/local.ini:/opt/couchdb/etc/local.ini:Z
+      - ${DATA_PATH}/obsidian/volumes/obsidian:/opt/couchdb/data:Z
     env_file:
       - config.env
     restart: always

@@ -22,7 +22,7 @@ mkdir -p ${DATA_PATH}/technitium/volumes/technitium
 tee ${DATA_PATH}/technitium/docker/docker-compose.yml << EOF
 services:
   technitium:
-    image: technitium/dns-server:13.3.0
+    image: docker.io/technitium/dns-server:13.3.0
     pull_policy: always
     container_name: technitium
     restart: always
@@ -35,7 +35,7 @@ services:
     env_file:
       - config.env
     volumes:
-      - ${DATA_PATH}/technitium/volumes/technitium:/etc/dns
+      - ${DATA_PATH}/technitium/volumes/technitium:/etc/dns:Z
     sysctls:
       - net.ipv4.ip_local_port_range=1024 65000
 

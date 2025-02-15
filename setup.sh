@@ -42,6 +42,36 @@ chmod 700 ${HOME}/.ssh
 mkdir -p ${HOME}/.bashrc.d
 
 ################################################
+##### Networking and Firewall
+################################################
+
+# References:
+# https://www.procustodibus.com/blog/2021/07/wireguard-firewalld/
+
+# TODO: create separate zone for WireGuard network
+
+# Disable systemd-resolved (binds to port 53)
+sudo systemctl disable --now systemd-resolved
+sudo systemctl mask systemd-resolved
+
+# Set Cloudflare as default DNS server
+# /etc/resolv.conf
+# nameserver 127.0.0.53
+# options edns0 trust-ad
+# search lan
+echo -e "nameserver 1.1.1.1\nnameserver 1.0.0.1" | sudo tee /etc/resolv.conf
+
+# Restart Network Manager
+sudo systemctl restart NetworkManager
+
+# Open doors for WireGuard and Caddy TLS
+sudo firewall-cmd --zone=FedoraServer --add-port=51901/udp
+sudo firewall-cmd --zone=FedoraServer --add-port=443/tcp
+sudo firewall-cmd --zone=FedoraServer --add-port=53/udp
+sudo firewall-cmd --zone=FedoraServer --add-port=53/tcp
+sudo firewall-cmd --runtime-to-permanent
+
+################################################
 ##### WireGuard
 ################################################
 
@@ -60,7 +90,7 @@ sudo chmod 700 /etc/wireguard/
 # https://docs.redhat.com/en/documentation/red_hat_enterprise_linux_atomic_host/7/html/managing_containers/running_containers_as_systemd_services_with_podman#starting_containers_with_systemd
 
 # Install Podman
-sudo dnf install -y podman
+sudo dnf install -y podman podman-compose
 
 # Enable Podman socket
 systemctl --user enable podman.socket
@@ -72,6 +102,13 @@ EOF
 
 # Turn on the container_manage_cgroup boolean to run containers with systemd
 sudo setsebool -P container_manage_cgroup on
+
+# Allow rootless containers to bind to port 53 and up
+sudo tee /etc/sysctl.d/99-unprivileged-port.conf << EOF
+net.ipv4.ip_unprivileged_port_start=53
+EOF
+
+sudo sysctl --system
 
 ################################################
 ##### Unlock LUKS2 with TPM2 token

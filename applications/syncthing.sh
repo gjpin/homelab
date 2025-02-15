@@ -18,7 +18,7 @@ mkdir -p ${DATA_PATH}/syncthing/volumes/syncthing
 tee ${DATA_PATH}/syncthing/docker/docker-compose.yml << EOF
 services:
   syncthing:
-    image: syncthing/syncthing:1.29.2
+    image: docker.io/syncthing/syncthing:1.29.2
     pull_policy: always
     container_name: syncthing
     hostname: ${HOSTNAME}
@@ -29,7 +29,7 @@ services:
     networks:
       - syncthing
     volumes:
-      - ${DATA_PATH}/syncthing/volumes/syncthing:/var/syncthing
+      - ${DATA_PATH}/syncthing/volumes/syncthing:/var/syncthing:Z
     ports:
       - 22000:22000/tcp
       - 22000:22000/udp

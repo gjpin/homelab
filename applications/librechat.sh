@@ -38,9 +38,9 @@ services:
     env_file:
       - config.env
     volumes:
-      - ${DATA_PATH}/librechat/volumes/librechat/images:/app/client/public/images
-      - ${DATA_PATH}/librechat/volumes/librechat/logs:/app/api/logs
-      - ${DATA_PATH}/librechat/configs/librechat.yaml:/app/librechat.yaml
+      - ${DATA_PATH}/librechat/volumes/librechat/images:/app/client/public/images:Z
+      - ${DATA_PATH}/librechat/volumes/librechat/logs:/app/api/logs:Z
+      - ${DATA_PATH}/librechat/configs/librechat.yaml:/app/librechat.yaml:Z
     depends_on:
       - librechat-mongodb
       - librechat-rag
@@ -51,7 +51,7 @@ services:
     restart: always
     user: "${UID}:${GID}"
     volumes:
-      - ${DATA_PATH}/librechat/volumes/mongodb:/data/db
+      - ${DATA_PATH}/librechat/volumes/mongodb:/data/db:Z
     command: mongod --noauth
     networks:
       - librechat
@@ -63,7 +63,7 @@ services:
       - config.env
     user: "${UID}:${GID}"
     volumes:
-      - ${DATA_PATH}/librechat/volumes/meilisearch:/meili_data
+      - ${DATA_PATH}/librechat/volumes/meilisearch:/meili_data:Z
     restart: always
     networks:
       - librechat
@@ -74,7 +74,7 @@ services:
     env_file:
       - config.env
     volumes:
-      - ${DATA_PATH}/librechat/volumes/pgvector:/var/lib/postgresql/data
+      - ${DATA_PATH}/librechat/volumes/pgvector:/var/lib/postgresql/data:Z
     restart: always
     networks:
       - librechat

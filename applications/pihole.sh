@@ -17,7 +17,7 @@ mkdir -p ${DATA_PATH}/pihole/volumes/pihole
 
 # Create DNSCrypt image
 tee ${DATA_PATH}/pihole/docker/Dockerfile << EOF
-FROM alpine:edge
+FROM docker.io/alpine:edge
 
 RUN apk update
 
@@ -45,7 +45,7 @@ EOF
 tee ${DATA_PATH}/pihole/docker/docker-compose.yml << EOF
 services:
   pihole:
-    image: pihole/pihole:2024.07.0
+    image: docker.io/pihole/pihole:2024.07.0
     pull_policy: always
     container_name: pihole
     restart: always
@@ -59,8 +59,8 @@ services:
     depends_on:
       - pihole-dnscrypt
     volumes:
-      - ${DATA_PATH}/pihole/volumes/pihole:/etc/pihole
-      - ${DATA_PATH}/pihole/configs/99-edns.conf:/etc/dnsmasq.d/99-edns.conf
+      - ${DATA_PATH}/pihole/volumes/pihole:/etc/pihole:Z
+      - ${DATA_PATH}/pihole/configs/99-edns.conf:/etc/dnsmasq.d/99-edns.conf:Z
 
   pihole-dnscrypt:
     build:
