@@ -1,7 +1,7 @@
 #!/usr/bin/bash
 
 # Create Docker network
-sudo podman network create --internal vaultwarden
+sudo podman network create --internal vaultwarden --dns=1.1.1.1
 
 # Create directories
 mkdir -p ${DATA_PATH}/vaultwarden/docker

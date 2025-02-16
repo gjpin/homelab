@@ -250,3 +250,42 @@ sudo nmcli con modify 'enp34s0' ifname enp34s0 ipv4.method manual ipv4.addresses
 sudo nmcli con down 'enp34s0'
 sudo nmcli con up 'enp34s0' 
 ```
+
+# Disable NVIDIA GPU
+```bash
+# References:
+# https://discussion.fedoraproject.org/t/is-this-the-proper-way-to-disable-all-nvidia-gpu-drivers/130555
+# https://wiki.archlinux.org/title/Hybrid_graphics#Fully_power_down_discrete_GPU
+
+# Blacklist NVIDIA drivers
+sudo tee /etc/modprobe.d/blacklist-nvidia.conf << EOF
+blacklist nvidia
+blacklist nouveau
+options nouveau modeset=0
+EOF
+
+# Do not load NVIDIA drivers
+sudo grubby --update-kernel=ALL --args=rd.driver.blacklist=nouveau
+sudo grubby --update-kernel=ALL --args=modprobe.blacklist=nouveau
+
+# Remove NVIDIA UDEV rules
+sudo tee /etc/udev/rules.d/00-remove-nvidia.rules << 'EOF'
+# Remove NVIDIA USB xHCI Host Controller devices, if present
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x0c0330", ATTR{power/control}="auto", ATTR{remove}="1"
+
+# Remove NVIDIA USB Type-C UCSI devices, if present
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x0c8000", ATTR{power/control}="auto", ATTR{remove}="1"
+
+# Remove NVIDIA Audio devices, if present
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x040300", ATTR{power/control}="auto", ATTR{remove}="1"
+
+# Remove NVIDIA VGA/3D controller devices
+ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]*", ATTR{power/control}="auto", ATTR{remove}="1"
+EOF
+
+# Recreate GRUB config
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+
+# Regenerate initramfs
+sudo dracut --regenerate-all --force
+```

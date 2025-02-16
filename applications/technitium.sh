@@ -8,7 +8,7 @@
 # https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml
 
 # Create Docker network
-sudo podman network create technitium
+sudo podman network create technitium --dns=1.1.1.1
 
 # Create directories
 mkdir -p ${DATA_PATH}/technitium/docker

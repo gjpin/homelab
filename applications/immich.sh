@@ -11,7 +11,7 @@
 # https://github.com/immich-app/immich/blob/main/nginx/nginx.conf
 
 # Create Docker network
-sudo podman network create --internal immich
+sudo podman network create --internal immich --dns=1.1.1.1
 
 # Create directories
 mkdir -p ${DATA_PATH}/immich/docker

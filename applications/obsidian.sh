@@ -4,7 +4,7 @@
 # https://github.com/vrtmrz/obsidian-livesync/blob/main/docs/setup_own_server.md
 
 # Create Docker network
-sudo podman network create --internal obsidian
+sudo podman network create --internal obsidian --dns=1.1.1.1
 
 # Create directories
 mkdir -p ${DATA_PATH}/obsidian/docker

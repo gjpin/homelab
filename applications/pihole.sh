@@ -4,7 +4,7 @@
 # https://github.com/pi-hole/docker-pi-hole/
 
 # Create Docker network
-sudo podman network create pihole
+sudo podman network create pihole --dns=1.1.1.1
 
 # Create directories
 mkdir -p ${DATA_PATH}/pihole/docker

@@ -42,6 +42,20 @@ chmod 700 ${HOME}/.ssh
 mkdir -p ${HOME}/.bashrc.d
 
 ################################################
+##### Extend logical volume and filesystem
+################################################
+
+# References:
+# https://discussion.fedoraproject.org/t/disk-resize-with-gparted-gone-wrong/131277/3
+# https://discussion.fedoraproject.org/t/extending-root-partition-on-fedora-40-server/135194
+
+# Extend logical volume and filesystem
+sudo lvextend -An -r -l +100%FREE /dev/mapper/fedora*-root
+
+# Backup volume groups
+sudo vgcfgbackup
+
+################################################
 ##### Kernel configurations
 ################################################
 
@@ -126,12 +140,18 @@ sudo chmod 700 /etc/wireguard/
 # https://docs.redhat.com/en/documentation/red_hat_enterprise_linux_atomic_host/7/html/managing_containers/running_containers_as_systemd_services_with_podman#starting_containers_with_systemd
 # https://wiki.archlinux.org/title/Podman#Networking
 # https://blog.podman.io/2024/03/podman-5-0-breaking-changes-in-detail/
+# https://github.com/containers/podman/discussions/24099#discussioncomment-10796176
 
 # Install Podman
 sudo dnf install -y podman podman-compose
 
 # Turn on the container_manage_cgroup boolean to run containers with systemd
 sudo setsebool -P container_manage_cgroup on
+
+# Bind aardvark-dns to port 530
+sudo tee /etc/containers/containers.conf << EOF
+dns_bind_port=530
+EOF
 
 # Enable Podman socket
 # systemctl --user enable podman.socket

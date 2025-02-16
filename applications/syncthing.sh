@@ -4,7 +4,7 @@
 # https://github.com/syncthing/syncthing/blob/main/README-Docker.md
 
 # Create Docker network
-sudo podman network create syncthing
+sudo podman network create syncthing --dns=1.1.1.1
 
 # Create directories
 mkdir -p ${DATA_PATH}/syncthing/docker
