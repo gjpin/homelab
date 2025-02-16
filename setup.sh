@@ -73,24 +73,37 @@ sudo sysctl --system
 
 # References:
 # https://www.procustodibus.com/blog/2021/07/wireguard-firewalld/
+# https://github.com/AdguardTeam/AdGuardHome/wiki/Docker#resolved-daemon
+# https://github.com/containers/podman/issues/9089#issuecomment-1639914672
+# https://bugzilla.redhat.com/show_bug.cgi?id=1445918
 
 # TODO: create separate zone for WireGuard network
 
-# Forward traffic of privileged ports
-sudo firewall-cmd --permanent --zone=FedoraServer --add-forward-port=port=443:proto=tcp:toport=4443
-sudo firewall-cmd --permanent --zone=FedoraServer --add-forward-port=port=53:proto=tcp:toport=5353
-sudo firewall-cmd --permanent --zone=FedoraServer --add-forward-port=port=53:proto=udp:toport=5353
+# Disable systemd-resolved DNS Stub Listener
+sudo mkdir -p /etc/systemd/resolved.conf.d
+sudo tee /etc/systemd/resolved.conf.d/disable-dns-stub-listener.conf << EOF
+[Resolve]
+DNSStubListener=no
+EOF
 
-# Open doors for WireGuard, Caddy and Pi-Hole
+sudo mv /etc/resolv.conf /etc/resolv.conf.backup
+sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+sudo systemctl restart systemd-resolved
+
+# Open doors for WireGuard
 sudo firewall-cmd --permanent --zone=FedoraServer --add-port=51901/udp
+
+# Open doors for Caddy (HTTPS)
 sudo firewall-cmd --permanent --zone=FedoraServer --add-port=443/tcp
+
+# Open doors for Pi-Hole (DNS)
 sudo firewall-cmd --permanent --zone=FedoraServer --add-port=53/udp
 sudo firewall-cmd --permanent --zone=FedoraServer --add-port=53/tcp
 
-# syncthing
-      # - 22000:22000/tcp
-      # - 22000:22000/udp
-      # - 21027:21027/udp
+# Open doors for Syncthing
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=22000/udp
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=22000/tcp
+sudo firewall-cmd --permanent --zone=FedoraServer --add-port=21027/tcp
 
 sudo firewall-cmd --reload
 

@@ -52,8 +52,8 @@ services:
     networks:
       - pihole
     ports:
-      - 5353:53/tcp
-      - 5353:53/udp
+      - 53:53/tcp
+      - 53:53/udp
     env_file:
       - config.env
     depends_on:

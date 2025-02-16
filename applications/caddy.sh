@@ -40,7 +40,7 @@ services:
     container_name: caddy
     restart: always
     ports:
-      - 4443:443
+      - 443:443
     networks:
       - caddy
       - immich
