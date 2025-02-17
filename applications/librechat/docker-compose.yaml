@@ -1,0 +1,68 @@
+services:
+  librechat:
+    image: ghcr.io/danny-avila/librechat-dev:e3b5c599495c917a46d2f09361915351c85cfe65
+    pull_policy: always
+    container_name: librechat
+    restart: always
+    user: "${UID}:${GID}"
+    networks:
+      - librechat
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/librechat/volumes/librechat/images:/app/client/public/images:Z
+      - ${DATA_PATH}/librechat/volumes/librechat/logs:/app/api/logs:Z
+      - ${DATA_PATH}/librechat/configs/librechat.yaml:/app/librechat.yaml:Z
+    depends_on:
+      - librechat-mongodb
+      - librechat-rag
+
+  librechat-mongodb:
+    container_name: librechat-mongodb
+    image: docker.io/mongo:8.0.4-noble
+    restart: always
+    user: "${UID}:${GID}"
+    volumes:
+      - ${DATA_PATH}/librechat/volumes/mongodb:/data/db:Z
+    command: mongod --noauth
+    networks:
+      - librechat
+
+  librechat-meilisearch:
+    container_name: librechat-meilisearch
+    image: docker.io/getmeili/meilisearch:v1.12.8
+    env_file:
+      - config.env
+    user: "${UID}:${GID}"
+    volumes:
+      - ${DATA_PATH}/librechat/volumes/meilisearch:/meili_data:Z
+    restart: always
+    networks:
+      - librechat
+
+  librechat-pgvector:
+    container_name: librechat-pgvector
+    image: docker.io/pgvector/pgvector:0.8.0-pg17
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/librechat/volumes/pgvector:/var/lib/postgresql/data:Z
+    restart: always
+    networks:
+      - librechat
+
+  librechat-rag:
+    container_name: librechat-rag
+    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:9e4bb52e15d97856e3b69653c88d2cf1bb34324f
+    pull_policy: always
+    restart: always
+    networks:
+      - librechat
+    env_file:
+      - config.env
+    depends_on:
+      - librechat-pgvector
+
+networks:
+  librechat:
+    external: true

@@ -17,39 +17,20 @@
 ```bash
 sudo udisksctl mount -b /dev/sda
 ```
-1. Create DNS entries in Cloudflare, pointing to Wireguard's internal address
-2. Set env vars (see below)
-3. Go through setup.sh
-4. Configure and enable WireGuard `sudo nmcli con import type wireguard file /etc/wireguard/wg0.conf`
-5. Start containers:
+1. Set env vars (see below)
+2. Setup machine and applications
 ```bash
-podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
-podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --pull --no-cache
-podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
-podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
-podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
-podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
-
-podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
-podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
+git clone --depth 1 https://github.com/gjpin/homelab
+cd homelab
+./setup.sh
+./applications.sh # or selectively go through applications.sh
 ```
+3. Configure and enable WireGuard `sudo nmcli con import type wireguard file /etc/wireguard/wg0.conf`
+4. Create DNS entries in Cloudflare, pointing to Wireguard's internal address
+5. Reboot
 6. Create borg repo (if not created yet): `borg init --encryption=none /backup/containers`
 
 # Paths
-```bash
-${DATA_PATH}/${SERVICE}/docker: Dockerfile / docker-compose.yml / config.env
-${DATA_PATH}/${SERVICE}/configs: service configurations
-${DATA_PATH}/${SERVICE}/volumes: persistent data created by the services
-```
-
 # Env vars
 ## Common
 ```bash

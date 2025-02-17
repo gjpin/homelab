@@ -1,0 +1,39 @@
+services:
+  caddy:
+    build:
+      context: ${DATA_PATH}/caddy/docker
+    container_name: caddy
+    restart: always
+    ports:
+      - 443:443
+    networks:
+      - caddy
+      - gitea
+      - immich
+      - librechat
+      - pihole
+      - radicale
+      - syncthing
+      - vaultwarden
+    volumes:
+      - ${DATA_PATH}/caddy/configs/Caddyfile:/etc/caddy/Caddyfile:Z
+      - ${DATA_PATH}/caddy/volumes/caddy:/data/caddy:Z
+      - ${DATA_PATH}/caddy/volumes/bookmarks:/data/bookmarks:Z
+
+networks:
+  caddy:
+    external: true
+  gitea:
+    external: true
+  immich:
+    external: true
+  librechat:
+    external: true
+  pihole:
+    external: true
+  radicale:
+    external: true
+  syncthing:
+    external: true
+  vaultwarden:
+    external: true

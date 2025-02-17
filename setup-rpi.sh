@@ -24,6 +24,10 @@ sudo apt install -y \
 # Install borgbackup
 sudo apt install -y borgbackup
 
+# Disable the DNSStubListener to unbind it from port 53
+sudo sed -r -i.orig 's/#?DNSStubListener=yes/DNSStubListener=no/g' /etc/systemd/resolved.conf
+sudo systemctl restart systemd-resolved
+
 ################################################
 ##### Swap
 ################################################

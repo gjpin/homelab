@@ -1,0 +1,16 @@
+services:
+  vaultwarden:
+    image: docker.io/vaultwarden/server:1.33.2
+    pull_policy: always
+    container_name: vaultwarden
+    restart: always
+    networks:
+      - vaultwarden
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/vaultwarden/volumes/vaultwarden:/data:Z
+
+networks:
+  vaultwarden:
+    external: true

@@ -1,0 +1,22 @@
+services:
+  technitium:
+    image: docker.io/technitium/dns-server:13.3.0
+    pull_policy: always
+    container_name: technitium
+    restart: always
+    hostname: technitium
+    networks:
+      - technitium
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/technitium/volumes/technitium:/etc/dns:Z
+    sysctls:
+      - net.ipv4.ip_local_port_range=1024 65000
+
+networks:
+  technitium:
+    external: true

@@ -1,0 +1,30 @@
+services:
+  pihole:
+    image: docker.io/pihole/pihole:2024.07.0
+    pull_policy: always
+    container_name: pihole
+    restart: always
+    networks:
+      - pihole
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+    env_file:
+      - config.env
+    depends_on:
+      - pihole-dnscrypt
+    volumes:
+      - ${DATA_PATH}/pihole/volumes/pihole:/etc/pihole:Z
+      - ${DATA_PATH}/pihole/configs/99-edns.conf:/etc/dnsmasq.d/99-edns.conf:Z
+
+  pihole-dnscrypt:
+    build:
+      context: ${DATA_PATH}/pihole/docker
+    container_name: pihole-dnscrypt
+    restart: always
+    networks:
+      - pihole
+
+networks:
+  pihole:
+    external: true

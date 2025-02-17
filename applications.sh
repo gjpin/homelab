@@ -1,0 +1,252 @@
+#!/usr/bin/bash
+
+# Create networks (Caddy belongs to all networks)
+sudo podman network create caddy --dns=1.1.1.1
+sudo podman network create gitea --dns=1.1.1.1
+sudo podman network create --internal immich --dns=1.1.1.1
+sudo podman network create librechat --dns=1.1.1.1
+sudo podman network create --internal obsidian --dns=1.1.1.1
+sudo podman network create pihole --dns=1.1.1.1
+sudo podman network create --internal radicale --dns=1.1.1.1
+sudo podman network create syncthing --dns=1.1.1.1
+sudo podman network create technitium --dns=1.1.1.1
+sudo podman network create --internal vaultwarden --dns=1.1.1.1
+
+################################################
+##### Caddy
+################################################
+
+# References:
+# https://github.com/mholt/caddy-l4
+# https://caddy.community/t/need-help-configuring-caddy-l4-for-git-ssh-access-on-domain/26405/7
+
+# Create directories
+mkdir -p ${DATA_PATH}/caddy/docker
+mkdir -p ${DATA_PATH}/caddy/configs
+mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
+
+# Copy files to expected directories and expand variables
+envsubst < ./docker/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
+envsubst < ./docker/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
+envsubst < ./docker/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
+
+# Install systemd service
+envsubst < ./docker/caddy/caddy.service | sudo tee /etc/systemd/system/caddy.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable caddy.service
+
+################################################
+##### Gitea
+################################################
+
+# References:
+# https://docs.gitea.com/installation/install-with-docker-rootless
+# https://caddy.community/t/need-help-configuring-caddy-l4-for-git-ssh-access-on-domain/26405/2
+
+# Create directories
+mkdir -p ${DATA_PATH}/gitea/docker
+mkdir -p ${DATA_PATH}/gitea/configs
+mkdir -p ${DATA_PATH}/gitea/volumes/{gitea,postgres}
+
+sudo chown -R 1000:1000 ${DATA_PATH}/gitea/configs
+sudo chown -R 1000:1000 ${DATA_PATH}/gitea/volumes/gitea
+
+# Copy files to expected directories and expand variables
+envsubst < ./docker/gitea/docker-compose.yaml | tee ${DATA_PATH}/gitea/docker/docker-compose.yml > /dev/null
+envsubst < ./docker/gitea/config.env | tee ${DATA_PATH}/gitea/docker/config.env > /dev/null
+
+# Install systemd service
+envsubst < ./docker/gitea/gitea.service | sudo tee /etc/systemd/system/gitea.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable gitea.service
+
+################################################
+##### Immich
+################################################
+
+# References:
+# Update pgvecto.rs: https://docs.pgvecto.rs/admin/upgrading.html
+  # docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres
+  # docker exec -ti immich-postgres bash
+  # psql postgresql://immich:${IMMICH_DATABASE_PASSWORD}@immich-postgres:5432/immich
+  # ... follow the rest
+# https://github.com/immich-app/immich/blob/main/docker/docker-compose.yml
+# https://github.com/immich-app/immich/blob/main/docker/example.env
+# https://github.com/immich-app/immich/blob/main/nginx/nginx.conf
+
+# Create directories
+mkdir -p ${DATA_PATH}/immich/docker
+mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres}
+
+# Copy files to expected directories and expand variables
+envsubst < ./docker/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yml > /dev/null
+envsubst < ./docker/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
+
+# Install systemd service
+envsubst < ./docker/immich/immich.service | sudo tee /etc/systemd/system/immich.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable immich.service
+
+################################################
+##### LibreChat
+################################################
+
+# References:
+# https://github.com/danny-avila/LibreChat/blob/main/docker-compose.yml
+# https://www.librechat.ai/docs/local/docker
+# https://github.com/themattman/mongodb-raspberrypi-docker
+# https://github.com/gjpin/mongodb-raspberrypi-docker
+# https://github.com/danny-avila/LibreChat/blob/main/.env.example
+# https://www.librechat.ai/docs/configuration/dotenv
+
+# Create directories
+mkdir -p ${DATA_PATH}/librechat/docker
+mkdir -p ${DATA_PATH}/librechat/configs
+mkdir -p ${DATA_PATH}/librechat/volumes/librechat/{logs,images}
+mkdir -p ${DATA_PATH}/librechat/volumes/{mongodb,pgvector,meilisearch}
+
+# Fix permissions
+sudo chown -R 1000:1000 ${DATA_PATH}/librechat/configs
+sudo chown -R 1000:1000 ${DATA_PATH}/librechat/volumes
+
+# Copy files to expected directories and expand variables
+envsubst < ./docker/librechat/docker-compose.yaml $| tee {DATA_PATH}/librechat/docker/docker-compose.yml > /dev/null
+envsubst < ./docker/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
+envsubst < ./docker/librechat/librechat.yaml | tee ${DATA_PATH}/librechat/configs/librechat.yaml > /dev/null
+
+# Install systemd service
+envsubst < ./docker/librechat/librechat.service | sudo tee /etc/systemd/system/librechat.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable librechat.service
+
+################################################
+##### Obsidian
+################################################
+
+# References:
+# https://github.com/vrtmrz/obsidian-livesync/blob/main/docs/setup_own_server.md
+
+# Create directories
+mkdir -p ${DATA_PATH}/obsidian/docker
+mkdir -p ${DATA_PATH}/obsidian/configs
+mkdir -p ${DATA_PATH}/obsidian/volumes/obsidian
+
+# Copy files to expected directories and expand variables
+envsubst < ./docker/obsidian/docker-compose.yaml | tee ${DATA_PATH}/obsidian/docker/docker-compose.yml > /dev/null
+envsubst < ./docker/obsidian/config.env | tee ${DATA_PATH}/obsidian/docker/config.env > /dev/null
+envsubst < ./docker/obsidian/local.ini | tee ${DATA_PATH}/obsidian/configs/local.ini > /dev/null
+
+# Install systemd service
+envsubst < ./docker/obsidian/obsidian.service | sudo tee /etc/systemd/system/obsidian.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable obsidian.service
+
+################################################
+##### Pi-Hole
+################################################
+
+# References:
+# https://github.com/pi-hole/docker-pi-hole/
+
+# Create directories
+mkdir -p ${DATA_PATH}/pihole/docker
+mkdir -p ${DATA_PATH}/pihole/configs
+mkdir -p ${DATA_PATH}/pihole/volumes/pihole
+
+# Copy files to expected directories and expand variables
+envsubst < ./docker/pihole/Dockerfile | tee ${DATA_PATH}/pihole/docker/Dockerfile > /dev/null
+envsubst < ./docker/pihole/docker-compose.yaml | tee ${DATA_PATH}/pihole/docker/docker-compose.yml > /dev/null
+envsubst < ./docker/pihole/config.env | tee ${DATA_PATH}/pihole/docker/config.env > /dev/null
+envsubst < ./docker/pihole/99-edns.conf | tee ${DATA_PATH}/pihole/configs/99-edns.conf > /dev/null
+
+# Install systemd service
+envsubst < ./docker/pihole/pihole.service | sudo tee /etc/systemd/system/pihole.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable pihole.service
+
+################################################
+##### Radicale
+################################################
+
+# References:
+# https://radicale.org/v3.html#basic-configuration
+# https://caddy.community/t/radicale-reverse-proxy-caddy-2-0/8580/5
+
+# Create directories
+mkdir -p ${DATA_PATH}/radicale/docker
+mkdir -p ${DATA_PATH}/radicale/configs
+mkdir -p ${DATA_PATH}/radicale/volumes/radicale
+
+# Copy files to expected directories and expand variables
+envsubst < ./docker/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker/Dockerfile > /dev/null
+envsubst < ./docker/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
+envsubst < ./docker/radicale/config | tee ${DATA_PATH}/radicale/configs/users > /dev/null
+envsubst < ./docker/radicale/users | tee ${DATA_PATH}/radicale/configs/config > /dev/null
+
+# Install systemd service
+envsubst < ./docker/radicale/radicale.service | sudo tee /etc/systemd/system/radicale.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable radicale.service
+
+################################################
+##### Syncthing
+################################################
+
+# References:
+# https://github.com/syncthing/syncthing/blob/main/README-Docker.md
+
+# Create directories
+mkdir -p ${DATA_PATH}/syncthing/docker
+mkdir -p ${DATA_PATH}/syncthing/configs
+mkdir -p ${DATA_PATH}/syncthing/volumes/syncthing
+
+# Copy files to expected directories and expand variables
+envsubst < ./docker/syncthing/docker-compose.yaml | tee ${DATA_PATH}/syncthing/docker/docker-compose.yml > /dev/null
+
+# Install systemd service
+envsubst < ./docker/syncthing/syncthing.service | sudo tee /etc/systemd/system/syncthing.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable syncthing.service
+
+################################################
+##### Technitium
+################################################
+
+# References:
+# https://technitium.com/dns/help.html
+# https://technitium.com/dns/
+# https://hub.docker.com/r/technitium/dns-server
+# https://github.com/TechnitiumSoftware/DnsServer
+# https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml
+
+# Create directories
+mkdir -p ${DATA_PATH}/technitium/docker
+mkdir -p ${DATA_PATH}/technitium/configs
+mkdir -p ${DATA_PATH}/technitium/volumes/technitium
+
+# Copy files to expected directories and expand variables
+envsubst < ./docker/technitium/docker-compose.yaml | tee ${DATA_PATH}/technitium/docker/docker-compose.yml > /dev/null
+envsubst < ./docker/technitium/config.env | tee ${DATA_PATH}/technitium/docker/config.env > /dev/null
+
+# Install systemd service
+envsubst < ./docker/technitium/technitium.service | sudo tee /etc/systemd/system/technitium.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable technitium.service
+
+################################################
+##### Vaultwarden
+################################################
+
+# Create directories
+mkdir -p ${DATA_PATH}/vaultwarden/docker
+mkdir -p ${DATA_PATH}/vaultwarden/configs
+mkdir -p ${DATA_PATH}/vaultwarden/volumes/vaultwarden
+
+# Copy files to expected directories and expand variables
+envsubst < ./docker/vaultwarden/docker-compose.yaml | tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml > /dev/null
+envsubst < ./docker/vaultwarden/config.env | tee ${DATA_PATH}/vaultwarden/docker/config.env > /dev/null
+
+# Install systemd service
+envsubst < ./docker/vaultwarden/vaultwarden.service | sudo tee /etc/systemd/system/vaultwarden.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable vaultwarden.service

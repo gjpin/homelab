@@ -1,0 +1,16 @@
+services:
+  radicale:
+    build:
+      context: ${DATA_PATH}/radicale/docker
+    container_name: radicale
+    restart: always
+    networks:
+      - radicale
+    volumes:
+      - ${DATA_PATH}/radicale/configs/users:/etc/radicale/users:Z
+      - ${DATA_PATH}/radicale/configs/config:/etc/radicale/config:Z
+      - ${DATA_PATH}/radicale/volumes/radicale:/var/lib/radicale/collections:Z
+
+networks:
+  radicale:
+    external: true

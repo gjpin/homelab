@@ -153,22 +153,6 @@ sudo tee /etc/containers/containers.conf << EOF
 dns_bind_port=530
 EOF
 
-# Enable Podman socket
-# systemctl --user enable podman.socket
-
-# Allow rootless containers to bind to port 53 and up
-# sudo tee /etc/sysctl.d/99-unprivileged-port.conf << EOF
-# net.ipv4.ip_unprivileged_port_start=53
-# EOF
-
-# sudo sysctl --system
-
-# Allow inter-containers communication with Pasta
-# sudo tee /etc/containers/containers.conf << EOF
-# [network]
-# pasta_options = ["-a", "10.0.2.0", "-n", "24", "-g", "10.0.2.2", "--dns-forward", "10.0.2.3"]
-# EOF
-
 ################################################
 ##### Unlock LUKS2 with TPM2 token
 ################################################
@@ -188,11 +172,3 @@ sudo sed -i "s|discard|&,tpm2-device=auto|" /etc/crypttab
 
 # Regenerate initramfs
 sudo dracut --regenerate-all --force
-
-################################################
-##### Next steps
-################################################
-
-# Reboot
-# Go through applications/*.sh
-# Start the containers
