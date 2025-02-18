@@ -32,7 +32,8 @@ sudo dnf install -y \
   jq \
   fd-find \
   fzf \
-  nano
+  nano \
+  git
 
 # Create SSH directory and set permissions
 mkdir -p ${HOME}/.ssh

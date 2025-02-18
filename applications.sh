@@ -26,12 +26,12 @@ mkdir -p ${DATA_PATH}/caddy/configs
 mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 
 # Copy files to expected directories and expand variables
-envsubst < ./docker/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
-envsubst < ./docker/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
-envsubst < ./docker/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
+envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
+envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
 
 # Install systemd service
-envsubst < ./docker/caddy/caddy.service | sudo tee /etc/systemd/system/caddy.service > /dev/null
+envsubst < ./applications/caddy/caddy.service | sudo tee /etc/systemd/system/caddy.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable caddy.service
 
@@ -52,11 +52,11 @@ sudo chown -R 1000:1000 ${DATA_PATH}/gitea/configs
 sudo chown -R 1000:1000 ${DATA_PATH}/gitea/volumes/gitea
 
 # Copy files to expected directories and expand variables
-envsubst < ./docker/gitea/docker-compose.yaml | tee ${DATA_PATH}/gitea/docker/docker-compose.yml > /dev/null
-envsubst < ./docker/gitea/config.env | tee ${DATA_PATH}/gitea/docker/config.env > /dev/null
+envsubst < ./applications/gitea/docker-compose.yaml | tee ${DATA_PATH}/gitea/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/gitea/config.env | tee ${DATA_PATH}/gitea/docker/config.env > /dev/null
 
 # Install systemd service
-envsubst < ./docker/gitea/gitea.service | sudo tee /etc/systemd/system/gitea.service > /dev/null
+envsubst < ./applications/gitea/gitea.service | sudo tee /etc/systemd/system/gitea.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable gitea.service
 
@@ -79,11 +79,11 @@ mkdir -p ${DATA_PATH}/immich/docker
 mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres}
 
 # Copy files to expected directories and expand variables
-envsubst < ./docker/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yml > /dev/null
-envsubst < ./docker/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
+envsubst < ./applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
 
 # Install systemd service
-envsubst < ./docker/immich/immich.service | sudo tee /etc/systemd/system/immich.service > /dev/null
+envsubst < ./applications/immich/immich.service | sudo tee /etc/systemd/system/immich.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable immich.service
 
@@ -110,12 +110,12 @@ sudo chown -R 1000:1000 ${DATA_PATH}/librechat/configs
 sudo chown -R 1000:1000 ${DATA_PATH}/librechat/volumes
 
 # Copy files to expected directories and expand variables
-envsubst < ./docker/librechat/docker-compose.yaml $| tee {DATA_PATH}/librechat/docker/docker-compose.yml > /dev/null
-envsubst < ./docker/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
-envsubst < ./docker/librechat/librechat.yaml | tee ${DATA_PATH}/librechat/configs/librechat.yaml > /dev/null
+envsubst < ./applications/librechat/docker-compose.yaml $| tee {DATA_PATH}/librechat/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
+envsubst < ./applications/librechat/librechat.yaml | tee ${DATA_PATH}/librechat/configs/librechat.yaml > /dev/null
 
 # Install systemd service
-envsubst < ./docker/librechat/librechat.service | sudo tee /etc/systemd/system/librechat.service > /dev/null
+envsubst < ./applications/librechat/librechat.service | sudo tee /etc/systemd/system/librechat.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable librechat.service
 
@@ -132,12 +132,12 @@ mkdir -p ${DATA_PATH}/obsidian/configs
 mkdir -p ${DATA_PATH}/obsidian/volumes/obsidian
 
 # Copy files to expected directories and expand variables
-envsubst < ./docker/obsidian/docker-compose.yaml | tee ${DATA_PATH}/obsidian/docker/docker-compose.yml > /dev/null
-envsubst < ./docker/obsidian/config.env | tee ${DATA_PATH}/obsidian/docker/config.env > /dev/null
-envsubst < ./docker/obsidian/local.ini | tee ${DATA_PATH}/obsidian/configs/local.ini > /dev/null
+envsubst < ./applications/obsidian/docker-compose.yaml | tee ${DATA_PATH}/obsidian/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/obsidian/config.env | tee ${DATA_PATH}/obsidian/docker/config.env > /dev/null
+envsubst < ./applications/obsidian/local.ini | tee ${DATA_PATH}/obsidian/configs/local.ini > /dev/null
 
 # Install systemd service
-envsubst < ./docker/obsidian/obsidian.service | sudo tee /etc/systemd/system/obsidian.service > /dev/null
+envsubst < ./applications/obsidian/obsidian.service | sudo tee /etc/systemd/system/obsidian.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable obsidian.service
 
@@ -154,13 +154,13 @@ mkdir -p ${DATA_PATH}/pihole/configs
 mkdir -p ${DATA_PATH}/pihole/volumes/pihole
 
 # Copy files to expected directories and expand variables
-envsubst < ./docker/pihole/Dockerfile | tee ${DATA_PATH}/pihole/docker/Dockerfile > /dev/null
-envsubst < ./docker/pihole/docker-compose.yaml | tee ${DATA_PATH}/pihole/docker/docker-compose.yml > /dev/null
-envsubst < ./docker/pihole/config.env | tee ${DATA_PATH}/pihole/docker/config.env > /dev/null
-envsubst < ./docker/pihole/99-edns.conf | tee ${DATA_PATH}/pihole/configs/99-edns.conf > /dev/null
+envsubst < ./applications/pihole/Dockerfile | tee ${DATA_PATH}/pihole/docker/Dockerfile > /dev/null
+envsubst < ./applications/pihole/docker-compose.yaml | tee ${DATA_PATH}/pihole/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/pihole/config.env | tee ${DATA_PATH}/pihole/docker/config.env > /dev/null
+envsubst < ./applications/pihole/99-edns.conf | tee ${DATA_PATH}/pihole/configs/99-edns.conf > /dev/null
 
 # Install systemd service
-envsubst < ./docker/pihole/pihole.service | sudo tee /etc/systemd/system/pihole.service > /dev/null
+envsubst < ./applications/pihole/pihole.service | sudo tee /etc/systemd/system/pihole.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable pihole.service
 
@@ -178,13 +178,13 @@ mkdir -p ${DATA_PATH}/radicale/configs
 mkdir -p ${DATA_PATH}/radicale/volumes/radicale
 
 # Copy files to expected directories and expand variables
-envsubst < ./docker/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker/Dockerfile > /dev/null
-envsubst < ./docker/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
-envsubst < ./docker/radicale/config | tee ${DATA_PATH}/radicale/configs/users > /dev/null
-envsubst < ./docker/radicale/users | tee ${DATA_PATH}/radicale/configs/config > /dev/null
+envsubst < ./applications/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker/Dockerfile > /dev/null
+envsubst < ./applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/radicale/config | tee ${DATA_PATH}/radicale/configs/users > /dev/null
+envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/config > /dev/null
 
 # Install systemd service
-envsubst < ./docker/radicale/radicale.service | sudo tee /etc/systemd/system/radicale.service > /dev/null
+envsubst < ./applications/radicale/radicale.service | sudo tee /etc/systemd/system/radicale.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable radicale.service
 
@@ -201,10 +201,10 @@ mkdir -p ${DATA_PATH}/syncthing/configs
 mkdir -p ${DATA_PATH}/syncthing/volumes/syncthing
 
 # Copy files to expected directories and expand variables
-envsubst < ./docker/syncthing/docker-compose.yaml | tee ${DATA_PATH}/syncthing/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/syncthing/docker-compose.yaml | tee ${DATA_PATH}/syncthing/docker/docker-compose.yml > /dev/null
 
 # Install systemd service
-envsubst < ./docker/syncthing/syncthing.service | sudo tee /etc/systemd/system/syncthing.service > /dev/null
+envsubst < ./applications/syncthing/syncthing.service | sudo tee /etc/systemd/system/syncthing.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable syncthing.service
 
@@ -225,11 +225,11 @@ mkdir -p ${DATA_PATH}/technitium/configs
 mkdir -p ${DATA_PATH}/technitium/volumes/technitium
 
 # Copy files to expected directories and expand variables
-envsubst < ./docker/technitium/docker-compose.yaml | tee ${DATA_PATH}/technitium/docker/docker-compose.yml > /dev/null
-envsubst < ./docker/technitium/config.env | tee ${DATA_PATH}/technitium/docker/config.env > /dev/null
+envsubst < ./applications/technitium/docker-compose.yaml | tee ${DATA_PATH}/technitium/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/technitium/config.env | tee ${DATA_PATH}/technitium/docker/config.env > /dev/null
 
 # Install systemd service
-envsubst < ./docker/technitium/technitium.service | sudo tee /etc/systemd/system/technitium.service > /dev/null
+envsubst < ./applications/technitium/technitium.service | sudo tee /etc/systemd/system/technitium.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable technitium.service
 
@@ -243,10 +243,10 @@ mkdir -p ${DATA_PATH}/vaultwarden/configs
 mkdir -p ${DATA_PATH}/vaultwarden/volumes/vaultwarden
 
 # Copy files to expected directories and expand variables
-envsubst < ./docker/vaultwarden/docker-compose.yaml | tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml > /dev/null
-envsubst < ./docker/vaultwarden/config.env | tee ${DATA_PATH}/vaultwarden/docker/config.env > /dev/null
+envsubst < ./applications/vaultwarden/docker-compose.yaml | tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/vaultwarden/config.env | tee ${DATA_PATH}/vaultwarden/docker/config.env > /dev/null
 
 # Install systemd service
-envsubst < ./docker/vaultwarden/vaultwarden.service | sudo tee /etc/systemd/system/vaultwarden.service > /dev/null
+envsubst < ./applications/vaultwarden/vaultwarden.service | sudo tee /etc/systemd/system/vaultwarden.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable vaultwarden.service
