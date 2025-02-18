@@ -90,55 +90,50 @@ export LIBRECHAT_DEEPSEEK_API_KEY=
 ## Update all containers
 ```bash
 # Update system
-apt update
-apt full-upgrade -y
-apt autoremove -y
+sudo dnf upgrade -y --refresh
+```
 
-# Update containers
-# podman compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml pull
-sudo podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-sudo podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
-sudo podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
-sudo podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
-sudo podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
-sudo podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-sudo podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
-sudo podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
+## Stop all containers
+```bash
+sudo systemctl stop caddy.service
+sudo systemctl stop gitea.service
+sudo systemctl stop immich.service
+sudo systemctl stop librechat.service
+sudo systemctl stop obsidian.service
+sudo systemctl stop pihole.service
+sudo systemctl stop radicale.service
+sudo systemctl stop syncthing.service
+sudo systemctl stop technitium.service
+sudo systemctl stop vaultwarden.service
+```
 
-# Shutdown containers
-# podman compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml down
-sudo podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
-sudo podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
-sudo podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
-sudo podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
-sudo podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
-sudo podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-sudo podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
-sudo podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
+## Start all containers
+```bash
+sudo systemctl start caddy.service
+sudo systemctl start gitea.service
+sudo systemctl start immich.service
+sudo systemctl start librechat.service
+sudo systemctl start obsidian.service
+sudo systemctl start pihole.service
+sudo systemctl start radicale.service
+sudo systemctl start syncthing.service
+sudo systemctl start technitium.service
+sudo systemctl start vaultwarden.service
+```
 
 # Backup containers data
-borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
-borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
+sudo borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
+sudo borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
 
-# Start containers
-# podman compose -f ${DATA_PATH}/technitium/docker/docker-compose.yml up --force-recreate -d
-sudo podman compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
-sudo podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
-sudo podman compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
-sudo podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
-sudo podman compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
-sudo podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-sudo podman compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
-sudo podman compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
-
-# Clear docker data
-docker system prune -af
+# Clear podman old images
+```bash
+sudo podman system prune -af
 ```
 
 ## Restore Immich
 1. Restore volumes to correct directories
-2. Start only postgres: `podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
-3. Start the rest of the containers: `podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
+2. Start only postgres: `sudo podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
+3. Start the rest of the containers: `sudo podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
 
 # Setup disks
 ## Existing disks

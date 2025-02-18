@@ -151,6 +151,7 @@ sudo setsebool -P container_manage_cgroup on
 
 # Bind aardvark-dns to port 530
 sudo tee /etc/containers/containers.conf << EOF
+[network]
 dns_bind_port=530
 EOF
 
