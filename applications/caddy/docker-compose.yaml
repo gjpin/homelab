@@ -3,7 +3,7 @@ services:
     build:
       context: ${DATA_PATH}/caddy/docker
     container_name: caddy
-    restart: always
+    restart: on-failure
     ports:
       - 443:443
     networks:

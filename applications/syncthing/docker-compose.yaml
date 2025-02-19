@@ -4,7 +4,7 @@ services:
     pull_policy: always
     container_name: syncthing
     hostname: ${HOSTNAME}
-    restart: always
+    restart: on-failure
     environment:
       - PUID=1000
       - PGID=1000

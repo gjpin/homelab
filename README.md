@@ -54,7 +54,6 @@ export IMMICH_JWT_SECRET=$(openssl rand -hex 48)
 export OBSIDIAN_COUCHDB_PASSWORD=$(openssl rand -hex 48)
 
 # Pi-Hole
-export PIHOLE_ADMIN_TOKEN=$(openssl rand -hex 48)
 export PIHOLE_WEBPASSWORD=$(openssl rand -hex 48)
 
 # Technitium

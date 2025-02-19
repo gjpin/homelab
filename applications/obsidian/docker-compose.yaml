@@ -7,7 +7,7 @@ services:
       - ${DATA_PATH}/obsidian/volumes/obsidian:/opt/couchdb/data:Z
     env_file:
       - config.env
-    restart: always
+    restart: on-failure
     networks:
       - obsidian
 

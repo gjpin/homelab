@@ -3,7 +3,7 @@ services:
     image: docker.io/vaultwarden/server:1.33.2
     pull_policy: always
     container_name: vaultwarden
-    restart: always
+    restart: on-failure
     networks:
       - vaultwarden
     env_file:

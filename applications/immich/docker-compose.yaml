@@ -9,7 +9,7 @@ services:
     depends_on:
       - immich-redis
       - immich-postgres
-    restart: always
+    restart: on-failure
     networks:
       - immich
 
@@ -18,7 +18,7 @@ services:
     image: docker.io/redis:7.4.2-alpine
     healthcheck:
       test: redis-cli ping || exit 1
-    restart: always
+    restart: on-failure
     networks:
       - immich
 
@@ -35,7 +35,7 @@ services:
       start_interval: 30s
       start_period: 5m
     command: ["postgres", "-c", "shared_preload_libraries=vectors.so", "-c", 'search_path="\$\$user", public, vectors', "-c", "logging_collector=on", "-c", "max_wal_size=2GB", "-c", "shared_buffers=512MB", "-c", "wal_compression=on"]
-    restart: always
+    restart: on-failure
     networks:
       - immich
 
