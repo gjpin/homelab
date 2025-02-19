@@ -268,3 +268,13 @@ sudo update-grub
 # Regenerate initramfs
 sudo dracut --regenerate-all --force
 ```
+
+# Debian - Remove swap
+- Partitioning method:
+    - Guided - use entire disk and set up encrypted LVM
+- Remove swap LV:
+    - Configure the Logical Volume Manager
+    - Select Swap logical volume
+    - Delete logical volume
+        - swap_1
+    - Finish
