@@ -31,20 +31,16 @@ sudo apt install -y \
 # Install borgbackup
 sudo apt install -y borgbackup
 
-# Disable the DNSStubListener to unbind it from port 53
-sudo sed -r -i.orig 's/#?DNSStubListener=yes/DNSStubListener=no/g' /etc/systemd/resolved.conf
-sudo systemctl restart systemd-resolved
-
 ################################################
 ##### Swap
 ################################################
 
 # Disable swap temporarily
-sudo swapoff -a
+# sudo swapoff -a
 
 # Disable swap permanently
-sudo dphys-swapfile swapoff
-sudo systemctl disable --now dphys-swapfile.service
+# sudo dphys-swapfile swapoff
+# sudo systemctl disable --now dphys-swapfile.service
 
 ################################################
 ##### AppArmor
@@ -58,7 +54,7 @@ sudo apt -y install \
   apparmor-profiles-extra
 
 # Enable AppArmor
-sudo sed -i 's/rootwait/rootwait lsm=apparmor/g' /boot/cmdline.txt
+sudo sed -i 's/rootwait/rootwait lsm=apparmor/g' /boot/firmware/cmdline.txt
 
 ################################################
 ##### Docker

@@ -29,6 +29,9 @@ sudo apt install -y \
   htop \
   lm-sensors
 
+# Install borgbackup
+sudo apt install -y borgbackup
+
 # Create SSH directory and set permissions
 mkdir -p ${HOME}/.ssh
 chmod 700 ${HOME}/.ssh
