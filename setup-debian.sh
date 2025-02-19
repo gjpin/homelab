@@ -35,6 +35,28 @@ chmod 700 ${HOME}/.ssh
 sudo mkdir -p /etc/default/grub.d
 
 ################################################
+##### Setup backports
+################################################
+
+# References:
+# https://backports.debian.org/Instructions/
+# https://backports.debian.org/changes/bookworm-backports.html
+
+# Get release codename
+. /etc/os-release
+
+# Add backports repo
+sudo tee /etc/apt/sources.list.d/$VERSION_CODENAME-backports.list << EOF
+deb http://deb.debian.org/debian $VERSION_CODENAME-backports main
+EOF
+
+# Update repos
+sudo apt update
+
+# Install latest kernel from backports
+sudo apt install -y linux-image-amd64/$VERSION_CODENAME-backports
+
+################################################
 ##### WireGuard
 ################################################
 
