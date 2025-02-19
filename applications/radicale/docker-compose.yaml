@@ -3,7 +3,7 @@ services:
     build:
       context: ${DATA_PATH}/radicale/docker
     container_name: radicale
-    restart: on-failure
+    restart: always
     networks:
       - radicale
     volumes:

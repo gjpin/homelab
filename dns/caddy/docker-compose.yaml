@@ -11,6 +11,7 @@ services:
       - gitea
       - immich
       - librechat
+      - pihole
       - radicale
       - syncthing
       - vaultwarden
@@ -27,6 +28,8 @@ networks:
   immich:
     external: true
   librechat:
+    external: true
+  pihole:
     external: true
   radicale:
     external: true

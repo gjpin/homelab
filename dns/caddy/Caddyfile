@@ -1,0 +1,54 @@
+{
+        acme_dns cloudflare ${CADDY_CLOUDFLARE_TOKEN}
+}
+
+(default-header) {
+        header {
+                # Disable FLoC tracking
+                Permissions-Policy "interest-cohort=()"
+
+                # Enable HSTS
+                Strict-Transport-Security "max-age=31536000;"
+
+                # Disable clients from sniffing the media type
+                X-Content-Type-Options "nosniff"
+
+                # Clickjacking protection
+                X-Frame-Options "SAMEORIGIN"
+
+                # Enable cross-site filter (XSS) and tell browser to block detected attacks
+                X-XSS-Protection "1; mode=block"
+
+                # Prevent search engines from indexing
+                X-Robots-Tag "none"
+
+                # Remove X-Powered-By header
+                -X-Powered-By
+
+                # Remove Server header
+                -Server
+        }
+}
+
+# Pi-hole
+pihole.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy pihole:80 {
+                header_up X-Real-IP { remote_host }
+        }
+}
+
+# Technitium
+technitium.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        # Web Console (HTTP)
+        reverse_proxy technitium:5380 {
+                header_up X-Real-IP { remote_host }
+        }
+}

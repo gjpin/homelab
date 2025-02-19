@@ -3,7 +3,7 @@ services:
     image: ghcr.io/danny-avila/librechat-dev:e3b5c599495c917a46d2f09361915351c85cfe65
     pull_policy: always
     container_name: librechat
-    restart: on-failure
+    restart: always
     user: "${UID}:${GID}"
     networks:
       - librechat
@@ -20,7 +20,7 @@ services:
   librechat-mongodb:
     container_name: librechat-mongodb
     image: docker.io/mongo:8.0.4-noble
-    restart: on-failure
+    restart: always
     user: "${UID}:${GID}"
     volumes:
       - ${DATA_PATH}/librechat/volumes/mongodb:/data/db:Z
@@ -36,7 +36,7 @@ services:
     user: "${UID}:${GID}"
     volumes:
       - ${DATA_PATH}/librechat/volumes/meilisearch:/meili_data:Z
-    restart: on-failure
+    restart: always
     networks:
       - librechat
 
@@ -47,7 +47,7 @@ services:
       - config.env
     volumes:
       - ${DATA_PATH}/librechat/volumes/pgvector:/var/lib/postgresql/data:Z
-    restart: on-failure
+    restart: always
     networks:
       - librechat
 
@@ -55,7 +55,7 @@ services:
     container_name: librechat-rag
     image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:9e4bb52e15d97856e3b69653c88d2cf1bb34324f
     pull_policy: always
-    restart: on-failure
+    restart: always
     networks:
       - librechat
     env_file:

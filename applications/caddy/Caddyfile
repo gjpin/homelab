@@ -33,11 +33,11 @@
 
 # WebDAV - Bookmarks
 bookmarks.${BASE_DOMAIN} {
-    root * /data/bookmarks
-    basic_auth {
-        admin ${CADDY_HASHED_PASSWORD}
-    }
-    webdav
+        root * /data/bookmarks
+        basic_auth {
+                admin ${CADDY_HASHED_PASSWORD}
+        }
+        webdav
 }
 
 # Immich
@@ -47,7 +47,7 @@ photos.${BASE_DOMAIN} {
         encode gzip
 
         reverse_proxy immich-server:2283 {
-                header_up X-Real-IP {remote_host}
+                header_up X-Real-IP { remote_host }
         }
 }
 
@@ -58,30 +58,7 @@ obsidian.${BASE_DOMAIN} {
         encode gzip
 
         reverse_proxy obsidian:5984 {
-                header_up X-Real-IP {remote_host}
-        }
-}
-
-# Pi-hole
-pihole.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        reverse_proxy pihole:80 {
-                header_up X-Real-IP {remote_host}
-        }
-}
-
-# Technitium
-technitium.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        # Web Console (HTTP)
-        reverse_proxy technitium:5380 {
-                header_up X-Real-IP {remote_host}
+                header_up X-Real-IP { remote_host }
         }
 }
 
@@ -92,7 +69,7 @@ contacts.${BASE_DOMAIN} {
         encode gzip
 
         reverse_proxy radicale:5232 {
-                header_up X-Real-IP {remote_host}
+                header_up X-Real-IP { remote_host }
         }
 }
 
@@ -103,7 +80,7 @@ syncthing.${BASE_DOMAIN} {
         encode gzip
 
         reverse_proxy syncthing:8384 {
-                header_up X-Real-IP {remote_host}
+                header_up X-Real-IP { remote_host }
         }
 }
 
@@ -115,17 +92,17 @@ vault.${BASE_DOMAIN} {
 
         # Vaultwarden HTTP server
         reverse_proxy vaultwarden:80 {
-                header_up X-Real-IP {remote_host}
+                header_up X-Real-IP { remote_host }
         }
 
         # Websockets server
         reverse_proxy /notifications/hub vaultwarden:3012 {
-                header_up X-Real-IP {remote_host}
+                header_up X-Real-IP { remote_host }
         }
 
         # Negotiation endpoint
         reverse_proxy /notifications/hub/negotiate vaultwarden:8080 {
-                header_up X-Real-IP {remote_host}
+                header_up X-Real-IP { remote_host }
         }
 }
 
@@ -136,7 +113,7 @@ git.${BASE_DOMAIN} {
         encode gzip
 
         reverse_proxy gitea:3000 {
-                header_up X-Real-IP {remote_host}
+                header_up X-Real-IP { remote_host }
         }
 }
 
@@ -147,6 +124,6 @@ chat.${BASE_DOMAIN} {
         encode gzip
 
         reverse_proxy librechat:3080 {
-                header_up X-Real-IP {remote_host}
+                header_up X-Real-IP { remote_host }
         }
 }

@@ -3,7 +3,7 @@ services:
     image: docker.io/gitea/gitea:1.23.3
     pull_policy: always
     container_name: gitea
-    restart: on-failure
+    restart: always
     networks:
       - gitea
     env_file:
@@ -20,7 +20,7 @@ services:
       - config.env
     volumes:
       - ${DATA_PATH}/gitea/volumes/postgres:/var/lib/postgresql/data:Z
-    restart: on-failure
+    restart: always
     networks:
       - gitea
 

@@ -73,6 +73,13 @@ sudo mkdir -p /etc/wireguard/
 sudo chmod 700 /etc/wireguard/
 
 ################################################
+##### Networking and Firewall
+################################################
+
+# Install NetworkManager
+sudo apt install -y network-manager
+
+################################################
 ##### Kernel configurations
 ################################################
 

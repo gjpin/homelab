@@ -32,6 +32,17 @@ sudo apt install -y \
 sudo apt install -y borgbackup
 
 ################################################
+##### WireGuard
+################################################
+
+# Install wireguard tools
+sudo apt install -y wireguard-tools
+
+# Create WireGuard directory
+sudo mkdir -p /etc/wireguard/
+sudo chmod 700 /etc/wireguard/
+
+################################################
 ##### Swap
 ################################################
 

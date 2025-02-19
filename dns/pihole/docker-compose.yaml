@@ -1,9 +1,28 @@
 services:
+  caddy:
+    build:
+      context: ${DATA_PATH}/pihole/docker
+    container_name: caddy
+    restart: always
+    ports:
+      - 443:443
+    networks:
+      - caddy
+      - gitea
+      - immich
+      - librechat
+      - pihole
+      - radicale
+      - syncthing
+      - vaultwarden
+    volumes:
+      - ${DATA_PATH}/pihole/configs/Caddyfile:/etc/caddy/Caddyfile:Z
+
   pihole:
     image: docker.io/pihole/pihole:2025.02.1
     pull_policy: always
     container_name: pihole
-    restart: on-failure
+    restart: always
     networks:
       - pihole
     ports:
@@ -21,7 +40,7 @@ services:
     build:
       context: ${DATA_PATH}/pihole/docker
     container_name: pihole-dnscrypt
-    restart: on-failure
+    restart: always
     networks:
       - pihole
 
