@@ -1,16 +1,16 @@
 #!/usr/bin/bash
 
 # Create networks (Caddy belongs to all networks)
-sudo podman network create caddy --dns=1.1.1.1
-sudo podman network create gitea --dns=1.1.1.1
-sudo podman network create --internal immich --dns=1.1.1.1
-sudo podman network create librechat --dns=1.1.1.1
-sudo podman network create --internal obsidian --dns=1.1.1.1
-sudo podman network create pihole --dns=1.1.1.1
-sudo podman network create --internal radicale --dns=1.1.1.1
-sudo podman network create syncthing --dns=1.1.1.1
-sudo podman network create technitium --dns=1.1.1.1
-sudo podman network create --internal vaultwarden --dns=1.1.1.1
+sudo docker network create caddy --dns=1.1.1.1
+sudo docker network create gitea --dns=1.1.1.1
+sudo docker network create --internal immich --dns=1.1.1.1
+sudo docker network create librechat --dns=1.1.1.1
+sudo docker network create --internal obsidian --dns=1.1.1.1
+sudo docker network create pihole --dns=1.1.1.1
+sudo docker network create --internal radicale --dns=1.1.1.1
+sudo docker network create syncthing --dns=1.1.1.1
+sudo docker network create technitium --dns=1.1.1.1
+sudo docker network create --internal vaultwarden --dns=1.1.1.1
 
 ################################################
 ##### Caddy

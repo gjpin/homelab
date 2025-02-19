@@ -25,7 +25,9 @@ sudo apt install -y \
   apache2-utils \
   wakeonlan \
   git \
-  nano
+  nano \
+  htop \
+  lm-sensors
 
 # Create SSH directory and set permissions
 mkdir -p ${HOME}/.ssh
@@ -101,11 +103,11 @@ sudo sysctl --system
 # https://wiki.debian.org/AppArmor/HowToUse
 
 # Ensure AppArmor is enabled
-sudo tee /etc/default/grub.d/apparmor.cfg << 'EOF'
-GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT apparmor=1 security=apparmor"
-EOF
+# sudo tee /etc/default/grub.d/apparmor.cfg << 'EOF'
+# GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT apparmor=1 security=apparmor"
+# EOF
 
-sudo update-grub
+# sudo update-grub
 
 # Install AppArmor userspace tools
 sudo apt -y install \
@@ -141,6 +143,41 @@ sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin d
 
 # Add user to docker group
 sudo usermod -aG docker $USER
+
+################################################
+##### ZRAM / swap
+################################################
+
+# References:
+# https://wiki.archlinux.org/title/Zram
+# https://blog.fernvenue.com/archives/using-zram-instead-of-swap/
+
+# Install zram generator and zram tools
+sudo apt install -y \
+  systemd-zram-generator \
+  zram-tools
+
+# Configure zram generator
+sudo tee /etc/systemd/zram-generator.conf << EOF
+[zram0]
+zram-size = ram / 4
+compression-algorithm = zstd
+EOF
+
+# Set page cluster
+echo 'vm.page-cluster=0' | sudo tee /etc/sysctl.d/99-page-cluster.conf
+
+# Set swappiness
+echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-swappiness.conf
+
+# Set vfs cache pressure
+echo 'vm.vfs_cache_pressure=50' | sudo tee /etc/sysctl.d/99-vfs-cache-pressure.conf
+
+# Daemon reload
+sudo systemctl daemon-reload
+
+# Enable zram on boot
+sudo systemctl start /dev/zram0
 
 ################################################
 ##### Unlock LUKS2 with TPM2 token

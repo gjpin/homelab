@@ -124,15 +124,15 @@ sudo systemctl start vaultwarden.service
 sudo borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
 sudo borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
 
-# Clear podman old images
+# Clear docker old images
 ```bash
-sudo podman system prune -af
+sudo docker system prune -af
 ```
 
 ## Restore Immich
 1. Restore volumes to correct directories
-2. Start only postgres: `sudo podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
-3. Start the rest of the containers: `sudo podman compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
+2. Start only postgres: `sudo docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
+3. Start the rest of the containers: `sudo docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
 
 # Setup disks
 ## Existing disks
@@ -240,8 +240,11 @@ options nouveau modeset=0
 EOF
 
 # Do not load NVIDIA drivers
-sudo grubby --update-kernel=ALL --args=rd.driver.blacklist=nouveau
-sudo grubby --update-kernel=ALL --args=modprobe.blacklist=nouveau
+# sudo grubby --update-kernel=ALL --args=rd.driver.blacklist=nouveau
+# sudo grubby --update-kernel=ALL --args=modprobe.blacklist=nouveau
+sudo tee /etc/default/grub.d/blacklist-nvidia.cfg << 'EOF'
+GRUB_CMDLINE_LINUX_DEFAULT="$GRUB_CMDLINE_LINUX_DEFAULT rd.driver.blacklist=nouveau modprobe.blacklist=nouveau"
+EOF
 
 # Remove NVIDIA UDEV rules
 sudo tee /etc/udev/rules.d/00-remove-nvidia.rules << 'EOF'
@@ -259,7 +262,8 @@ ACTION=="add", SUBSYSTEM=="pci", ATTR{vendor}=="0x10de", ATTR{class}=="0x03[0-9]
 EOF
 
 # Recreate GRUB config
-sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+# sudo grub2-mkconfig -o /boot/grub2/grub.cfg
+sudo update-grub
 
 # Regenerate initramfs
 sudo dracut --regenerate-all --force

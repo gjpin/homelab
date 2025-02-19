@@ -4,12 +4,12 @@ After=network-online.target
 Wants=network-online.target
 
 [Service]
-ExecStartPre=-/usr/bin/podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml kill --all
-ExecStartPre=-/usr/bin/podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
-ExecStartPre=-/usr/bin/podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
-ExecStart=/usr/bin/podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
+ExecStartPre=-/usr/bin/docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml kill --all
+ExecStartPre=-/usr/bin/docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
+ExecStartPre=-/usr/bin/docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
+ExecStart=/usr/bin/docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
 
-ExecStop=/usr/bin/podman compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
+ExecStop=/usr/bin/docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
 
 [Install]
 WantedBy=multi-user.target

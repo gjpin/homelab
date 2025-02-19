@@ -25,7 +25,8 @@ sudo apt install -y \
   apache2-utils \
   wakeonlan \
   git \
-  nano
+  nano \
+  htop
 
 # Install borgbackup
 sudo apt install -y borgbackup
