@@ -129,7 +129,7 @@ sudo firewall-cmd --reload
 # Install wireguard-tools
 sudo dnf install -y wireguard-tools
 
-# Create WireGuard folder
+# Create WireGuard directory
 sudo mkdir -p /etc/wireguard/
 sudo chmod 700 /etc/wireguard/
 
