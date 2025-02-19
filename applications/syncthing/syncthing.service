@@ -9,7 +9,7 @@ ExecStartPre=-/usr/bin/podman compose -f ${DATA_PATH}/syncthing/docker/docker-co
 ExecStartPre=-/usr/bin/podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml build --pull --no-cache
 ExecStart=/usr/bin/podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
 
-ExecStop=/usr/bin/podman podman podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
+ExecStop=/usr/bin/podman compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 
 [Install]
 WantedBy=multi-user.target
