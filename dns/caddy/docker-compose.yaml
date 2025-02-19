@@ -8,13 +8,8 @@ services:
       - 443:443
     networks:
       - caddy
-      - gitea
-      - immich
-      - librechat
       - pihole
-      - radicale
-      - syncthing
-      - vaultwarden
+      - technitium
     volumes:
       - ${DATA_PATH}/caddy/configs/Caddyfile:/etc/caddy/Caddyfile:Z
       - ${DATA_PATH}/caddy/volumes/caddy:/data/caddy:Z
@@ -23,17 +18,7 @@ services:
 networks:
   caddy:
     external: true
-  gitea:
-    external: true
-  immich:
-    external: true
-  librechat:
-    external: true
   pihole:
     external: true
-  radicale:
-    external: true
-  syncthing:
-    external: true
-  vaultwarden:
+  technitium:
     external: true
