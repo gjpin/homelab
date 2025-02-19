@@ -27,7 +27,8 @@ sudo apt install -y \
   git \
   nano \
   htop \
-  lm-sensors
+  lm-sensors \
+  udisks2
 
 # Install borgbackup
 sudo apt install -y borgbackup
