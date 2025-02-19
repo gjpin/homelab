@@ -139,18 +139,20 @@ sudo docker system prune -af
 ```bash
 # Mount data device
 sudo mkdir -p {/data,/backup}
-sudo mount -t ext4 /dev/sdb1 /data
-sudo mount -t ext4 /dev/sda1 /backup
+sudo mount -t ext4 /dev/sda1 /data
+sudo mount -t ext4 /dev/sdb1 /backup
 
 # Auto-mount
 sudo tee -a /etc/fstab << EOF
 
 # data disk
-UUID=$(lsblk -n -o UUID /dev/sdb1) /data ext4 defaults 0 0
+UUID=$(lsblk -n -o UUID /dev/sda1) /data ext4 defaults 0 0
 
 # backup disk
-UUID=$(lsblk -n -o UUID /dev/sda1) /backup ext4 defaults 0 0
+UUID=$(lsblk -n -o UUID /dev/sdb1) /backup ext4 defaults 0 0
 EOF
+
+sudo systemctl daemon-reload
 
 # Change ownership to user
 sudo chown -R $USER:$USER {/data,/backup}

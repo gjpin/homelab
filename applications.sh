@@ -6,10 +6,8 @@ sudo docker network create gitea
 sudo docker network create --internal immich
 sudo docker network create librechat
 sudo docker network create --internal obsidian
-sudo docker network create pihole
 sudo docker network create --internal radicale
 sudo docker network create syncthing
-sudo docker network create technitium
 sudo docker network create --internal vaultwarden
 
 ################################################
@@ -142,29 +140,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable obsidian.service
 
 ################################################
-##### Pi-Hole
-################################################
-
-# References:
-# https://github.com/pi-hole/docker-pi-hole/
-
-# Create directories
-mkdir -p ${DATA_PATH}/pihole/docker
-mkdir -p ${DATA_PATH}/pihole/configs
-mkdir -p ${DATA_PATH}/pihole/volumes/pihole
-
-# Copy files to expected directories and expand variables
-envsubst < ./applications/pihole/Dockerfile | tee ${DATA_PATH}/pihole/docker/Dockerfile > /dev/null
-envsubst < ./applications/pihole/docker-compose.yaml | tee ${DATA_PATH}/pihole/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/pihole/config.env | tee ${DATA_PATH}/pihole/docker/config.env > /dev/null
-envsubst < ./applications/pihole/99-edns.conf | tee ${DATA_PATH}/pihole/configs/99-edns.conf > /dev/null
-
-# Install systemd service
-envsubst < ./applications/pihole/pihole.service | sudo tee /etc/systemd/system/pihole.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable pihole.service
-
-################################################
 ##### Radicale
 ################################################
 
@@ -207,31 +182,6 @@ envsubst < ./applications/syncthing/docker-compose.yaml | tee ${DATA_PATH}/synct
 envsubst < ./applications/syncthing/syncthing.service | sudo tee /etc/systemd/system/syncthing.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable syncthing.service
-
-################################################
-##### Technitium
-################################################
-
-# References:
-# https://technitium.com/dns/help.html
-# https://technitium.com/dns/
-# https://hub.docker.com/r/technitium/dns-server
-# https://github.com/TechnitiumSoftware/DnsServer
-# https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml
-
-# Create directories
-mkdir -p ${DATA_PATH}/technitium/docker
-mkdir -p ${DATA_PATH}/technitium/configs
-mkdir -p ${DATA_PATH}/technitium/volumes/technitium
-
-# Copy files to expected directories and expand variables
-envsubst < ./applications/technitium/docker-compose.yaml | tee ${DATA_PATH}/technitium/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/technitium/config.env | tee ${DATA_PATH}/technitium/docker/config.env > /dev/null
-
-# Install systemd service
-envsubst < ./applications/technitium/technitium.service | sudo tee /etc/systemd/system/technitium.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable technitium.service
 
 ################################################
 ##### Vaultwarden
