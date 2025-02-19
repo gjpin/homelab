@@ -57,6 +57,9 @@ docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recrea
 docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 
 
+export BASE_DOMAIN=
+export DATA_PATH=$HOME/containers
+
 
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache

@@ -36,9 +36,7 @@ pihole.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy pihole:80 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy pihole:80
 }
 
 # Technitium
@@ -48,7 +46,5 @@ technitium.${BASE_DOMAIN} {
         encode gzip
 
         # Web Console (HTTP)
-        reverse_proxy technitium:5380 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy technitium:5380
 }

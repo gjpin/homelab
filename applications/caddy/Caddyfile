@@ -46,9 +46,7 @@ photos.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy immich-server:2283 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy immich-server:2283
 }
 
 # Obsidian
@@ -57,9 +55,7 @@ obsidian.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy obsidian:5984 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy obsidian:5984
 }
 
 # Radicale
@@ -68,9 +64,7 @@ contacts.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy radicale:5232 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy radicale:5232
 }
 
 # Syncthing
@@ -79,9 +73,7 @@ syncthing.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy syncthing:8384 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy syncthing:8384
 }
 
 # Vaultwarden
@@ -91,19 +83,13 @@ vault.${BASE_DOMAIN} {
         encode gzip
 
         # Vaultwarden HTTP server
-        reverse_proxy vaultwarden:80 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy vaultwarden:80
 
         # Websockets server
-        reverse_proxy /notifications/hub vaultwarden:3012 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy /notifications/hub vaultwarden:3012
 
         # Negotiation endpoint
-        reverse_proxy /notifications/hub/negotiate vaultwarden:8080 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy /notifications/hub/negotiate vaultwarden:8080
 }
 
 # Gitea
@@ -112,9 +98,7 @@ git.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy gitea:3000 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy gitea:3000
 }
 
 # LibreChat
@@ -123,7 +107,5 @@ chat.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy librechat:3080 {
-                header_up X-Real-IP { remote_host }
-        }
+        reverse_proxy librechat:3080
 }
