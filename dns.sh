@@ -1,9 +1,9 @@
 #!/usr/bin/bash
 
 # Create networks (Caddy belongs to all networks)
-sudo docker network create caddy --dns=1.1.1.1
-sudo docker network create pihole --dns=1.1.1.1
-sudo docker network create technitium --dns=1.1.1.1
+sudo docker network create caddy
+sudo docker network create pihole
+sudo docker network create technitium
 
 ################################################
 ##### Caddy

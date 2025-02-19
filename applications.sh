@@ -1,16 +1,16 @@
 #!/usr/bin/bash
 
 # Create networks (Caddy belongs to all networks)
-sudo docker network create caddy --dns=1.1.1.1
-sudo docker network create gitea --dns=1.1.1.1
-sudo docker network create --internal immich --dns=1.1.1.1
-sudo docker network create librechat --dns=1.1.1.1
-sudo docker network create --internal obsidian --dns=1.1.1.1
-sudo docker network create pihole --dns=1.1.1.1
-sudo docker network create --internal radicale --dns=1.1.1.1
-sudo docker network create syncthing --dns=1.1.1.1
-sudo docker network create technitium --dns=1.1.1.1
-sudo docker network create --internal vaultwarden --dns=1.1.1.1
+sudo docker network create caddy
+sudo docker network create gitea
+sudo docker network create --internal immich
+sudo docker network create librechat
+sudo docker network create --internal obsidian
+sudo docker network create pihole
+sudo docker network create --internal radicale
+sudo docker network create syncthing
+sudo docker network create technitium
+sudo docker network create --internal vaultwarden
 
 ################################################
 ##### Caddy
