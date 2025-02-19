@@ -169,7 +169,7 @@ EOF
 sudo update-grub
 
 # Update crypttab
-sudo sed -i "s|discard|&,tpm2-device=auto|" /etc/crypttab
+sudo sed -i '/_crypt/s/^/# /' /etc/crypttab
 
 # Regenerate initramfs
 sudo dracut --regenerate-all --force
