@@ -155,8 +155,8 @@ mkdir -p ${DATA_PATH}/radicale/volumes/radicale
 # Copy files to expected directories and expand variables
 envsubst < ./applications/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker/Dockerfile > /dev/null
 envsubst < ./applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/radicale/config | tee ${DATA_PATH}/radicale/configs/users > /dev/null
-envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/config > /dev/null
+envsubst < ./applications/radicale/config | tee ${DATA_PATH}/radicale/configs/config > /dev/null
+envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/users > /dev/null
 
 # Install systemd service
 envsubst < ./applications/radicale/radicale.service | sudo tee /etc/systemd/system/radicale.service > /dev/null
