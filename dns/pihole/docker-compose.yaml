@@ -16,6 +16,9 @@ services:
     volumes:
       - ${DATA_PATH}/pihole/volumes/pihole:/etc/pihole:Z
       - ${DATA_PATH}/pihole/configs/99-edns.conf:/etc/dnsmasq.d/99-edns.conf:Z
+    cap_add:
+      - CAP_SYS_TIME
+      - CAP_SYS_NICE
 
   pihole-dnscrypt:
     build:
