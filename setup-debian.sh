@@ -156,6 +156,34 @@ sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin d
 sudo usermod -aG docker $USER
 
 ################################################
+##### Samba
+################################################
+
+# References:
+# https://wiki.debian.org/Samba/ServerSimple
+# https://wiki.archlinux.org/title/Samba
+
+# Make the server discoverable
+sudo apt install -y avahi-daemon
+
+# Install samba packages
+sudo apt install -y samba samba-client
+
+# Add Samba users
+sudo smbpasswd -a $USER
+
+# Add Samba configs
+sudo tee -a /etc/samba/smb.conf << EOF
+
+[Media]
+   path = /mnt/Movies
+   browseable = yes
+   read only = yes
+   guest ok = yes
+   force user = nobody
+EOF
+
+################################################
 ##### ZRAM / swap
 ################################################
 
