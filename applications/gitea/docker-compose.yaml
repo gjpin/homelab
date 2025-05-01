@@ -1,6 +1,6 @@
 services:
   gitea:
-    image: docker.io/gitea/gitea:1.23.6
+    image: docker.io/gitea/gitea:1.23.7
     pull_policy: always
     container_name: gitea
     restart: always
@@ -15,7 +15,7 @@ services:
 
   gitea-postgres:
     container_name: gitea-postgres
-    image: docker.io/postgres:17.2-bookworm
+    image: docker.io/postgres:17.4-bookworm
     env_file:
       - config.env
     volumes:

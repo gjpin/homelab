@@ -31,35 +31,33 @@ export BACKUP_PATH=/backup/containers
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 
 # Shutdown containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
 
 # Start containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
-
 
 export BASE_DOMAIN=
 export DATA_PATH=$HOME/containers
-
 
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache

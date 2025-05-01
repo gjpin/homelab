@@ -1,6 +1,6 @@
 services:
   librechat:
-    image: ghcr.io/danny-avila/librechat-dev:e3b5c599495c917a46d2f09361915351c85cfe65
+    image: ghcr.io/danny-avila/librechat-dev:fe512005fca961c6c602bc0b70cd6ad29b6d643b
     pull_policy: always
     container_name: librechat
     restart: always
@@ -19,7 +19,7 @@ services:
 
   librechat-mongodb:
     container_name: librechat-mongodb
-    image: docker.io/mongo:8.0.4-noble
+    image: docker.io/mongo:8.0.8-noble
     restart: always
     user: "${UID}:${GID}"
     volumes:
@@ -53,7 +53,7 @@ services:
 
   librechat-rag:
     container_name: librechat-rag
-    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:9e4bb52e15d97856e3b69653c88d2cf1bb34324f
+    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:8ae9896691f10dc287a314355b999297d9daaab9
     pull_policy: always
     restart: always
     networks:
