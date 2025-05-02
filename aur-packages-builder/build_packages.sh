@@ -4,10 +4,6 @@ set -euxo pipefail
 # Ensure packages are up-to-date
 sudo pacman -Syyu --noconfirm
 
-# Ensure SSH config is safe
-chmod 700 ~/.ssh
-chmod 600 ~/.ssh/id_*
-
 # Disable debug symbols for smaller packages
 echo "OPTIONS=(!debug)" > ~/.makepkg.conf
 
