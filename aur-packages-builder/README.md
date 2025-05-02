@@ -6,8 +6,7 @@ docker build -t aur-builder .
 Run container
 ```bash
 docker run --rm \
-  -v ~/.ssh:/home/builder/.ssh:ro \
-  -v "$PWD/repo:/repo" \
-  -v "$PWD/run-build.sh:/home/builder/run-build.sh:ro" \
-  aur-base bash /home/builder/run-build.sh
+  -v ~/.ssh/id_ecdsa:/home/builder/.ssh/id_ecdsa:ro \
+  -v "$PWD/build_packages.sh:/home/builder/build_packages.sh:ro" \
+  aur-base bash /home/builder/build_packages.sh
 ```

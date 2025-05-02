@@ -4,10 +4,6 @@ set -euxo pipefail
 # Ensure packages are up-to-date
 sudo pacman -Syyu --noconfirm
 
-# Clone Arch Linux repo and make it PWD
-git clone https://github.com/gjpin/arch-linux-repo \
-cd arch-linux-repo
-
 # Ensure SSH config is safe
 chmod 700 ~/.ssh
 chmod 600 ~/.ssh/id_*
@@ -19,7 +15,11 @@ echo "OPTIONS=(!debug)" > ~/.makepkg.conf
 mkdir -p ~/packages ~/new_packages
 export PKGDEST=~/new_packages
 
-# List of AUR packages
+# Clone Arch Linux repo and make it PWD
+git clone --depth=1 https://github.com/gjpin/arch-linux-repo
+cd arch-linux-repo
+
+# List of AUR packages to be built
 packages=(
   xr-hardware-git
   monado-git
