@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euxo pipefail
 
+# Ensure packages are up-to-date
+sudo pacman -Syyu --noconfirm
+
 # Clone Arch Linux repo and make it PWD
 git clone https://github.com/gjpin/arch-linux-repo \
 cd arch-linux-repo
