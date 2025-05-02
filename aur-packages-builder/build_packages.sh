@@ -29,6 +29,7 @@ packages=(
   wivrn-dashboard
   alvr-git
   envision-xr-git
+  xrizer-git
 )
 
 # Clone and build each package
