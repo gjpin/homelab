@@ -27,6 +27,7 @@ packages=(
   wlx-overlay-s-git
   wivrn-server
   wivrn-dashboard
+  wivrn-full-git
   alvr-git
   envision-xr-git
   xrizer-git
