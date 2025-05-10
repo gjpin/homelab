@@ -57,6 +57,7 @@ services:
     # ports:
     #   - ${KONG_HTTP_PORT}:8000/tcp
       # - ${KONG_HTTPS_PORT}:8443/tcp
+    user: $USER
     volumes:
       - ./volumes/api/kong.yml:/kong/declarative/tmp.yml:ro
     depends_on:

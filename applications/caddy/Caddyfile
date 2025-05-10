@@ -116,5 +116,5 @@ supabase.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy kong:8000
+        reverse_proxy supabase-kong:8000
 }
