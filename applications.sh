@@ -7,6 +7,7 @@ sudo docker network create --internal immich
 sudo docker network create librechat
 sudo docker network create --internal obsidian
 sudo docker network create --internal radicale
+sudo docker network create supabase
 sudo docker network create syncthing
 sudo docker network create --internal vaultwarden
 

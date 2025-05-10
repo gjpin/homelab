@@ -12,6 +12,7 @@ services:
       - immich
       - librechat
       - radicale
+      - supabase
       - syncthing
       - vaultwarden
     volumes:
@@ -29,6 +30,8 @@ networks:
   librechat:
     external: true
   radicale:
+    external: true
+  supabase:
     external: true
   syncthing:
     external: true
