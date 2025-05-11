@@ -59,7 +59,7 @@ services:
       # - ${KONG_HTTPS_PORT}:8443/tcp
     user: "${UID:-1000}:${GID:-1000}"
     volumes:
-      - ./volumes/api/kong.yml:/kong/declarative/tmp.yml
+      - ./volumes/api/kong.yml:/etc/kong/declarative/tmp.yml
     depends_on:
       analytics:
         condition: service_healthy
@@ -78,7 +78,7 @@ services:
       DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
       DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
       KONG_LUA_SSL_TRUSTED_CERTIFICATE: /etc/ssl/certs/ca-certificates.crt
-    entrypoint: bash -c 'eval "echo \"$$(cat /kong/declarative/tmp.yml)\"" > /kong/declarative/kong.yml && /docker-entrypoint.sh kong docker-start'
+    entrypoint: bash -c 'eval "echo \"$$(cat /etc/kong/declarative/tmp.yml)\"" > /etc/kong/declarative/kong.yml && /docker-entrypoint.sh kong docker-start'
 
   # auth
   auth:
