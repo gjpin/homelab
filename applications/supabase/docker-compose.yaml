@@ -30,7 +30,6 @@ services:
     restart: unless-stopped
     volumes:
       - ./volumes/api/kong.yml:/kong/declarative/tmp.yml:ro
-    user: $USER
     depends_on:
       supabase-analytics:
         condition: service_healthy
@@ -283,7 +282,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./volumes/logs/vector.yml:/etc/vector/vector.yml:ro
-      - ${DOCKER_SOCKET_LOCATION}:/var/run/docker.sock:ro
+      - ${SUPABASE_DOCKER_SOCKET_LOCATION}:/var/run/docker.sock:ro
     healthcheck:
       test:
         [
