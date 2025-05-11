@@ -57,9 +57,9 @@ services:
     # ports:
     #   - ${KONG_HTTP_PORT}:8000/tcp
       # - ${KONG_HTTPS_PORT}:8443/tcp
-    user: $USER
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
-      - ./volumes/api/kong.yml:/kong/declarative/tmp.yml:ro
+      - ./volumes/api/kong.yml:/kong/declarative/tmp.yml
     depends_on:
       analytics:
         condition: service_healthy
