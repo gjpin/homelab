@@ -1,0 +1,351 @@
+services:
+  supabase-studio:
+    container_name: supabase-studio
+    image: supabase/studio:2025.05.05-sha-3c3fe9b
+    networks:
+      - supabase
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})"
+        ]
+      timeout: 10s
+      interval: 5s
+      retries: 3
+    depends_on:
+      supabase-analytics:
+        condition: service_healthy
+    env_file:
+      - config.env
+
+  supabase-kong:
+    container_name: supabase-kong
+    image: kong:3.9.0
+    networks:
+      - supabase
+    restart: unless-stopped
+    volumes:
+      - ./volumes/api/kong.yml:/kong/declarative/tmp.yml:ro
+    user: $USER
+    depends_on:
+      supabase-analytics:
+        condition: service_healthy
+    env_file:
+      - config.env
+    entrypoint: bash -c '/docker-entrypoint.sh kong docker-start'
+
+  supabase-auth:
+    container_name: supabase-auth
+    image: supabase/gotrue:v2.172.1
+    networks:
+      - supabase
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:9999/health"
+        ]
+      timeout: 5s
+      interval: 5s
+      retries: 3
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      supabase-analytics:
+        condition: service_healthy
+    env_file:
+      - config.env
+
+  supabase-rest:
+    container_name: supabase-rest
+    image: postgrest/postgrest:v12.2.7
+    networks:
+      - supabase
+    restart: unless-stopped
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      supabase-analytics:
+        condition: service_healthy
+    env_file:
+      - config.env
+    command:
+      [
+        "postgrest"
+      ]
+
+  supabase-realtime:
+    # This container name looks inconsistent but is correct because realtime constructs tenant id by parsing the subdomain
+    container_name: realtime-dev.supabase-realtime
+    image: supabase/realtime:v2.35.0
+    networks:
+      - supabase
+    restart: unless-stopped
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      supabase-analytics:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sSfL",
+          "--head",
+          "-o",
+          "/dev/null",
+          "-H",
+          "Authorization: Bearer ${ANON_KEY}",
+          "http://localhost:4000/api/tenants/realtime-dev/health"
+        ]
+      timeout: 5s
+      interval: 5s
+      retries: 3
+    env_file:
+      - config.env
+
+  supabase-storage:
+    container_name: supabase-storage
+    image: supabase/storage-api:v1.22.13
+    networks:
+      - supabase
+    restart: unless-stopped
+    volumes:
+      - ./volumes/storage:/var/lib/storage:z
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://storage:5000/status"
+        ]
+      timeout: 5s
+      interval: 5s
+      retries: 3
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      supabase-rest:
+        condition: service_started
+      supabase-imgproxy:
+        condition: service_started
+    env_file:
+      - config.env
+
+  supabase-imgproxy:
+    container_name: supabase-imgproxy
+    image: ghcr.io/imgproxy/imgproxy:v3.28.0
+    networks:
+      - supabase
+    restart: unless-stopped
+    volumes:
+      - ./volumes/storage:/var/lib/storage:z
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "imgproxy",
+          "health"
+        ]
+      timeout: 5s
+      interval: 5s
+      retries: 3
+    env_file:
+      - config.env
+
+  supabase-meta:
+    container_name: supabase-meta
+    image: supabase/postgres-meta:v0.89.0
+    networks:
+      - supabase
+    restart: unless-stopped
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      supabase-analytics:
+        condition: service_healthy
+    env_file:
+      - config.env
+
+  supabase-functions:
+    container_name: supabase-edge-functions
+    image: supabase/edge-runtime:v1.67.4
+    networks:
+      - supabase
+    restart: unless-stopped
+    volumes:
+      - ./volumes/functions:/home/deno/functions:Z
+    depends_on:
+      supabase-analytics:
+        condition: service_healthy
+    env_file:
+      - config.env
+    command:
+      [
+        "start",
+        "--main-service",
+        "/home/deno/functions/main"
+      ]
+
+  supabase-analytics:
+    container_name: supabase-analytics
+    image: supabase/logflare:1.14.0
+    networks:
+      - supabase
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "http://localhost:4000/health"
+        ]
+      timeout: 5s
+      interval: 5s
+      retries: 10
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+    env_file:
+      - config.env
+
+  supabase-db:
+    container_name: supabase-db
+    image: supabase/postgres:15.8.1.085
+    networks:
+      - supabase
+    restart: unless-stopped
+    volumes:
+      - ./volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
+      # Must be superuser to create event trigger
+      - ./volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
+      # Enable vector (pgvector) extension by default
+      - ./volumes/db/vector.sql:/docker-entrypoint-initdb.d/init-scripts/99-vector.sql:Z
+      # Must be superuser to alter reserved role
+      - ./volumes/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z
+      # Initialize the database settings with JWT_SECRET and JWT_EXP
+      - ./volumes/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z
+      # PGDATA directory is persisted between restarts
+      - ./volumes/db/data:/var/lib/postgresql/data:Z
+      # Changes required for internal supabase data such as _analytics
+      - ./volumes/db/_supabase.sql:/docker-entrypoint-initdb.d/migrations/97-_supabase.sql:Z
+      # Changes required for Analytics support
+      - ./volumes/db/logs.sql:/docker-entrypoint-initdb.d/migrations/99-logs.sql:Z
+      # Changes required for Pooler support
+      - ./volumes/db/pooler.sql:/docker-entrypoint-initdb.d/migrations/99-pooler.sql:Z
+      # Use named volume to persist pgsodium decryption key between restarts
+      - db-config:/etc/postgresql-custom
+    healthcheck:
+      test:
+        [
+        "CMD",
+        "pg_isready",
+        "-U",
+        "postgres",
+        "-h",
+        "localhost"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    depends_on:
+      supabase-vector:
+        condition: service_healthy
+    env_file:
+      - config.env
+    command:
+      [
+        "postgres",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "log_min_messages=fatal" # prevents Realtime polling queries from appearing in logs
+      ]
+
+  supabase-vector:
+    container_name: supabase-vector
+    image: timberio/vector:0.46.1-alpine
+    networks:
+      - supabase
+    restart: unless-stopped
+    volumes:
+      - ./volumes/logs/vector.yml:/etc/vector/vector.yml:ro
+      - ${DOCKER_SOCKET_LOCATION}:/var/run/docker.sock:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://vector:9001/health"
+        ]
+      timeout: 5s
+      interval: 5s
+      retries: 3
+    env_file:
+      - config.env
+    command:
+      [
+        "--config",
+        "/etc/vector/vector.yml"
+      ]
+    security_opt:
+      - "label=disable"
+
+  supabase-supavisor:
+    container_name: supabase-pooler
+    image: supabase/supavisor:2.5.1
+    networks:
+      - supabase
+    restart: unless-stopped
+    volumes:
+      - ./volumes/pooler/pooler.exs:/etc/pooler/pooler.exs:ro
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-sSfL",
+          "--head",
+          "-o",
+          "/dev/null",
+          "http://127.0.0.1:4000/api/health"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      supabase-db:
+        condition: service_healthy
+      supabase-analytics:
+        condition: service_healthy
+    env_file:
+      - config.env
+    command:
+      [
+        "/bin/sh",
+        "-c",
+        "/app/bin/migrate && /app/bin/supavisor eval \"$$(cat /etc/pooler/pooler.exs)\" && /app/bin/server"
+      ]
+
+volumes:
+  db-config:
+
+networks:
+  supabase:
+    external: true

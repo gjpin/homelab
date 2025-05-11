@@ -109,3 +109,12 @@ chat.${BASE_DOMAIN} {
 
         reverse_proxy librechat:3080
 }
+
+# Supabase
+supabase.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy supabase-kong:8000
+}

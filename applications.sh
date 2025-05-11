@@ -7,6 +7,7 @@ sudo docker network create --internal immich
 sudo docker network create librechat
 sudo docker network create --internal obsidian
 sudo docker network create --internal radicale
+sudo docker network create supabase
 sudo docker network create syncthing
 sudo docker network create --internal vaultwarden
 
@@ -32,6 +33,26 @@ envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddy
 envsubst < ./applications/caddy/caddy.service | sudo tee /etc/systemd/system/caddy.service > /dev/null
 sudo systemctl daemon-reload
 sudo systemctl enable caddy.service
+
+################################################
+##### Supabase
+################################################
+
+# Create directories
+mkdir -p ${DATA_PATH}/supabase/docker
+mkdir -p ${DATA_PATH}/supabase/configs
+mkdir -p ${DATA_PATH}/supabase/volumes
+
+# Copy files to expected directories and expand variables
+cp -R ./applications/supabase/volumes/* ${DATA_PATH}/supabase/volumes/
+envsubst < ./applications/supabase/volumes/api/kong.yml | tee ${DATA_PATH}/supabase/volumes/api/kong.yml > /dev/null
+envsubst < ./applications/supabase/docker-compose.yaml | tee ${DATA_PATH}/supabase/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/supabase/config.env | tee ${DATA_PATH}/supabase/docker/config.env > /dev/null
+
+# Install systemd service
+envsubst < ./applications/supabase/supabase.service | sudo tee /etc/systemd/system/supabase.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable supabase.service
 
 ################################################
 ##### Gitea
