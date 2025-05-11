@@ -44,7 +44,7 @@ mkdir -p ${DATA_PATH}/supabase/configs
 mkdir -p ${DATA_PATH}/supabase/volumes
 
 # Copy files to expected directories and expand variables
-cp -R ./applications/supabase/volumes/* ${DATA_PATH}/supabase/volumes/
+sudo cp -R ./applications/supabase/volumes/* ${DATA_PATH}/supabase/volumes/
 envsubst < ./applications/supabase/volumes/api/kong.yml | tee ${DATA_PATH}/supabase/volumes/api/kong.yml > /dev/null
 envsubst < ./applications/supabase/docker-compose.yaml | tee ${DATA_PATH}/supabase/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/supabase/config.env | tee ${DATA_PATH}/supabase/docker/config.env > /dev/null
