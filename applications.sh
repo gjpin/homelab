@@ -54,6 +54,9 @@ envsubst < ./applications/gitea/config.env | tee ${DATA_PATH}/gitea/docker/confi
 ##### Home Assistant
 ################################################
 
+# Set required env var
+export HOMEASSISTANT_TRUSTED_PROXY_SUBNET=$(docker network inspect homeassistant --format '{{(index .IPAM.Config 0).Subnet}}')
+
 # Create directories
 mkdir -p ${DATA_PATH}/homeassistant/docker
 mkdir -p ${DATA_PATH}/homeassistant/volumes/{homeassistant,zigbee2mqtt}
@@ -67,6 +70,8 @@ docker run --rm -v ${DATA_PATH}/homeassistant/configs/mosquitto_pwfile:/data/mos
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/homeassistant/docker-compose.yaml $| tee ${DATA_PATH}/homeassistant/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/homeassistant/homeassistant.yaml | tee ${DATA_PATH}/homeassistant/configs/homeassistant.yaml > /dev/null
+envsubst < ./applications/homeassistant/homeassistant-http.yaml | tee ${DATA_PATH}/homeassistant/configs/homeassistant-http.yaml > /dev/null
 envsubst < ./applications/homeassistant/zigbee2mqtt.yaml | tee ${DATA_PATH}/homeassistant/configs/zigbee2mqtt.yaml > /dev/null
 envsubst < ./applications/homeassistant/mosquitto.conf | tee ${DATA_PATH}/homeassistant/configs/mosquitto.conf > /dev/null
 

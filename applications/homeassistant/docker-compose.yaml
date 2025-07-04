@@ -9,6 +9,8 @@ services:
     image: ghcr.io/home-assistant/home-assistant:2025.7.0
     restart: always
     volumes:
+      - ${DATA_PATH}/homeassistant/configs/homeassistant.yaml:/config/configuration.yaml
+      - ${DATA_PATH}/homeassistant/configs/homeassistant-http.yaml:/config/http.yaml
       - ${DATA_PATH}/homeassistant/volumes/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
@@ -23,6 +25,7 @@ services:
     restart: always
     volumes:
       - ${DATA_PATH}/homeassistant/configs/zigbee2mqtt.yaml:/app/data/configuration.yaml
+      - ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt:/app/data
       - /run/udev:/run/udev:ro
       - /etc/localtime:/etc/localtime:ro
     depends_on:
