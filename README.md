@@ -107,10 +107,26 @@ export SUPABASE_DOCKER_SOCKET_LOCATION=
 ```
 
 # Cheat sheet
-## Update all containers
+## Update all containers (dns server)
+```bash
+export DATA_PATH=$HOME/containers
+
+# Update containers
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
+
+# Shutdown containers
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
+
+# Start containers
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
+```
+
+## Update all containers (homelab)
 ```bash
 export DATA_PATH=/data/containers
-export BACKUP_PATH=/backup/containers
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache

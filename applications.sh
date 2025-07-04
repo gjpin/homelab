@@ -29,11 +29,6 @@ envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Docke
 envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
 
-# Install systemd service
-envsubst < ./applications/caddy/caddy.service | sudo tee /etc/systemd/system/caddy.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable caddy.service
-
 ################################################
 ##### Supabase
 ################################################
@@ -48,11 +43,6 @@ sudo cp -R ./applications/supabase/volumes/* ${DATA_PATH}/supabase/docker/volume
 envsubst < ./applications/supabase/volumes/api/kong.yml | tee ${DATA_PATH}/supabase/volumes/api/kong.yml > /dev/null
 envsubst < ./applications/supabase/docker-compose.yaml | tee ${DATA_PATH}/supabase/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/supabase/config.env | tee ${DATA_PATH}/supabase/docker/config.env > /dev/null
-
-# Install systemd service
-envsubst < ./applications/supabase/supabase.service | sudo tee /etc/systemd/system/supabase.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable supabase.service
 
 ################################################
 ##### Gitea
@@ -73,11 +63,6 @@ sudo chown -R 1000:1000 ${DATA_PATH}/gitea/volumes/gitea
 # Copy files to expected directories and expand variables
 envsubst < ./applications/gitea/docker-compose.yaml | tee ${DATA_PATH}/gitea/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/gitea/config.env | tee ${DATA_PATH}/gitea/docker/config.env > /dev/null
-
-# Install systemd service
-envsubst < ./applications/gitea/gitea.service | sudo tee /etc/systemd/system/gitea.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable gitea.service
 
 ################################################
 ##### Immich
@@ -100,11 +85,6 @@ mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres}
 # Copy files to expected directories and expand variables
 envsubst < ./applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
-
-# Install systemd service
-envsubst < ./applications/immich/immich.service | sudo tee /etc/systemd/system/immich.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable immich.service
 
 ################################################
 ##### LibreChat
@@ -133,11 +113,6 @@ envsubst < ./applications/librechat/docker-compose.yaml $| tee {DATA_PATH}/libre
 envsubst < ./applications/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
 envsubst < ./applications/librechat/librechat.yaml | tee ${DATA_PATH}/librechat/configs/librechat.yaml > /dev/null
 
-# Install systemd service
-envsubst < ./applications/librechat/librechat.service | sudo tee /etc/systemd/system/librechat.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable librechat.service
-
 ################################################
 ##### Obsidian
 ################################################
@@ -154,11 +129,6 @@ mkdir -p ${DATA_PATH}/obsidian/volumes/obsidian
 envsubst < ./applications/obsidian/docker-compose.yaml | tee ${DATA_PATH}/obsidian/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/obsidian/config.env | tee ${DATA_PATH}/obsidian/docker/config.env > /dev/null
 envsubst < ./applications/obsidian/local.ini | tee ${DATA_PATH}/obsidian/configs/local.ini > /dev/null
-
-# Install systemd service
-envsubst < ./applications/obsidian/obsidian.service | sudo tee /etc/systemd/system/obsidian.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable obsidian.service
 
 ################################################
 ##### Radicale
@@ -179,11 +149,6 @@ envsubst < ./applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radica
 envsubst < ./applications/radicale/config | tee ${DATA_PATH}/radicale/configs/config > /dev/null
 envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/users > /dev/null
 
-# Install systemd service
-envsubst < ./applications/radicale/radicale.service | sudo tee /etc/systemd/system/radicale.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable radicale.service
-
 ################################################
 ##### Syncthing
 ################################################
@@ -199,11 +164,6 @@ mkdir -p ${DATA_PATH}/syncthing/volumes/syncthing
 # Copy files to expected directories and expand variables
 envsubst < ./applications/syncthing/docker-compose.yaml | tee ${DATA_PATH}/syncthing/docker/docker-compose.yml > /dev/null
 
-# Install systemd service
-envsubst < ./applications/syncthing/syncthing.service | sudo tee /etc/systemd/system/syncthing.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable syncthing.service
-
 ################################################
 ##### Vaultwarden
 ################################################
@@ -216,8 +176,3 @@ mkdir -p ${DATA_PATH}/vaultwarden/volumes/vaultwarden
 # Copy files to expected directories and expand variables
 envsubst < ./applications/vaultwarden/docker-compose.yaml | tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/vaultwarden/config.env | tee ${DATA_PATH}/vaultwarden/docker/config.env > /dev/null
-
-# Install systemd service
-envsubst < ./applications/vaultwarden/vaultwarden.service | sudo tee /etc/systemd/system/vaultwarden.service > /dev/null
-sudo systemctl daemon-reload
-sudo systemctl enable vaultwarden.service
