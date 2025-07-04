@@ -111,6 +111,12 @@ export SUPABASE_DOCKER_SOCKET_LOCATION=
 ```bash
 export DATA_PATH=$HOME/containers
 
+##################################################
+# IMPORTANT: export all application environments
+##################################################
+
+./$HOME/homelab/dns.sh
+
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
@@ -127,6 +133,12 @@ docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recre
 ## Update all containers (homelab)
 ```bash
 export DATA_PATH=/data/containers
+
+##################################################
+# IMPORTANT: export all application environments
+##################################################
+
+./$HOME/homelab/applications.sh
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
