@@ -39,6 +39,7 @@ services:
     restart: always
     networks:
       - librechat
+    # command: ["meilisearch", "--experimental-dumpless-upgrade"]
 
   librechat-pgvector:
     container_name: librechat-pgvector

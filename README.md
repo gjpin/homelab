@@ -109,13 +109,18 @@ export SUPABASE_DOCKER_SOCKET_LOCATION=
 # Cheat sheet
 ## Update all containers (dns server)
 ```bash
-export DATA_PATH=$HOME/containers
+# Pull newest updates
+git -C $HOME/homelab pull
 
 ##################################################
 # IMPORTANT: export all application environments
 ##################################################
 
-./$HOME/homelab/dns.sh
+export DATA_PATH=$HOME/containers
+
+# Update containers env vars
+cd $HOME/homelab
+./dns.sh
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
@@ -132,13 +137,18 @@ docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recre
 
 ## Update all containers (homelab)
 ```bash
-export DATA_PATH=/data/containers
+# Pull newest updates
+git -C $HOME/homelab pull
 
 ##################################################
 # IMPORTANT: export all application environments
 ##################################################
 
-./$HOME/homelab/applications.sh
+export DATA_PATH=/data/containers
+
+# Update containers env vars
+cd $HOME/homelab
+./applications.sh
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
@@ -176,14 +186,58 @@ sudo borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
 
 ## Clear docker old images
 ```bash
-sudo docker system prune -af
+docker system prune -af
 ```
 
 # Misc guides
+## Upgrade Immich database (or any other postgres)
+```bash
+export IMMICH_DATABASE_PASSWORD=
+
+# Shutdown Immich
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+
+# Backup Immich database volume
+sudo cp -R ${DATA_PATH}/immich/volumes/postgres /tmp/postgres_backup
+
+# Bring up only the postgres container
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres
+
+# Backup the database
+docker exec -t immich-postgres env PGPASSWORD=${IMMICH_DATABASE_PASSWORD} pg_dump -U immich -d immich -F c -f /tmp/immich.dump
+docker cp immich-postgres:/tmp/immich.dump /tmp/immich.dump
+
+# Shutdown the postgres container
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down immich-postgres
+
+# Remove Immich database volume data
+sudo rm -rf ${DATA_PATH}/immich/volumes/postgres/*
+
+# Update docker-compose with new pg version
+
+# Bring up only the postgres container
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull immich-postgres
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres
+
+# Copy the dump file into the new container
+docker cp /tmp/immich.dump immich-postgres:/tmp/immich.dump
+
+# Create the database
+docker exec -e PGPASSWORD="${IMMICH_DATABASE_PASSWORD}" immich-postgres \
+  psql -U immich -c "CREATE DATABASE immich;"
+
+# Restore the dump
+docker exec -e PGPASSWORD="${IMMICH_DATABASE_PASSWORD}" immich-postgres \
+  pg_restore -U immich -d immich /tmp/immich.dump
+
+# Bring up the rest of the containers
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+```
+
 ## Restore Immich
 1. Restore volumes to correct directories
-2. Start only postgres: `sudo docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
-3. Start the rest of the containers: `sudo docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
+2. Start only postgres: `docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
+3. Start the rest of the containers: `docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
 
 ## Setup existing disks
 ```bash

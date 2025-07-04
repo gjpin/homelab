@@ -109,7 +109,7 @@ sudo chown -R 1000:1000 ${DATA_PATH}/librechat/configs
 sudo chown -R 1000:1000 ${DATA_PATH}/librechat/volumes
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/librechat/docker-compose.yaml $| tee {DATA_PATH}/librechat/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/librechat/docker-compose.yaml $| tee ${DATA_PATH}/librechat/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
 envsubst < ./applications/librechat/librechat.yaml | tee ${DATA_PATH}/librechat/configs/librechat.yaml > /dev/null
 
