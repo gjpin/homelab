@@ -189,7 +189,7 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-
 
 ## Backup containers data
 ```bash
-sudo borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
+sudo borg create ${BACKUP_PATH}::{now:%Y-%m-%d} ${DATA_PATH}
 sudo borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
 ```
 
