@@ -37,4 +37,4 @@ ota:
 # https://www.zigbee2mqtt.io/guide/configuration/adapter-settings.html
 serial:
   port: tcp://${HOMEASSISTANT_ZIGBEE_HUB_IP}:20108
-  adapter: ezsp
+  adapter: ember

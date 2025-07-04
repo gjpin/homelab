@@ -157,6 +157,7 @@ cd $HOME/homelab
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
@@ -166,6 +167,7 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 # Shutdown containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
@@ -175,6 +177,7 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
 # Start containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
