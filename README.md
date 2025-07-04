@@ -30,7 +30,6 @@ cd homelab
 5. Reboot
 6. Create borg repo (if not created yet): `borg init --encryption=none /backup/containers`
 
-# Paths
 # Env vars
 ## Common
 ```bash
@@ -110,54 +109,55 @@ export SUPABASE_DOCKER_SOCKET_LOCATION=
 # Cheat sheet
 ## Update all containers
 ```bash
-# Update system
-sudo dnf upgrade -y --refresh
+export DATA_PATH=/data/containers
+export BACKUP_PATH=/backup/containers
+
+# Update containers
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
+
+# Shutdown containers
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
+
+# Start containers
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
 ```
 
-## Stop all containers
+## Backup containers data
 ```bash
-sudo systemctl stop caddy.service
-sudo systemctl stop gitea.service
-sudo systemctl stop immich.service
-sudo systemctl stop librechat.service
-sudo systemctl stop obsidian.service
-sudo systemctl stop pihole.service
-sudo systemctl stop radicale.service
-sudo systemctl stop syncthing.service
-sudo systemctl stop technitium.service
-sudo systemctl stop vaultwarden.service
-```
-
-## Start all containers
-```bash
-sudo systemctl start caddy.service
-sudo systemctl start gitea.service
-sudo systemctl start immich.service
-sudo systemctl start librechat.service
-sudo systemctl start obsidian.service
-sudo systemctl start pihole.service
-sudo systemctl start radicale.service
-sudo systemctl start syncthing.service
-sudo systemctl start technitium.service
-sudo systemctl start vaultwarden.service
-```
-
-# Backup containers data
 sudo borg create /backup/containers::{now:%Y-%m-%d} ${DATA_PATH}
 sudo borg prune --keep-weekly=4 --keep-monthly=3 ${BACKUP_PATH}
+```
 
-# Clear docker old images
+## Clear docker old images
 ```bash
 sudo docker system prune -af
 ```
 
+# Misc guides
 ## Restore Immich
 1. Restore volumes to correct directories
 2. Start only postgres: `sudo docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
 3. Start the rest of the containers: `sudo docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
 
-# Setup disks
-## Existing disks
+## Setup existing disks
 ```bash
 # Mount data device
 sudo mkdir -p {/data,/backup}
@@ -180,8 +180,7 @@ sudo systemctl daemon-reload
 sudo chown -R $USER:$USER {/data,/backup}
 ```
 
-## New disks
-### Main data disk
+## Setup new main data disk
 ```bash
 # Delete old partition layout and re-read partition table
 sudo wipefs -af /dev/sdb
@@ -210,7 +209,7 @@ EOF
 sudo chown -R $USER:$USER /data
 ```
 
-### Backup disk
+## Setup new backup disk
 ```bash
 # Delete old partition layout and re-read partition table
 sudo wipefs -af /dev/sda
@@ -239,7 +238,7 @@ EOF
 sudo chown -R $USER:$USER /backup
 ```
 
-# Set static IP
+## Set static IP
 ```bash
 # Check network settings
 sudo nmcli
@@ -250,7 +249,7 @@ sudo nmcli con down 'enp34s0'
 sudo nmcli con up 'enp34s0' 
 ```
 
-# Disable NVIDIA GPU
+## Disable NVIDIA GPU
 ```bash
 # References:
 # https://discussion.fedoraproject.org/t/is-this-the-proper-way-to-disable-all-nvidia-gpu-drivers/130555
@@ -293,7 +292,7 @@ sudo update-grub
 sudo dracut --regenerate-all --force
 ```
 
-# Debian - Remove swap
+## Debian - Remove swap
 - Partitioning method:
     - Guided - use entire disk and set up encrypted LVM
 - Remove swap LV:

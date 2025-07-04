@@ -60,6 +60,7 @@ EOF
 sudo apt update
 
 # Install latest kernel from backports
+sudo apt install -y linux-base/$VERSION_CODENAME-backports
 sudo apt install -y linux-image-amd64/$VERSION_CODENAME-backports
 
 ################################################
