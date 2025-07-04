@@ -1,6 +1,6 @@
 services:
   syncthing:
-    image: docker.io/syncthing/syncthing:1.29.5
+    image: docker.io/syncthing/syncthing:1.30.0
     pull_policy: always
     container_name: syncthing
     hostname: ${HOSTNAME}

@@ -1,6 +1,6 @@
 services:
   obsidian:
-    image: docker.io/couchdb:3.4.2
+    image: docker.io/couchdb:3.5.0
     container_name: obsidian
     volumes:
       - ${DATA_PATH}/obsidian/configs/local.ini:/opt/couchdb/etc/local.ini:Z

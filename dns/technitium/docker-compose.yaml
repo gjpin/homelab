@@ -1,6 +1,6 @@
 services:
   technitium:
-    image: docker.io/technitium/dns-server:13.3.0
+    image: docker.io/technitium/dns-server:13.6.0
     pull_policy: always
     container_name: technitium
     restart: always
