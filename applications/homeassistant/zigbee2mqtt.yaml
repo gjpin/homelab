@@ -1,0 +1,40 @@
+permit_join: false
+
+# https://www.zigbee2mqtt.io/guide/configuration/mqtt.html#server-connection
+mqtt:
+  server: mqtt://homeassistant-mosquitto:1883
+  base_topic: zigbee2mqtt
+  user: ha
+  password: ${HOMEASSISTANT_MOSQUITTO_PASSWORD}
+  keepalive: 60
+  version: 5
+
+# https://www.zigbee2mqtt.io/guide/configuration/mqtt.html#mqtt-behaviour
+advanced:
+  cache_state: true
+  cache_state_persistent: true
+  cache_state_send_on_startup: true
+  output: json
+
+# https://www.zigbee2mqtt.io/guide/configuration/frontend.html
+frontend:
+  enabled: true
+  package: zigbee2mqtt-frontend
+  port: 8080
+  url: 'https://home-zigbee.${BASE_DOMAIN}'
+
+# https://www.zigbee2mqtt.io/guide/configuration/homeassistant.html
+homeassistant:
+  enabled: true
+  discovery_topic: 'homeassistant'
+  status_topic: 'homeassistant/status'
+
+# https://www.zigbee2mqtt.io/guide/configuration/ota-device-updates.html
+ota:
+  update_check_interval: 1440
+  disable_automatic_update_check: false
+
+# https://www.zigbee2mqtt.io/guide/configuration/adapter-settings.html
+serial:
+  port: tcp://${HOMEASSISTANT_ZIGBEE_HUB_IP}:20108
+  adapter: ezsp

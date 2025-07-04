@@ -1,15 +1,16 @@
 #!/usr/bin/bash
 
 # Create networks (Caddy belongs to all networks)
-sudo docker network create caddy
-sudo docker network create gitea
-sudo docker network create --internal immich
-sudo docker network create librechat
-sudo docker network create --internal obsidian
-sudo docker network create --internal radicale
-sudo docker network create supabase
-sudo docker network create syncthing
-sudo docker network create --internal vaultwarden
+docker network create caddy
+docker network create gitea
+docker network create homeassistant
+docker network create --internal immich
+docker network create librechat
+docker network create --internal obsidian
+docker network create --internal radicale
+docker network create supabase
+docker network create syncthing
+docker network create --internal vaultwarden
 
 ################################################
 ##### Caddy
@@ -28,21 +29,6 @@ mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
 envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
-
-################################################
-##### Supabase
-################################################
-
-# Create directories
-mkdir -p ${DATA_PATH}/supabase/docker/volumes
-mkdir -p ${DATA_PATH}/supabase/configs
-mkdir -p ${DATA_PATH}/supabase/volumes
-
-# Copy files to expected directories and expand variables
-sudo cp -R ./applications/supabase/volumes/* ${DATA_PATH}/supabase/docker/volumes/
-envsubst < ./applications/supabase/volumes/api/kong.yml | tee ${DATA_PATH}/supabase/volumes/api/kong.yml > /dev/null
-envsubst < ./applications/supabase/docker-compose.yaml | tee ${DATA_PATH}/supabase/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/supabase/config.env | tee ${DATA_PATH}/supabase/docker/config.env > /dev/null
 
 ################################################
 ##### Gitea
@@ -65,15 +51,30 @@ envsubst < ./applications/gitea/docker-compose.yaml | tee ${DATA_PATH}/gitea/doc
 envsubst < ./applications/gitea/config.env | tee ${DATA_PATH}/gitea/docker/config.env > /dev/null
 
 ################################################
+##### Home Assistant
+################################################
+
+# Create directories
+mkdir -p ${DATA_PATH}/homeassistant/docker
+mkdir -p ${DATA_PATH}/homeassistant/volumes/{homeassistant,zigbee2mqtt}
+mkdir -p ${DATA_PATH}/homeassistant/volumes/mosquitto/{data,log}
+mkdir -p ${DATA_PATH}/homeassistant/configs
+
+# Create mosquitto password file
+touch ${DATA_PATH}/homeassistant/configs/mosquitto_pwfile
+docker run --rm -v ${DATA_PATH}/homeassistant/configs/mosquitto_pwfile:/data/mosquitto_pwfile eclipse-mosquitto:2 \
+    sh -c "mosquitto_passwd -b /data/mosquitto_pwfile ha ${HOMEASSISTANT_MOSQUITTO_PASSWORD}"
+
+# Copy files to expected directories and expand variables
+envsubst < ./applications/homeassistant/docker-compose.yaml $| tee ${DATA_PATH}/homeassistant/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/homeassistant/zigbee2mqtt.yaml | tee ${DATA_PATH}/homeassistant/configs/zigbee2mqtt.yaml > /dev/null
+envsubst < ./applications/homeassistant/mosquitto.conf | tee ${DATA_PATH}/homeassistant/configs/mosquitto.conf > /dev/null
+
+################################################
 ##### Immich
 ################################################
 
 # References:
-# Update pgvecto.rs: https://docs.pgvecto.rs/admin/upgrading.html
-  # docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres
-  # docker exec -ti immich-postgres bash
-  # psql postgresql://immich:${IMMICH_DATABASE_PASSWORD}@immich-postgres:5432/immich
-  # ... follow the rest
 # https://github.com/immich-app/immich/blob/main/docker/docker-compose.yml
 # https://github.com/immich-app/immich/blob/main/docker/example.env
 # https://github.com/immich-app/immich/blob/main/nginx/nginx.conf
@@ -148,6 +149,21 @@ envsubst < ./applications/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker
 envsubst < ./applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/radicale/config | tee ${DATA_PATH}/radicale/configs/config > /dev/null
 envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/users > /dev/null
+
+################################################
+##### Supabase
+################################################
+
+# Create directories
+mkdir -p ${DATA_PATH}/supabase/docker/volumes
+mkdir -p ${DATA_PATH}/supabase/configs
+mkdir -p ${DATA_PATH}/supabase/volumes
+
+# Copy files to expected directories and expand variables
+sudo cp -R ./applications/supabase/volumes/* ${DATA_PATH}/supabase/docker/volumes/
+envsubst < ./applications/supabase/volumes/api/kong.yml | tee ${DATA_PATH}/supabase/volumes/api/kong.yml > /dev/null
+envsubst < ./applications/supabase/docker-compose.yaml | tee ${DATA_PATH}/supabase/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/supabase/config.env | tee ${DATA_PATH}/supabase/docker/config.env > /dev/null
 
 ################################################
 ##### Syncthing

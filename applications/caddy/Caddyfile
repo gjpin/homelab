@@ -101,6 +101,24 @@ git.${BASE_DOMAIN} {
         reverse_proxy gitea:3000
 }
 
+# Home Assistant
+home.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy homeassistant:8123
+}
+
+# # Home Assistant - Zigbee2MQTT
+home-zigbee.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy homeassistant-zigbee2mqtt:8080
+}
+
 # LibreChat
 chat.${BASE_DOMAIN} {
         import default-header

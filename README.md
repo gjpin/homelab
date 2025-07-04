@@ -45,6 +45,10 @@ export CADDY_PASSWORD=$(openssl rand -hex 48)
 export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 
+# Home Assistant
+export HOMEASSISTANT_MOSQUITTO_PASSWORD=
+export HOMEASSISTANT_ZIGBEE_HUB_IP=
+
 # Immich
 export IMMICH_DATABASE_PASSWORD=$(openssl rand -hex 48)
 export IMMICH_JWT_SECRET=$(openssl rand -hex 48)

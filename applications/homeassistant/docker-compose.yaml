@@ -1,0 +1,47 @@
+# References:
+# HA: https://www.home-assistant.io/installation/linux#docker-compose
+# Zigbee2MQTT: https://www.zigbee2mqtt.io/guide/installation/02_docker.html#docker-compose
+# Mosquitto: https://hub.docker.com/_/eclipse-mosquitto
+
+services:
+  homeassistant:
+    container_name: homeassistant
+    image: ghcr.io/home-assistant/home-assistant:2025.7.0
+    restart: always
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    depends_on:
+      - homeassistant-mosquitto
+    networks:
+      - homeassistant
+
+  homeassistant-zigbee2mqtt:
+    container_name: homeassistant-zigbee2mqtt
+    image: ghcr.io/koenkk/zigbee2mqtt:2.5.1
+    restart: always
+    volumes:
+      - ${DATA_PATH}/homeassistant/configs/zigbee2mqtt.yaml:/app/data/configuration.yaml
+      - /run/udev:/run/udev:ro
+      - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      - homeassistant-mosquitto
+    networks:
+      - homeassistant
+
+  homeassistant-mosquitto:
+    container_name: homeassistant-mosquitto
+    image: docker.io/library/eclipse-mosquitto:2.0.21
+    restart: always
+    volumes:
+      - ${DATA_PATH}/homeassistant/configs/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ${DATA_PATH}/homeassistant/configs/mosquitto_pwfile:/mosquitto/config/pwfile
+      - ${DATA_PATH}/homeassistant/volumes/mosquitto/data:/mosquitto/data
+      - ${DATA_PATH}/homeassistant/volumes/mosquitto/log:/mosquitto/log
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - homeassistant
+
+networks:
+  homeassistant:
+    external: true

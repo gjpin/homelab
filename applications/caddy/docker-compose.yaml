@@ -9,6 +9,7 @@ services:
     networks:
       - caddy
       - gitea
+      - homeassistant
       - immich
       - librechat
       - radicale
@@ -24,6 +25,8 @@ networks:
   caddy:
     external: true
   gitea:
+    external: true
+  homeassistant:
     external: true
   immich:
     external: true
