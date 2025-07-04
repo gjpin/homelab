@@ -9,8 +9,6 @@ services:
     image: ghcr.io/home-assistant/home-assistant:2025.7.0
     restart: always
     volumes:
-      - ${DATA_PATH}/homeassistant/configs/homeassistant.yaml:/config/configuration.yaml
-      - ${DATA_PATH}/homeassistant/configs/homeassistant-http.yaml:/config/http.yaml
       - ${DATA_PATH}/homeassistant/volumes/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
@@ -24,7 +22,6 @@ services:
     image: ghcr.io/koenkk/zigbee2mqtt:2.5.1
     restart: always
     volumes:
-      - ${DATA_PATH}/homeassistant/configs/zigbee2mqtt.yaml:/app/data/configuration.yaml
       - ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt:/app/data
       - /run/udev:/run/udev:ro
       - /etc/localtime:/etc/localtime:ro
@@ -38,8 +35,7 @@ services:
     image: docker.io/library/eclipse-mosquitto:2.0.21
     restart: always
     volumes:
-      - ${DATA_PATH}/homeassistant/configs/mosquitto.conf:/mosquitto/config/mosquitto.conf
-      - ${DATA_PATH}/homeassistant/configs/mosquitto_pwfile:/mosquitto/config/pwfile
+      - ${DATA_PATH}/homeassistant/volumes/mosquitto/config:/mosquitto/config
       - ${DATA_PATH}/homeassistant/volumes/mosquitto/data:/mosquitto/data
       - ${DATA_PATH}/homeassistant/volumes/mosquitto/log:/mosquitto/log
       - /etc/localtime:/etc/localtime:ro

@@ -60,20 +60,19 @@ export HOMEASSISTANT_TRUSTED_PROXY_SUBNET=$(docker network inspect homeassistant
 # Create directories
 mkdir -p ${DATA_PATH}/homeassistant/docker
 mkdir -p ${DATA_PATH}/homeassistant/volumes/{homeassistant,zigbee2mqtt}
-mkdir -p ${DATA_PATH}/homeassistant/volumes/mosquitto/{data,log}
-mkdir -p ${DATA_PATH}/homeassistant/configs
+mkdir -p ${DATA_PATH}/homeassistant/volumes/mosquitto/{config,data,log}
 
 # Create mosquitto password file
 touch ${DATA_PATH}/homeassistant/configs/mosquitto_pwfile
-docker run --rm -v ${DATA_PATH}/homeassistant/configs/mosquitto_pwfile:/data/mosquitto_pwfile eclipse-mosquitto:2 \
-    sh -c "mosquitto_passwd -b /data/mosquitto_pwfile ha ${HOMEASSISTANT_MOSQUITTO_PASSWORD}"
+docker run --rm -v ${DATA_PATH}/homeassistant/volumes/mosquitto/config/pwfile:/data/pwfile eclipse-mosquitto:2 \
+    sh -c "mosquitto_passwd -b /data/pwfile ha ${HOMEASSISTANT_MOSQUITTO_PASSWORD}"
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/homeassistant/docker-compose.yaml $| tee ${DATA_PATH}/homeassistant/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/homeassistant/homeassistant.yaml | tee ${DATA_PATH}/homeassistant/configs/homeassistant.yaml > /dev/null
-envsubst < ./applications/homeassistant/homeassistant-http.yaml | tee ${DATA_PATH}/homeassistant/configs/homeassistant-http.yaml > /dev/null
-envsubst < ./applications/homeassistant/zigbee2mqtt.yaml | tee ${DATA_PATH}/homeassistant/configs/zigbee2mqtt.yaml > /dev/null
-envsubst < ./applications/homeassistant/mosquitto.conf | tee ${DATA_PATH}/homeassistant/configs/mosquitto.conf > /dev/null
+envsubst < ./applications/homeassistant/homeassistant.yaml | tee ${DATA_PATH}/homeassistant/volumes/homeassistant/configuration.yaml > /dev/null
+envsubst < ./applications/homeassistant/homeassistant-http.yaml | tee ${DATA_PATH}/homeassistant/volumes/homeassistant/http.yaml > /dev/null
+envsubst < ./applications/homeassistant/zigbee2mqtt.yaml | tee ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt/configuration.yaml > /dev/null
+envsubst < ./applications/homeassistant/mosquitto.conf | tee ${DATA_PATH}/homeassistant/volumes/mosquitto/config/mosquitto.conf > /dev/null
 
 ################################################
 ##### Immich
