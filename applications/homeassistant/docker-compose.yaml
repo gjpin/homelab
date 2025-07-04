@@ -9,6 +9,7 @@ services:
     image: ghcr.io/home-assistant/home-assistant:2025.7.0
     restart: always
     volumes:
+      - ${DATA_PATH}/homeassistant/volumes/homeassistant:/config
       - /etc/localtime:/etc/localtime:ro
       - /run/dbus:/run/dbus:ro
     depends_on:

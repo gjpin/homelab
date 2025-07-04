@@ -87,7 +87,7 @@ sudo apt install -y network-manager
 
 # References:
 # https://www.kernel.org/doc/Documentation/vm/overcommit-accounting
-# https://github.com/lucas-clemente/quic-go/wiki/UDP-Receive-Buffer-Size
+# https://github.com/quic-go/quic-go/wiki/UDP-Buffer-Sizes
 
 sudo sysctl vm.overcommit_memory=1
 sudo tee /etc/sysctl.d/99-overcommit-memory.conf << EOF
@@ -96,7 +96,12 @@ EOF
 
 sudo sysctl net.core.rmem_max=2500000
 sudo tee /etc/sysctl.d/99-udp-max-buffer-size.conf << EOF
-net.core.rmem_max=2500000
+net.core.rmem_max=7500000
+EOF
+
+sudo sysctl net.core.wmem_max=2500000
+sudo tee /etc/sysctl.d/99-udp-max-buffer-size.conf << EOF
+net.core.wmem_max=7500000
 EOF
 
 sudo sysctl net.ipv4.ip_forward=1
