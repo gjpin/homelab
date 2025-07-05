@@ -49,7 +49,7 @@ export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 
 # Home Assistant
 export HOMEASSISTANT_MOSQUITTO_PASSWORD=
-export HOMEASSISTANT_ZIGBEE_HUB_IP=
+export HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID= # check devices under /dev/serial/by-id
 
 # Immich
 export IMMICH_DATABASE_PASSWORD=$(openssl rand -hex 48)

@@ -25,6 +25,8 @@ services:
       - ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt:/app/data
       - /run/udev:/run/udev:ro
       - /etc/localtime:/etc/localtime:ro
+    devices:
+      - /dev/serial/by-id/${HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID}:/dev/ttyACM0
     depends_on:
       - homeassistant-mosquitto
     networks:
