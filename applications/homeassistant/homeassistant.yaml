@@ -1,3 +1,5 @@
+# TODO: replace with specific configs
+# https://www.home-assistant.io/integrations/default_config/
 default_config:
 
 http:
