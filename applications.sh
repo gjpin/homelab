@@ -60,7 +60,7 @@ export HOMEASSISTANT_TRUSTED_PROXY_SUBNET=$(docker network inspect homeassistant
 # Create directories
 mkdir -p ${DATA_PATH}/homeassistant/docker
 mkdir -p ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt
-mkdir -p ${DATA_PATH}/homeassistant/volumes/homeassistant/www
+mkdir -p ${DATA_PATH}/homeassistant/volumes/homeassistant/{www,custom_components}
 mkdir -p ${DATA_PATH}/homeassistant/volumes/mosquitto/{config,data,log}
 
 # Create mosquitto password file
@@ -68,8 +68,20 @@ touch ${DATA_PATH}/homeassistant/volumes/mosquitto/config/pwfile
 docker run --rm -v ${DATA_PATH}/homeassistant/volumes/mosquitto/config/pwfile:/data/pwfile eclipse-mosquitto:2 \
     sh -c "mosquitto_passwd -b /data/pwfile ha ${HOMEASSISTANT_MOSQUITTO_PASSWORD}"
 
+# Install HACS
+# Configure HACS:
+# https://hacs.xyz/docs/use/configuration/basic/
+mkdir -p "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs"
+wget -P "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components" https://github.com/hacs/integration/releases/latest/download/hacs.zip
+unzip "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs.zip" -d "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs" >/dev/null 2>&1
+rm -f "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs.zip"
+
 # Add HA cards
-wget -P "${DATA_PATH}/homeassistant/volumes/homeassistant/www" https://github.com/kalkih/mini-graph-card/releases/download/v0.13.0/mini-graph-card-bundle.js
+# Enable them: Settings -> Dashboards -> 3 dots -> Resources -> Add resource
+# /local/mini-graph-card-bundle.js
+# /local/timer-bar-card.js
+# wget -P "${DATA_PATH}/homeassistant/volumes/homeassistant/www" https://github.com/kalkih/mini-graph-card/releases/latest/download/mini-graph-card-bundle.js
+# wget -P "${DATA_PATH}/homeassistant/volumes/homeassistant/www" https://github.com/rianadon/timer-bar-card/releases/latest/download/timer-bar-card.js
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/homeassistant/docker-compose.yaml | tee ${DATA_PATH}/homeassistant/docker/docker-compose.yml > /dev/null
