@@ -59,13 +59,17 @@ export HOMEASSISTANT_TRUSTED_PROXY_SUBNET=$(docker network inspect homeassistant
 
 # Create directories
 mkdir -p ${DATA_PATH}/homeassistant/docker
-mkdir -p ${DATA_PATH}/homeassistant/volumes/{homeassistant,zigbee2mqtt}
+mkdir -p ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt
+mkdir -p ${DATA_PATH}/homeassistant/volumes/homeassistant/www
 mkdir -p ${DATA_PATH}/homeassistant/volumes/mosquitto/{config,data,log}
 
 # Create mosquitto password file
 touch ${DATA_PATH}/homeassistant/volumes/mosquitto/config/pwfile
 docker run --rm -v ${DATA_PATH}/homeassistant/volumes/mosquitto/config/pwfile:/data/pwfile eclipse-mosquitto:2 \
     sh -c "mosquitto_passwd -b /data/pwfile ha ${HOMEASSISTANT_MOSQUITTO_PASSWORD}"
+
+# Add HA cards
+wget -P "${DATA_PATH}/homeassistant/volumes/homeassistant/www" https://github.com/kalkih/mini-graph-card/releases/download/v0.13.0/mini-graph-card-bundle.js
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/homeassistant/docker-compose.yaml | tee ${DATA_PATH}/homeassistant/docker/docker-compose.yml > /dev/null
