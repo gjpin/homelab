@@ -96,13 +96,8 @@ sudo tee /etc/sysctl.d/99-overcommit-memory.conf << EOF
 vm.overcommit_memory=1
 EOF
 
-sudo sysctl net.core.rmem_max=2500000
 sudo tee /etc/sysctl.d/99-udp-max-buffer-size.conf << EOF
 net.core.rmem_max=7500000
-EOF
-
-sudo sysctl net.core.wmem_max=2500000
-sudo tee /etc/sysctl.d/99-udp-max-buffer-size.conf << EOF
 net.core.wmem_max=7500000
 EOF
 
