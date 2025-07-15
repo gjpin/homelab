@@ -20,7 +20,7 @@ env:
     valueFrom:
       secretKeyRef:
         name: cloudflare-api-token
-        key: apiToken
+        key: api-token
 
 nodeSelector:
   node-role.kubernetes.io/homelab: homelab

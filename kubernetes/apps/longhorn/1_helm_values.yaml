@@ -1,0 +1,7 @@
+# https://artifacthub.io/packages/helm/longhorn/longhorn
+
+namespaceOverride: longhorn-system
+
+global:
+  nodeSelector:
+    node-role.kubernetes.io/homelab: homelab

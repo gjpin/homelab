@@ -1,10 +1,13 @@
 # Variables
 ```bash
-# argocd
-export ARGOCD_BASE_DOMAIN=domain.com
+# argocd, traefik
+export BASE_DOMAIN=domain.com
 
-# external-dns
-export EXTERNAL_DNS_CLOUDFLARE_API_TOKEN=
+# external-dns, cert-manager
+export CLOUDFLARE_API_TOKEN=
+
+# cert-manager
+export ACME_EMAIL=
 ```
 
 # Helm repos
@@ -20,4 +23,14 @@ helm repo add external-dns https://kubernetes-sigs.github.io/external-dns/
 
 # metrics-server
 helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
+
+# longhorn
+helm repo add longhorn https://charts.longhorn.io
 ```
+
+# 
+Why cert-manager if Traefik handles certificates generation?
+- Traefik certificates are not shared across multiple nodes by default
+  - Resolved by using shared volumes
+- With shared volumes approach, multiple Traefik instances can try to renew the certs at the same time (race condition)
+  - Resolved by having a single node renewing the certs
