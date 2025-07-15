@@ -6,11 +6,12 @@ metadata:
   name: argocd-server-http-ingress
   namespace: argocd
   annotations:
-    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    spec.ingressClassName: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/service.serversscheme: "http"
     cert-manager.io/cluster-issuer: letsencrypt-prod
     external-dns.alpha.kubernetes.io/hostname: argocd.${BASE_DOMAIN}
-    traefik.ingress.kubernetes.io/router.middlewares: traefik-https-redirect@kubernetescrd
 spec:
   ingressClassName: nginx
   rules:
@@ -35,10 +36,12 @@ metadata:
   name: argocd-server-grpc-ingress
   namespace: argocd
   annotations:
-    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+    spec.ingressClassName: traefik
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/service.serversscheme: "h2c"
     cert-manager.io/cluster-issuer: letsencrypt-prod
     external-dns.alpha.kubernetes.io/hostname: grpc.argocd.${BASE_DOMAIN}
-    traefik.ingress.kubernetes.io/router.middlewares: traefik-https-redirect@kubernetescrd
 spec:
   ingressClassName: nginx
   rules:
