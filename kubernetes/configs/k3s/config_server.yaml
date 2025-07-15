@@ -1,12 +1,13 @@
 ---
-write-kubeconfig-mode: "0644"
+write-kubeconfig-mode: '0644'
 tls-san:
-  - "10.100.100.100"
+  - '10.100.100.100'
 node-label:
- - "type=homelab"
+ - 'type=homelab'
 cluster-init: true
 protect-kernel-defaults: true
 secrets-encryption: true
+flannel-backend: 'wireguard-native'
 kube-apiserver-arg:
   - "enable-admission-plugins=NodeRestriction,EventRateLimit,AlwaysPullImages"
   - 'admission-control-config-file=/var/lib/rancher/k3s/server/pod_security_policies.yaml'

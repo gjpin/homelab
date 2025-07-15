@@ -52,9 +52,11 @@ sudo sysctl --system
 
 # References:
 # https://docs.k3s.io/installation/requirements
+# https://docs.k3s.io/installation/configuration
+# https://docs.k3s.io/security/hardening-guide
+# https://docs.k3s.io/networking/basic-network-options
 
 # Configure firewalld
-# sudo firewall-cmd --permanent --add-port=8472/udp # flannel vxlan
 sudo firewall-cmd --permanent --add-port=6443/tcp # apiserver
 sudo firewall-cmd --permanent --add-port=51820/udp # flannel wireguard
 sudo firewall-cmd --permanent --add-port=10250/tcp # kubelet / metrics server
@@ -67,13 +69,19 @@ sudo systemctl disable nm-cloud-setup.service nm-cloud-setup.timer
 
 # Create k3s directories
 sudo mkdir -p /etc/rancher/k3s/config.yaml.d
-sudo mkdir -p /var/lib/rancher/k3s/server
+sudo mkdir -p /var/lib/rancher/k3s/server/manifests
 
-# Pod Security Admission policy
+# k3s config
+sudo curl -sfL https://raw.githubusercontent.com/gjpin/homelab/main/kubernetes/configs/k3s/config_server.yaml -o /etc/rancher/k3s/config.yaml
+
+# Pod Security Admission policies
 sudo curl -sfL https://raw.githubusercontent.com/gjpin/homelab/main/kubernetes/configs/k3s/pod_security_policies.yaml -o /var/lib/rancher/k3s/server/pod_security_policies.yaml
 
+# Network policies
+sudo curl -sfL https://raw.githubusercontent.com/gjpin/homelab/main/kubernetes/configs/k3s/network_policies.yaml -o /var/lib/rancher/k3s/server/manifests/network_policies.yaml
+
 # Start k3s
-curl -sfL https://get.k3s.io | K3S_TOKEN=${K3S_TOKEN} sh -
+curl -sfL https://get.k3s.io | K3S_TOKEN=${K3S_TOKEN} sh -s - server
 
 # Ensure that the Kubernetes PKI certificates have proper permissions
 sudo chmod -R 600 /var/lib/rancher/k3s/server/tls/*.crt
