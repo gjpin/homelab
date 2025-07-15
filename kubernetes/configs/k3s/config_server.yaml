@@ -3,13 +3,13 @@ write-kubeconfig-mode: '0644'
 tls-san:
   - '10.100.100.100'
 node-label:
- - 'type=homelab'
+ - 'node-role.kubernetes.io/homelab=homelab'
 cluster-init: true
 protect-kernel-defaults: true
 secrets-encryption: true
 flannel-backend: 'wireguard-native'
 kube-apiserver-arg:
-  - "enable-admission-plugins=NodeRestriction,EventRateLimit,AlwaysPullImages"
+  - 'enable-admission-plugins=NodeRestriction,EventRateLimit,AlwaysPullImages'
   - 'admission-control-config-file=/var/lib/rancher/k3s/server/pod_security_policies.yaml'
   - 'audit-log-path=/var/lib/rancher/k3s/server/logs/audit.log'
   - 'audit-policy-file=/var/lib/rancher/k3s/server/audit.yaml'
@@ -21,5 +21,5 @@ kube-controller-manager-arg:
   - 'terminated-pod-gc-threshold=10'
 kubelet-arg:
   - 'streaming-connection-idle-timeout=5m'
-  - "tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305"
+  - 'tls-cipher-suites=TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305'
 ---

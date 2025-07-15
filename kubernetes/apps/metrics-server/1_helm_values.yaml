@@ -1,0 +1,9 @@
+# https://artifacthub.io/packages/helm/metrics-server/metrics-server
+
+fullnameOverride: "metrics-server"
+
+metrics:
+  enabled: true
+
+nodeSelector:
+  node-role.kubernetes.io/homelab: homelab

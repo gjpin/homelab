@@ -1,0 +1,19 @@
+# https://artifacthub.io/packages/helm/argo/argo-cd
+
+fullnameOverride: argocd
+namespaceOverride: argocd
+
+crds:
+  install: true
+  keep: true
+
+# TLS is terminated at Ingress Controller,
+# so we disable TLS in the API server.
+# https://argo-cd.readthedocs.io/en/stable/operator-manual/ingress/#ingressroute-crd
+configs:
+  params:
+    server.insecure: true
+
+global:
+  nodeSelector:
+    node-role.kubernetes.io/homelab: homelab
