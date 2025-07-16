@@ -1,0 +1,112 @@
+# https://artifacthub.io/packages/helm/opentelemetry-helm/opentelemetry-collector
+# https://opentelemetry.io/docs/platforms/kubernetes/getting-started/#daemonset-collector
+
+fullnameOverride: otel-collector-daemonset
+namespaceOverride: otel-collector
+
+mode: daemonset
+
+image:
+  repository: docker.io/library/otel/opentelemetry-collector-k8s
+
+service:
+  enabled: true
+  type: ClusterIP
+  trafficDistribution: PreferClose
+
+presets:
+  # filelog receiver
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/filelogreceiver
+  logsCollection:
+    enabled: true
+    includeCollectorLogs: false
+  # hostmetrics receiver
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/hostmetricsreceiver
+  hostMetrics:
+    enabled: true
+  # kubeletstats receiver
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/kubeletstatsreceiver
+  kubeletMetrics:
+    enabled: true
+  # k8sattributes processor
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor
+  kubernetesAttributes:
+    enabled: true
+    extractAllPodLabels: true
+    extractAllPodAnnotations: true
+ 
+config:
+  receivers:
+    jaeger: null
+    zipkin: null
+    prometheus:
+      config:
+        scrape_configs:
+          - job_name: otel-collector-daemonset
+            scrape_interval: 10s
+            static_configs:
+              - targets:
+                  - ${env:MY_POD_IP}:8888
+    otlp:
+      protocols:
+        grpc:
+          endpoint: ${env:MY_POD_IP}:4317
+        http:
+          endpoint: ${env:MY_POD_IP}:4318
+
+  processors:
+    batch: {}
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+
+  exporters:
+    debug: null
+    otlphttp:
+      endpoint: 'TODO: clickhouse svc'
+      headers:
+        authorization: 'TODO: clickhouse api key'
+      compression: gzip
+
+  extensions:
+    health_check:
+      endpoint: ${env:MY_POD_IP}:13133
+
+  service:
+    telemetry:
+      metrics:
+        readers:
+          - pull:
+              exporter:
+                prometheus:
+                  host: ${env:MY_POD_IP}
+                  port: 8888
+    extensions:
+      - health_check
+    pipelines:
+      logs:
+        receivers:
+          - otlp
+        processors:
+          - memory_limiter
+          - batch
+        exporters:
+          - otlphttp
+      metrics:
+        receivers:
+          - otlp
+          - prometheus
+        processors:
+          - memory_limiter
+          - batch
+        exporters:
+          - otlphttp
+      traces:
+        receivers:
+          - otlp
+        processors:
+          - memory_limiter
+          - batch
+        exporters:
+          - otlphttp

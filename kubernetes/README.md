@@ -1,6 +1,15 @@
+# Domains
+```
+- argocd.${BASE_DOMAIN}
+- grpc.argocd.${BASE_DOMAIN}
+- hyperdx.${BASE_DOMAIN}
+- longhorn.${BASE_DOMAIN}
+- traefik.${BASE_DOMAIN}
+```
+
 # Variables
 ```bash
-# argocd, traefik
+# argocd, traefik, hyperdx
 export BASE_DOMAIN=domain.com
 
 # external-dns, cert-manager
@@ -26,9 +35,15 @@ helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
 
 # longhorn
 helm repo add longhorn https://charts.longhorn.io
+
+# opentelemetry
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+
+# hyperdx
+helm repo add hyperdx https://hyperdxio.github.io/helm-charts
 ```
 
-# 
+# Decisions
 Why cert-manager if Traefik handles certificates generation?
 - Traefik certificates are not shared across multiple nodes by default
   - Resolved by using shared volumes

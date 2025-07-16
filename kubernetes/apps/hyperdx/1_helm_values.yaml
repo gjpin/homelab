@@ -1,0 +1,29 @@
+# https://github.com/hyperdxio/helm-charts
+
+fullnameOverride: hyperdx
+
+# otel collector is installed externally
+otel:
+  enabled: false
+
+hyperdx:
+  nodeSelector:
+    node-role.kubernetes.io/homelab: homelab
+  
+  usageStatsEnabled: false
+  
+  otelExporterEndpoint: "http://otel-collector-daemonset.otel-collector.svc.cluster.local:4318"
+
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/service.serversscheme: "http"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/hostname: hyperdx.${BASE_DOMAIN}
+    host: hyperdx.${BASE_DOMAIN}
+    tls:
+      enabled: true
+      secretName: "hyperdx-ingress-tls"

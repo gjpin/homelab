@@ -3,6 +3,31 @@
 fullnameOverride: argocd
 namespaceOverride: argocd
 
+server:
+  ingress:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/service.serversscheme: "http"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/hostname: argocd.${BASE_DOMAIN}
+    hostname: argocd.${BASE_DOMAIN}
+    tls: true
+  ingressGrpc:
+    enabled: true
+    ingressClassName: traefik
+    annotations:
+      traefik.ingress.kubernetes.io/router.entrypoints: websecure
+      traefik.ingress.kubernetes.io/router.tls: "true"
+      traefik.ingress.kubernetes.io/service.serversscheme: "h2c"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+      external-dns.alpha.kubernetes.io/hostname: grpc.argocd.${BASE_DOMAIN}
+    hostname: grpc.argocd.${BASE_DOMAIN}
+    tls: true
+    
+
 crds:
   install: true
   keep: true
