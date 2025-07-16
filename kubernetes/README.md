@@ -17,6 +17,9 @@ export CLOUDFLARE_API_TOKEN=
 
 # cert-manager
 export ACME_EMAIL=
+
+# external-dns
+export LOAD_BALANCER_IP=10.0.0.1
 ```
 
 # Helm repos
@@ -42,6 +45,9 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 # hyperdx
 helm repo add hyperdx https://hyperdxio.github.io/helm-charts
 ```
+
+# Documentation
+[external-dns annotations](https://github.com/kubernetes-sigs/external-dns/blob/master/docs/annotations/annotations.md)
 
 # Decisions
 Why cert-manager if Traefik handles certificates generation?

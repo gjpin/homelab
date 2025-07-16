@@ -2,6 +2,7 @@
 - check if created ingresses match the ones created manually
 - order of installataion (dependency between apps)
 - confirm if traefik service/ingress should be in kube-system
+- confirm if dns records created by external-dns have expected IP
 
 
 # check if created ingresses match the ones created manually

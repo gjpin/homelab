@@ -4,6 +4,10 @@
 fullnameOverride: external-dns
 namespaced: true
 
+# force the DNS record IP address
+extraArgs:
+  - default-targets=${LOAD_BALANCER_IP}
+
 sources:
   - service
   - ingress
