@@ -12,6 +12,9 @@ image:
 # Do not scale, otherwise there will be duplicated data
 replicaCount: 1
 
+nodeSelector:
+  node-role.kubernetes.io/homelab: homelab
+
 service:
   enabled: true
   type: ClusterIP
