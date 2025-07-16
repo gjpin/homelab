@@ -6,14 +6,13 @@ metadata:
   name: argocd-server-http-ingress
   namespace: argocd
   annotations:
-    spec.ingressClassName: traefik
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
     traefik.ingress.kubernetes.io/service.serversscheme: "http"
     cert-manager.io/cluster-issuer: letsencrypt-prod
     external-dns.alpha.kubernetes.io/hostname: argocd.${BASE_DOMAIN}
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   rules:
   - http:
       paths:
@@ -36,14 +35,13 @@ metadata:
   name: argocd-server-grpc-ingress
   namespace: argocd
   annotations:
-    spec.ingressClassName: traefik
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
     traefik.ingress.kubernetes.io/service.serversscheme: "h2c"
     cert-manager.io/cluster-issuer: letsencrypt-prod
     external-dns.alpha.kubernetes.io/hostname: grpc.argocd.${BASE_DOMAIN}
 spec:
-  ingressClassName: nginx
+  ingressClassName: traefik
   rules:
   - http:
       paths:

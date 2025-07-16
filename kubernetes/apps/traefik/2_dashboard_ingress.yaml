@@ -5,13 +5,13 @@ metadata:
   name: traefik-ingress
   namespace: kube-system
   annotations:
-    spec.ingressClassName: traefik
     traefik.ingress.kubernetes.io/router.entrypoints: websecure
     traefik.ingress.kubernetes.io/router.tls: "true"
     traefik.ingress.kubernetes.io/service.serversscheme: "http"
     cert-manager.io/cluster-issuer: letsencrypt-prod
     external-dns.alpha.kubernetes.io/hostname: traefik.${BASE_DOMAIN}
 spec:
+  ingressClassName: traefik
   rules:
     - host: traefik.${BASE_DOMAIN}
       http:
