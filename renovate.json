@@ -2,7 +2,6 @@
   "extends": [
     "config:base"
   ],
-  "schedule": ["every day"],
   "automerge": false,
   "enabledManagers": ["argocd"],
   "argocd": {
@@ -12,6 +11,10 @@
     {
       "matchManagers": ["argocd"],
       "groupName": "ArgoCD Helm chart updates"
+    },
+    {
+      "matchManagers": ["docker-compose", "dockerfile"],
+      "enabled": false
     }
   ]
 }
