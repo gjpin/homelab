@@ -23,3 +23,9 @@ https://actualbudget.org/docs/advanced/bank-sync/gocardless
 
 velero
 https://velero.io/
+
+clickhouse
+https://github.com/Altinity/clickhouse-operator/
+
+gigapipe
+https://gigapipe.com/docs/oss.html
