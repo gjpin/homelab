@@ -24,7 +24,7 @@ spec:
   source:
     chart: cert-manager
     repoURL: https://charts.jetstack.io
-    targetRevision: 1.18.2
+    targetRevision: 1.18.1
     helm:
       fullnameOverride: cert-manager
       namespace: cert-manager
