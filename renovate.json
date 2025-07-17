@@ -2,5 +2,20 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "automerge": false,
+  "enabledManagers": ["argocd"],
+  "argocd": {
+    "fileMatch": ["\\.ya?ml$"]
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["argocd"],
+      "groupName": "ArgoCD Helm chart updates"
+    },
+    {
+      "matchManagers": ["docker-compose", "dockerfile"],
+      "enabled": false
+    }
   ]
 }
