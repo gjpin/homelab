@@ -17,3 +17,6 @@ https://chriskirby.net/highly-available-pi-hole-setup-in-kubernetes-with-secure-
 
 syncthing
 https://steffenmueller4.github.io/2024/04/28/syncthing-on-k3s.html
+
+actual bduget
+https://actualbudget.org/docs/advanced/bank-sync/gocardless
