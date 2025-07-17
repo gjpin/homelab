@@ -3,6 +3,7 @@
   "extends": [
     "config:recommended"
   ],
+  "schedule": ["0 0 * * *"],
   "automerge": false,
   "enabledManagers": ["argocd"],
   "argocd": {
