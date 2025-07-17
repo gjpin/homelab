@@ -20,3 +20,6 @@ https://steffenmueller4.github.io/2024/04/28/syncthing-on-k3s.html
 
 actual bduget
 https://actualbudget.org/docs/advanced/bank-sync/gocardless
+
+velero
+https://velero.io/
