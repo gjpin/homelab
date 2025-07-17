@@ -7,6 +7,8 @@
 - grafana dashboards:
   - https://github.com/bitnami-labs/sealed-secrets/blob/main/contrib/prometheus-mixin/dashboards/sealed-secrets-controller.json
 - fix gitops paths (eg. path: "kubernetes/apps/cert-manager")
+- add https://github.com/apps/forking-renovate to readme (does not require write access to code)
+  - https://docs.renovatebot.com/security-and-permissions/#global-permissions
 
 # check if created ingresses match the ones created manually
 ## ArgoCD

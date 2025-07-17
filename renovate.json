@@ -1,0 +1,17 @@
+{
+  "extends": [
+    "config:base"
+  ],
+  "schedule": ["every day"],
+  "automerge": false,
+  "enabledManagers": ["argocd"],
+  "argocd": {
+    "fileMatch": ["\\.ya?ml$"]
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["argocd"],
+      "groupName": "ArgoCD Helm chart updates"
+    }
+  ]
+}
