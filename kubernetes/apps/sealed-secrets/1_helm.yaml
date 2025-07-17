@@ -1,0 +1,36 @@
+# https://artifacthub.io/packages/helm/bitnami-labs/sealed-secrets
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: sealed-secrets
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: "https://kubernetes.default.svc"
+    namespace: sealed-secrets
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+    - Validate=true
+    - CreateNamespace=true
+    - PrunePropagationPolicy=foreground
+    - PruneLast=true
+  source:
+    chart: sealed-secrets
+    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    targetRevision: 2.17.3
+    helm:
+      fullnameOverride: sealed-secrets
+      namespace: sealed-secrets
+
+      nodeSelector:
+        node-role.kubernetes.io/homelab: homelab
+
+      pdb:
+        create: true
+        minAvailable: 1

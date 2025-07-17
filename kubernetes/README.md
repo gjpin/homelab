@@ -19,7 +19,7 @@ export CLOUDFLARE_API_TOKEN=
 export ACME_EMAIL=
 
 # external-dns
-export LOAD_BALANCER_IP=10.0.0.1
+export EXTERNAL_IP=10.0.0.1
 ```
 
 # Helm repos
@@ -44,6 +44,9 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 
 # hyperdx
 helm repo add hyperdx https://hyperdxio.github.io/helm-charts
+
+# sealed-secrets
+helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
 ```
 
 # Documentation

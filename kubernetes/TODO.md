@@ -3,7 +3,10 @@
 - order of installataion (dependency between apps)
 - confirm if traefik service/ingress should be in kube-system
 - confirm if dns records created by external-dns have expected IP
-
+- automated sealed-secrets logic (use: kubeseal --controller-name sealed-secrets <args>)
+- grafana dashboards:
+  - https://github.com/bitnami-labs/sealed-secrets/blob/main/contrib/prometheus-mixin/dashboards/sealed-secrets-controller.json
+- fix gitops paths (eg. path: "kubernetes/apps/cert-manager")
 
 # check if created ingresses match the ones created manually
 ## ArgoCD
