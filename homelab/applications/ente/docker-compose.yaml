@@ -21,7 +21,7 @@ services:
     container_name: ente-museum
     image: ghcr.io/ente-io/server:30262f82a56a83f2bfda190e247c926a8084bbfa
     volumes:
-      - ${DATA_PATH}/ente/volumes/configs/museum.yaml:/museum.yaml:ro
+      - ${DATA_PATH}/ente/configs/museum.yaml:/museum.yaml:ro
       - ${DATA_PATH}/ente/volumes/ente:/data
     networks:
       - ente
