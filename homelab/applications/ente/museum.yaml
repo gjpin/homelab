@@ -16,3 +16,8 @@ key:
 
 jwt:
   secret: ${ENTE_JWT_SECRET}
+
+internal:
+  hardcoded-ott:
+    local-domain-suffix: "${BASE_DOMAIN}"
+    local-domain-value: 123456
