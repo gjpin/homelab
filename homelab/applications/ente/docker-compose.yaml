@@ -23,6 +23,8 @@ services:
     volumes:
       - ${DATA_PATH}/ente/configs/museum.yaml:/museum.yaml:ro
       - ${DATA_PATH}/ente/volumes/ente:/data
+    env_file:
+      - config.env
     networks:
       - ente
     depends_on:
@@ -32,6 +34,8 @@ services:
   ente-web:
     container_name: ente-web
     image: ghcr.io/ente-io/web:d077d5dcbb5e18784d36348cafb9866677a3c25f
+    env_file:
+      - config.env
     networks:
       - ente
     depends_on:
