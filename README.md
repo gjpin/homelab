@@ -15,7 +15,7 @@
 | [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt) | home-zigbee.${BASE_DOMAIN} | Zigbee to MQTT bridge | Yes |
 
 # Getting started
-0. Copy SSH public key to PC. If it's on a USB, mount it and copy to $HOME/.ssh:
+0. Copy SSH public key to PC. If it's on a USB, mount it and copy to ${HOME}/.ssh:
 ```bash
 sudo udisksctl mount -b /dev/sda
 ```
@@ -33,15 +33,12 @@ cd homelab
 6. Create borg repo (if not created yet): `borg init --encryption=none /backup/containers`
 
 # Env vars
-## Common
 ```bash
+# Base
 export BASE_DOMAIN=domain.com
 export DATA_PATH=/data/containers
 export BACKUP_PATH=/backup/containers
-```
 
-## Configuration
-```bash
 # Caddy
 export CADDY_PASSWORD=$(openssl rand -hex 48)
 export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
@@ -113,19 +110,19 @@ export SUPABASE_DOCKER_SOCKET_LOCATION=
 ```
 
 # Cheat sheet
-## Update all containers (dns server)
+## Update all containers (dns server - rpi)
 ```bash
 # Pull newest updates
-git -C $HOME/homelab pull
+git -C ${HOME}/homelab pull
 
 ##################################################
 # IMPORTANT: export all application environments
 ##################################################
 
-export DATA_PATH=$HOME/containers
+export DATA_PATH=${HOME}/containers
 
 # Update containers env vars
-cd $HOME/homelab
+cd ${HOME}/homelab
 ./dns.sh
 
 # Update containers
@@ -141,10 +138,10 @@ docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recrea
 docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
 ```
 
-## Update all containers (homelab)
+## Update all containers (homelab / debian)
 ```bash
 # Pull newest updates
-git -C $HOME/homelab pull
+git -C ${HOME}/homelab pull
 
 ##################################################
 # IMPORTANT: export all application environments
@@ -153,7 +150,7 @@ git -C $HOME/homelab pull
 export DATA_PATH=/data/containers
 
 # Update containers env vars
-cd $HOME/homelab
+cd ${HOME}/homelab
 ./applications.sh
 
 # Update containers
@@ -161,7 +158,7 @@ docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
+# docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
@@ -171,7 +168,7 @@ docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
+# docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
@@ -181,7 +178,7 @@ docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recrea
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
+# docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d

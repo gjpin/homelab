@@ -42,6 +42,22 @@ chmod 700 ${HOME}/.ssh
 # Create directory for GRUB dropins
 sudo mkdir -p /etc/default/grub.d
 
+# bashrc.d
+mkdir -p ${HOME}/.bashrc.d
+tee -a ${HOME}/.bashrc << 'EOF'
+
+# Source .bashrc.d files
+if [ -d ~/.bashrc.d ]; then
+        for rc in ~/.bashrc.d/*; do
+                if [ -f "$rc" ]; then
+                        . "$rc"
+                fi
+        done
+fi
+
+unset rc
+EOF
+
 ################################################
 ##### Setup backports
 ################################################

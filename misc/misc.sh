@@ -57,7 +57,7 @@ docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-re
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
 
 export BASE_DOMAIN=
-export DATA_PATH=$HOME/containers
+export DATA_PATH=${HOME}/containers
 
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache

@@ -1,12 +1,22 @@
 #!/usr/bin/bash
 
 # Env vars
-export DATA_PATH=$HOME/containers
+export DATA_PATH=${HOME}/containers
 
 # Create networks (Caddy belongs to all networks)
 sudo docker network create caddy
 sudo docker network create pihole
 sudo docker network create technitium
+
+################################################
+##### Env vars
+################################################
+
+# Store main env vars
+cat <<EOF >> "${HOME}/.bashrc.d/env"
+export BASE_DOMAIN=${BASE_DOMAIN}
+export DATA_PATH=${HOME}/containers
+EOF
 
 ################################################
 ##### Caddy

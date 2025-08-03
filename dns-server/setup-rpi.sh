@@ -31,6 +31,22 @@ sudo apt install -y \
 # Install borgbackup
 sudo apt install -y borgbackup
 
+# bashrc.d
+mkdir -p ${HOME}/.bashrc.d
+tee -a ${HOME}/.bashrc << 'EOF'
+
+# Source .bashrc.d files
+if [ -d ~/.bashrc.d ]; then
+        for rc in ~/.bashrc.d/*; do
+                if [ -f "$rc" ]; then
+                        . "$rc"
+                fi
+        done
+fi
+
+unset rc
+EOF
+
 ################################################
 ##### WireGuard
 ################################################

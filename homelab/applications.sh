@@ -13,6 +13,17 @@ docker network create syncthing
 docker network create --internal vaultwarden
 
 ################################################
+##### Env vars
+################################################
+
+# Store main env vars
+cat <<EOF >> "${HOME}/.bashrc.d/env"
+export BASE_DOMAIN=${BASE_DOMAIN}
+export DATA_PATH=/data/containers
+export BACKUP_PATH=/backup/containers
+EOF
+
+################################################
 ##### Caddy
 ################################################
 
