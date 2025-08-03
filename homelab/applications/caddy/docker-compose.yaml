@@ -24,6 +24,8 @@ services:
 networks:
   caddy:
     external: true
+  ente:
+    external: true
   gitea:
     external: true
   homeassistant:

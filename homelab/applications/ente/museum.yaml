@@ -1,0 +1,18 @@
+# https://help.ente.io/self-hosting/installation/config
+
+db:
+  host: ente-postgres
+  port: 5432
+  name: ente_db
+  user: pguser
+  password: ${ENTE_DATABASE_PASSWORD}
+
+apps:
+  accounts: http://ente-web:3001
+
+key:
+  encryption: ${ENTE_KEY_ENCRYPTION}
+  hash: ${ENTE_KEY_HASH}
+
+jwt:
+  secret: ${ENTE_JWT_SECRET}

@@ -136,3 +136,12 @@ supabase.${BASE_DOMAIN} {
 
         reverse_proxy supabase-kong:8000
 }
+
+# Ente
+2fa.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy ente-web:3001
+}
