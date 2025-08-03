@@ -125,8 +125,8 @@ export SUPABASE_DOCKER_SOCKET_LOCATION=
 # Ente
 export ENTE_DATABASE_PASSWORD=$(openssl rand -hex 48)
 export ENTE_KEY_ENCRYPTION=$(openssl rand -base64 32)
-export ENTE_KEY_HASH=$(openssl rand -base64 64)
-export ENTE_JWT_SECRET=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')
+export ENTE_KEY_HASH=$(openssl rand -base64 64 | tr -d '\n')
+export ENTE_JWT_SECRET=$(openssl rand -base64 32 | tr -d '\n')
 ```
 
 # Cheat sheet
@@ -409,9 +409,12 @@ sudo dracut --regenerate-all --force
 * Create new record in Cloudflare
 * Commit and git pull from host
    * Run the new "block" that was added to applications.sh
-* Restart Caddy:
+* Restart Caddy with updated configs:
 ```bash
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+envsubst < ./homelab/applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
+envsubst < ./homelab/applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
+envsubst < ./homelab/applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
 ```
 * Bring the containers up:
