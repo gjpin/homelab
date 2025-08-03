@@ -15,7 +15,18 @@ sudo docker network create technitium
 # Store main env vars
 cat <<EOF >> "${HOME}/.bashrc.d/env"
 export BASE_DOMAIN=${BASE_DOMAIN}
-export DATA_PATH=${HOME}/containers
+export DATA_PATH="${DATA_PATH}"
+
+# Caddy
+export CADDY_HASHED_PASSWORD='${CADDY_HASHED_PASSWORD}'
+export CADDY_CLOUDFLARE_TOKEN='${CADDY_CLOUDFLARE_TOKEN}'
+
+# Pi-Hole
+export PIHOLE_ADMIN_TOKEN='${PIHOLE_ADMIN_TOKEN}'
+export PIHOLE_WEBPASSWORD='${PIHOLE_WEBPASSWORD}'
+
+# Technitium
+export TECHNITIUM_ADMIN_PASSWORD='${TECHNITIUM_ADMIN_PASSWORD}'
 EOF
 
 ################################################

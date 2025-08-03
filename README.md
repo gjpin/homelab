@@ -33,6 +33,25 @@ cd homelab
 6. Create borg repo (if not created yet): `borg init --encryption=none /backup/containers`
 
 # Env vars
+## DNS server
+```bash
+# Base
+export BASE_DOMAIN=domain.com
+export DATA_PATH=$HOME/containers
+
+# Caddy
+export CADDY_PASSWORD=$(openssl rand -hex 48)
+export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
+export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
+
+# Pi-Hole
+export PIHOLE_WEBPASSWORD=$(openssl rand -hex 48)
+
+# Technitium
+export TECHNITIUM_ADMIN_PASSWORD=$(openssl rand -hex 48)
+```
+
+## Homelab
 ```bash
 # Base
 export BASE_DOMAIN=domain.com
@@ -54,12 +73,6 @@ export IMMICH_JWT_SECRET=$(openssl rand -hex 48)
 
 # Obsidian
 export OBSIDIAN_COUCHDB_PASSWORD=$(openssl rand -hex 48)
-
-# Pi-Hole
-export PIHOLE_WEBPASSWORD=$(openssl rand -hex 48)
-
-# Technitium
-export TECHNITIUM_ADMIN_PASSWORD=$(openssl rand -hex 48)
 
 # Radicale
 export RADICALE_PASSWORD=$(openssl rand -hex 48)
@@ -89,20 +102,20 @@ export LIBRECHAT_DEEPSEEK_API_KEY=
 # Supabase
 export SUPABASE_LOGFLARE_API_KEY=
 export SUPABASE_POSTGRES_PASSWORD=
-export SUPABASE_POSTGRES_PORT=
-export SUPABASE_POSTGRES_DB=
-export SUPABASE_POSTGRES_HOST=
+export SUPABASE_POSTGRES_PORT="5432"
+export SUPABASE_POSTGRES_DB="postgres"
+export SUPABASE_POSTGRES_HOST="supabase-db"
 export SUPABASE_JWT_SECRET=
 export SUPABASE_ANON_KEY=
 export SUPABASE_SERVICE_KEY=
 export SUPABASE_DEFAULT_ORGANIZATION_NAME=
-export SUPABASE_DEFAULT_PROJECT_NAME=
+export SUPABASE_DEFAULT_PROJECT_NAME="Main"
 export SUPABASE_OPENAI_API_KEY=
-export SUPABASE_PUBLIC_URL=
+export SUPABASE_PUBLIC_URL="https://supabase.${BASE_DOMAIN}$"
 export SUPABASE_KONG_DASHBOARD_USERNAME=
 export SUPABASE_KONG_DASHBOARD_PASSWORD=
-export SUPABASE_API_EXTERNAL_URL=
-export SUPABASE_SITE_URL=
+export SUPABASE_API_EXTERNAL_URL="https://supabase.${BASE_DOMAIN}$"
+export SUPABASE_SITE_URL="https://supabase.${BASE_DOMAIN}$"
 export SUPABASE_ADDITIONAL_REDIRECT_URLS=
 export SUPABASE_SECRET_KEY_BASE=
 export SUPABASE_VAULT_ENC_KEY=
@@ -115,15 +128,9 @@ export SUPABASE_DOCKER_SOCKET_LOCATION=
 # Pull newest updates
 git -C ${HOME}/homelab pull
 
-##################################################
-# IMPORTANT: export all application environments
-##################################################
-
-export DATA_PATH=${HOME}/containers
-
 # Update containers env vars
-cd ${HOME}/homelab
-./dns.sh
+cd ${HOME}/dns-server
+./applications.sh
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
@@ -142,12 +149,6 @@ docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recre
 ```bash
 # Pull newest updates
 git -C ${HOME}/homelab pull
-
-##################################################
-# IMPORTANT: export all application environments
-##################################################
-
-export DATA_PATH=/data/containers
 
 # Update containers env vars
 cd ${HOME}/homelab
