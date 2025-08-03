@@ -10,6 +10,10 @@ services:
     volumes:
       - ${DATA_PATH}/ente/volumes/postgres:/var/lib/postgresql/data
     restart: always
+    healthcheck:
+      test: pg_isready -q -d ente -U ente
+      start_period: 30s
+      start_interval: 1s
     networks:
       - ente
 
@@ -22,7 +26,8 @@ services:
     networks:
       - ente
     depends_on:
-      - ente-postgres
+      ente-postgres:
+        condition: service_healthy
 
   ente-web:
     container_name: ente-web

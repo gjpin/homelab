@@ -409,3 +409,13 @@ sudo dracut --regenerate-all --force
 * Create new record in Cloudflare
 * Commit and git pull from host
    * Run the new "block" that was added to applications.sh
+* Restart Caddy:
+```bash
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+```
+* Bring the containers up:
+```bash
+docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml up --force-recreate -d
+```

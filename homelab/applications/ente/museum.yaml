@@ -3,8 +3,8 @@
 db:
   host: ente-postgres
   port: 5432
-  name: ente_db
-  user: pguser
+  name: ente
+  user: ente
   password: ${ENTE_DATABASE_PASSWORD}
 
 apps:
