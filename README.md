@@ -400,3 +400,12 @@ sudo dracut --regenerate-all --force
     - Delete logical volume
         - swap_1
     - Finish
+
+# New services
+* See [THIS](https://github.com/gjpin/homelab/commit/eaf9747716e9c0766c5a05d1258e6174e0b204d6) commit for example
+* Add new env vars to secret (actual values)
+* Add new env vars to ${HOME}/.bashrc.d/env (actual values)
+* Create Docker network in the host
+* Create new record in Cloudflare
+* Commit and git pull from host
+   * Run the new "block" that was added to applications.sh
