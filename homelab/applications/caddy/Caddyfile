@@ -138,32 +138,26 @@ supabase.${BASE_DOMAIN} {
 }
 
 # Ente
-ente.${BASE_DOMAIN} {
-    import default-header
-    encode gzip
+api.ente.${BASE_DOMAIN} {
+        import default-header
 
-    @preflight {
-        method OPTIONS
-    }
-    header @preflight Access-Control-Allow-Origin    "{http.request.header.Origin}"
-    header @preflight Access-Control-Allow-Methods   "GET, POST, PUT, DELETE, OPTIONS"
-    header @preflight Access-Control-Allow-Headers   "{http.request.header.Access-Control-Request-Headers}"
-    header @preflight Access-Control-Max-Age         "86400"
-    header @preflight Vary                          "Origin"
-    respond @preflight "" 204
+        encode gzip
 
-    reverse_proxy ente-museum:8080 {
-        header_down Access-Control-Allow-Origin    "{http.request.header.Origin}"
-        header_down Access-Control-Allow-Methods   "GET, POST, PUT, DELETE, OPTIONS"
-        header_down Access-Control-Allow-Headers   "Authorization, Content-Type"
-        header_down Vary                           "Origin"
-    }
+        reverse_proxy ente-museum:8080
 }
 
-2fa.${BASE_DOMAIN} {
+2fa.ente.${BASE_DOMAIN} {
         import default-header
 
         encode gzip
 
         reverse_proxy ente-web:3003
+}
+
+accounts.ente.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy ente-web:3001
 }
