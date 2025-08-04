@@ -23,8 +23,6 @@ services:
     volumes:
       - ${DATA_PATH}/ente/configs/museum.yaml:/museum.yaml:ro
       - ${DATA_PATH}/ente/volumes/ente:/data
-    env_file:
-      - config.env
     networks:
       - ente
     depends_on:

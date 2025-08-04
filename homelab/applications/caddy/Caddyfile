@@ -143,5 +143,5 @@ supabase.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy ente-web:3001
+        reverse_proxy ente-web:3003
 }
