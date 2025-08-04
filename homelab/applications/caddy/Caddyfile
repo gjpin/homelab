@@ -138,6 +138,14 @@ supabase.${BASE_DOMAIN} {
 }
 
 # Ente
+ente.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy ente-museum:8080
+}
+
 2fa.${BASE_DOMAIN} {
         import default-header
 
