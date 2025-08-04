@@ -143,6 +143,12 @@ ente.${BASE_DOMAIN} {
 
         encode gzip
 
+        header {
+                Access-Control-Allow-Origin 2fa.${BASE_DOMAIN}
+                Access-Control-Allow-Methods "GET, POST, OPTIONS"
+                Access-Control-Allow-Headers *
+        }
+
         reverse_proxy ente-museum:8080
 }
 
