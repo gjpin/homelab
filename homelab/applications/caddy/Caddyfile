@@ -146,18 +146,18 @@ api.ente.${BASE_DOMAIN} {
         reverse_proxy ente-museum:8080
 }
 
-2fa.ente.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        reverse_proxy ente-web:3003
-}
-
 accounts.ente.${BASE_DOMAIN} {
         import default-header
 
         encode gzip
 
         reverse_proxy ente-web:3001
+}
+
+2fa.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy ente-web:3003
 }
