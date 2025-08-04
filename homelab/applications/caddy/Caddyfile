@@ -145,21 +145,18 @@ ente.${BASE_DOMAIN} {
     @preflight {
         method OPTIONS
     }
-    handle @preflight {
-        respond "" 204 {
-            header Access-Control-Allow-Origin "{http.request.header.Origin}"
-            header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-            header Access-Control-Allow-Headers "{http.request.header.Access-Control-Request-Headers}"
-            header Access-Control-Max-Age "86400"
-            header Vary "Origin"
-        }
-    }
+    header @preflight Access-Control-Allow-Origin    "{http.request.header.Origin}"
+    header @preflight Access-Control-Allow-Methods   "GET, POST, PUT, DELETE, OPTIONS"
+    header @preflight Access-Control-Allow-Headers   "{http.request.header.Access-Control-Request-Headers}"
+    header @preflight Access-Control-Max-Age         "86400"
+    header @preflight Vary                          "Origin"
+    respond @preflight "" 204
 
     reverse_proxy ente-museum:8080 {
-        header_down Access-Control-Allow-Origin "{http.request.header.Origin}"
-        header_down Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-        header_down Access-Control-Allow-Headers "Authorization, Content-Type"
-        header_down Vary "Origin"
+        header_down Access-Control-Allow-Origin    "{http.request.header.Origin}"
+        header_down Access-Control-Allow-Methods   "GET, POST, PUT, DELETE, OPTIONS"
+        header_down Access-Control-Allow-Headers   "Authorization, Content-Type"
+        header_down Vary                           "Origin"
     }
 }
 
