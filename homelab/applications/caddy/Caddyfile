@@ -139,29 +139,26 @@ supabase.${BASE_DOMAIN} {
 
 # Ente
 ente.${BASE_DOMAIN} {
-        import default-header
+    import default-header
+    encode gzip
 
-        encode gzip
+    @preflight {
+        method OPTIONS
+    }
+    handle @preflight {
+        header Access-Control-Allow-Origin   https://2fa.${BASE_DOMAIN}
+        header Access-Control-Allow-Methods  "GET, POST, PUT, DELETE, OPTIONS"
+        header Access-Control-Allow-Headers  "Authorization, Content-Type"
+        respond "" 204
+    }
 
-        @preflight {
-                method OPTIONS
-        }
+    header {
+        Access-Control-Allow-Origin   https://2fa.${BASE_DOMAIN}
+        Access-Control-Allow-Methods  "GET, POST, PUT, DELETE, OPTIONS"
+        Access-Control-Allow-Headers  "Authorization, Content-Type"
+    }
 
-        handle @preflight {
-                respond "" 204 {
-                header Access-Control-Allow-Origin https://2fa.${BASE_DOMAIN}
-                header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-                header Access-Control-Allow-Headers "Authorization, Content-Type"
-                }
-        }
-
-        header {
-                Access-Control-Allow-Origin https://2fa.${BASE_DOMAIN}
-                Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
-                Access-Control-Allow-Headers "Authorization, Content-Type"
-        }
-
-        reverse_proxy ente-museum:8080
+    reverse_proxy ente-museum:8080
 }
 
 2fa.${BASE_DOMAIN} {
