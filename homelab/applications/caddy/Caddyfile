@@ -143,10 +143,22 @@ ente.${BASE_DOMAIN} {
 
         encode gzip
 
+        @preflight {
+                method OPTIONS
+        }
+
+        handle @preflight {
+                respond "" 204 {
+                header Access-Control-Allow-Origin https://2fa.${BASE_DOMAIN}
+                header Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+                header Access-Control-Allow-Headers "Authorization, Content-Type"
+                }
+        }
+
         header {
-                Access-Control-Allow-Origin 2fa.${BASE_DOMAIN}
-                Access-Control-Allow-Methods "GET, POST, OPTIONS"
-                Access-Control-Allow-Headers *
+                Access-Control-Allow-Origin https://2fa.${BASE_DOMAIN}
+                Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+                Access-Control-Allow-Headers "Authorization, Content-Type"
         }
 
         reverse_proxy ente-museum:8080
