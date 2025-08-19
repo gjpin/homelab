@@ -292,3 +292,62 @@ sudo sed -i '/_crypt/s/^/# /' /etc/crypttab
 
 # Regenerate initramfs
 sudo dracut --regenerate-all --force
+
+################################################
+##### UFW
+################################################
+
+# References:
+# https://wiki.debian.org/Uncomplicated%20Firewall%20%28ufw%29
+# https://wiki.archlinux.org/title/Uncomplicated_Firewall
+
+# Install UFW
+sudo apt install -y ufw
+
+# Configure UFW default behaviour
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+
+# Configure custom rules
+sudo ufw allow 22/tcp comment 'SSH'
+sudo ufw allow 443/tcp comment 'Caddy HTTPS'
+sudo ufw allow 22000 comment 'Syncthing'
+
+# Prevent Docker from overriding UFW
+# https://github.com/chaifeng/ufw-docker
+sudo tee -a /etc/ufw/after.rules << 'EOF'
+
+# BEGIN UFW AND DOCKER
+*filter
+:ufw-user-forward - [0:0]
+:ufw-docker-logging-deny - [0:0]
+:DOCKER-USER - [0:0]
+-A DOCKER-USER -j ufw-user-forward
+
+-A DOCKER-USER -j RETURN -s 10.0.0.0/8
+-A DOCKER-USER -j RETURN -s 172.16.0.0/12
+-A DOCKER-USER -j RETURN -s 192.168.0.0/16
+
+-A DOCKER-USER -p udp -m udp --sport 53 --dport 1024:65535 -j RETURN
+
+-A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 192.168.0.0/16
+-A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 10.0.0.0/8
+-A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 172.16.0.0/12
+-A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 192.168.0.0/16
+-A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 10.0.0.0/8
+-A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 172.16.0.0/12
+
+-A DOCKER-USER -j RETURN
+
+-A ufw-docker-logging-deny -m limit --limit 3/min --limit-burst 10 -j LOG --log-prefix "[UFW DOCKER BLOCK] "
+-A ufw-docker-logging-deny -j DROP
+
+COMMIT
+# END UFW AND DOCKER
+EOF
+
+# Restart UFW service
+sudo systemctl restart ufw
+
+# Enable UFW
+sudo ufw enable
