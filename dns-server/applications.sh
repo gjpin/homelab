@@ -43,9 +43,9 @@ mkdir -p ${DATA_PATH}/caddy/configs
 mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 
 # Copy files to expected directories and expand variables
-envsubst < ./dns-server/applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
-envsubst < ./dns-server/applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
-envsubst < ./dns-server/applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
+envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
+envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
 
 ################################################
 ##### Pi-Hole
@@ -60,10 +60,10 @@ mkdir -p ${DATA_PATH}/pihole/configs
 mkdir -p ${DATA_PATH}/pihole/volumes/pihole
 
 # Copy files to expected directories and expand variables
-envsubst < ./dns-server/applications/pihole/Dockerfile | tee ${DATA_PATH}/pihole/docker/Dockerfile > /dev/null
-envsubst < ./dns-server/applications/pihole/docker-compose.yaml | tee ${DATA_PATH}/pihole/docker/docker-compose.yml > /dev/null
-envsubst < ./dns-server/applications/pihole/config.env | tee ${DATA_PATH}/pihole/docker/config.env > /dev/null
-envsubst < ./dns-server/applications/pihole/99-edns.conf | tee ${DATA_PATH}/pihole/configs/99-edns.conf > /dev/null
+envsubst < ./applications/pihole/Dockerfile | tee ${DATA_PATH}/pihole/docker/Dockerfile > /dev/null
+envsubst < ./applications/pihole/docker-compose.yaml | tee ${DATA_PATH}/pihole/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/pihole/config.env | tee ${DATA_PATH}/pihole/docker/config.env > /dev/null
+envsubst < ./applications/pihole/99-edns.conf | tee ${DATA_PATH}/pihole/configs/99-edns.conf > /dev/null
 
 ################################################
 ##### Technitium
@@ -82,5 +82,5 @@ mkdir -p ${DATA_PATH}/technitium/configs
 mkdir -p ${DATA_PATH}/technitium/volumes/technitium
 
 # Copy files to expected directories and expand variables
-envsubst < ./dns-server/applications/technitium/docker-compose.yaml | tee ${DATA_PATH}/technitium/docker/docker-compose.yml > /dev/null
-envsubst < ./dns-server/applications/technitium/config.env | tee ${DATA_PATH}/technitium/docker/config.env > /dev/null
+envsubst < ./applications/technitium/docker-compose.yaml | tee ${DATA_PATH}/technitium/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/technitium/config.env | tee ${DATA_PATH}/technitium/docker/config.env > /dev/null

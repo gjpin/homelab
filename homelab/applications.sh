@@ -104,9 +104,9 @@ mkdir -p ${DATA_PATH}/caddy/configs
 mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 
 # Copy files to expected directories and expand variables
-envsubst < ./homelab/applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
-envsubst < ./homelab/applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
-envsubst < ./homelab/applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
+envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
+envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
 
 ################################################
 ##### Ente
@@ -125,9 +125,9 @@ mkdir -p ${DATA_PATH}/ente/volumes/{ente,postgres}
 mkdir -p ${DATA_PATH}/ente/configs
 
 # Copy files to expected directories and expand variables
-envsubst < ./homelab/applications/ente/docker-compose.yaml | tee ${DATA_PATH}/ente/docker/docker-compose.yml > /dev/null
-envsubst < ./homelab/applications/ente/config.env | tee ${DATA_PATH}/ente/docker/config.env > /dev/null
-envsubst < ./homelab/applications/ente/museum.yaml | tee ${DATA_PATH}/ente/configs/museum.yaml > /dev/null
+envsubst < ./applications/ente/docker-compose.yaml | tee ${DATA_PATH}/ente/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/ente/config.env | tee ${DATA_PATH}/ente/docker/config.env > /dev/null
+envsubst < ./applications/ente/museum.yaml | tee ${DATA_PATH}/ente/configs/museum.yaml > /dev/null
 
 ################################################
 ##### Gitea
@@ -146,8 +146,8 @@ sudo chown -R 1000:1000 ${DATA_PATH}/gitea/configs
 sudo chown -R 1000:1000 ${DATA_PATH}/gitea/volumes/gitea
 
 # Copy files to expected directories and expand variables
-envsubst < ./homelab/applications/gitea/docker-compose.yaml | tee ${DATA_PATH}/gitea/docker/docker-compose.yml > /dev/null
-envsubst < ./homelab/applications/gitea/config.env | tee ${DATA_PATH}/gitea/docker/config.env > /dev/null
+envsubst < ./applications/gitea/docker-compose.yaml | tee ${DATA_PATH}/gitea/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/gitea/config.env | tee ${DATA_PATH}/gitea/docker/config.env > /dev/null
 
 ################################################
 ##### Home Assistant
@@ -189,10 +189,10 @@ rm -f "${DATA_PATH}/homeassistant/volumes/homeassistant/bambu-ha-media-files.zip
 # wget -P "${DATA_PATH}/homeassistant/volumes/homeassistant/www" https://github.com/rianadon/timer-bar-card/releases/latest/download/timer-bar-card.js
 
 # Copy files to expected directories and expand variables
-envsubst < ./homelab/applications/homeassistant/docker-compose.yaml | tee ${DATA_PATH}/homeassistant/docker/docker-compose.yml > /dev/null
-envsubst < ./homelab/applications/homeassistant/homeassistant.yaml | tee ${DATA_PATH}/homeassistant/volumes/homeassistant/configuration.yaml > /dev/null
-envsubst < ./homelab/applications/homeassistant/zigbee2mqtt.yaml | tee ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt/configuration.yaml > /dev/null
-envsubst < ./homelab/applications/homeassistant/mosquitto.conf | tee ${DATA_PATH}/homeassistant/volumes/mosquitto/config/mosquitto.conf > /dev/null
+envsubst < ./applications/homeassistant/docker-compose.yaml | tee ${DATA_PATH}/homeassistant/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/homeassistant/homeassistant.yaml | tee ${DATA_PATH}/homeassistant/volumes/homeassistant/configuration.yaml > /dev/null
+envsubst < ./applications/homeassistant/zigbee2mqtt.yaml | tee ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt/configuration.yaml > /dev/null
+envsubst < ./applications/homeassistant/mosquitto.conf | tee ${DATA_PATH}/homeassistant/volumes/mosquitto/config/mosquitto.conf > /dev/null
 
 ################################################
 ##### Immich
@@ -208,8 +208,8 @@ mkdir -p ${DATA_PATH}/immich/docker
 mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres}
 
 # Copy files to expected directories and expand variables
-envsubst < ./homelab/applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yml > /dev/null
-envsubst < ./homelab/applications/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
+envsubst < ./applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
 
 ################################################
 ##### LibreChat
@@ -234,9 +234,9 @@ sudo chown -R 1000:1000 ${DATA_PATH}/librechat/configs
 sudo chown -R 1000:1000 ${DATA_PATH}/librechat/volumes
 
 # Copy files to expected directories and expand variables
-envsubst < ./homelab/applications/librechat/docker-compose.yaml $| tee ${DATA_PATH}/librechat/docker/docker-compose.yml > /dev/null
-envsubst < ./homelab/applications/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
-envsubst < ./homelab/applications/librechat/librechat.yaml | tee ${DATA_PATH}/librechat/configs/librechat.yaml > /dev/null
+envsubst < ./applications/librechat/docker-compose.yaml $| tee ${DATA_PATH}/librechat/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
+envsubst < ./applications/librechat/librechat.yaml | tee ${DATA_PATH}/librechat/configs/librechat.yaml > /dev/null
 
 ################################################
 ##### Obsidian
@@ -251,9 +251,9 @@ mkdir -p ${DATA_PATH}/obsidian/configs
 mkdir -p ${DATA_PATH}/obsidian/volumes/obsidian
 
 # Copy files to expected directories and expand variables
-envsubst < ./homelab/applications/obsidian/docker-compose.yaml | tee ${DATA_PATH}/obsidian/docker/docker-compose.yml > /dev/null
-envsubst < ./homelab/applications/obsidian/config.env | tee ${DATA_PATH}/obsidian/docker/config.env > /dev/null
-envsubst < ./homelab/applications/obsidian/local.ini | tee ${DATA_PATH}/obsidian/configs/local.ini > /dev/null
+envsubst < ./applications/obsidian/docker-compose.yaml | tee ${DATA_PATH}/obsidian/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/obsidian/config.env | tee ${DATA_PATH}/obsidian/docker/config.env > /dev/null
+envsubst < ./applications/obsidian/local.ini | tee ${DATA_PATH}/obsidian/configs/local.ini > /dev/null
 
 ################################################
 ##### Radicale
@@ -269,10 +269,10 @@ mkdir -p ${DATA_PATH}/radicale/configs
 mkdir -p ${DATA_PATH}/radicale/volumes/radicale
 
 # Copy files to expected directories and expand variables
-envsubst < ./homelab/applications/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker/Dockerfile > /dev/null
-envsubst < ./homelab/applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
-envsubst < ./homelab/applications/radicale/config | tee ${DATA_PATH}/radicale/configs/config > /dev/null
-envsubst < ./homelab/applications/radicale/users | tee ${DATA_PATH}/radicale/configs/users > /dev/null
+envsubst < ./applications/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker/Dockerfile > /dev/null
+envsubst < ./applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/radicale/config | tee ${DATA_PATH}/radicale/configs/config > /dev/null
+envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/users > /dev/null
 
 ################################################
 ##### Supabase
@@ -284,10 +284,10 @@ mkdir -p ${DATA_PATH}/supabase/configs
 mkdir -p ${DATA_PATH}/supabase/volumes
 
 # Copy files to expected directories and expand variables
-sudo cp -R ./homelab/applications/supabase/volumes/* ${DATA_PATH}/supabase/docker/volumes/
-envsubst < ./homelab/applications/supabase/volumes/api/kong.yml | tee ${DATA_PATH}/supabase/volumes/api/kong.yml > /dev/null
-envsubst < ./homelab/applications/supabase/docker-compose.yaml | tee ${DATA_PATH}/supabase/docker/docker-compose.yml > /dev/null
-envsubst < ./homelab/applications/supabase/config.env | tee ${DATA_PATH}/supabase/docker/config.env > /dev/null
+sudo cp -R ./applications/supabase/volumes/* ${DATA_PATH}/supabase/docker/volumes/
+envsubst < ./applications/supabase/volumes/api/kong.yml | tee ${DATA_PATH}/supabase/volumes/api/kong.yml > /dev/null
+envsubst < ./applications/supabase/docker-compose.yaml | tee ${DATA_PATH}/supabase/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/supabase/config.env | tee ${DATA_PATH}/supabase/docker/config.env > /dev/null
 
 ################################################
 ##### Syncthing
@@ -302,7 +302,7 @@ mkdir -p ${DATA_PATH}/syncthing/configs
 mkdir -p ${DATA_PATH}/syncthing/volumes/syncthing
 
 # Copy files to expected directories and expand variables
-envsubst < ./homelab/applications/syncthing/docker-compose.yaml | tee ${DATA_PATH}/syncthing/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/syncthing/docker-compose.yaml | tee ${DATA_PATH}/syncthing/docker/docker-compose.yml > /dev/null
 
 ################################################
 ##### Vaultwarden
@@ -314,5 +314,5 @@ mkdir -p ${DATA_PATH}/vaultwarden/configs
 mkdir -p ${DATA_PATH}/vaultwarden/volumes/vaultwarden
 
 # Copy files to expected directories and expand variables
-envsubst < ./homelab/applications/vaultwarden/docker-compose.yaml | tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml > /dev/null
-envsubst < ./homelab/applications/vaultwarden/config.env | tee ${DATA_PATH}/vaultwarden/docker/config.env > /dev/null
+envsubst < ./applications/vaultwarden/docker-compose.yaml | tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/vaultwarden/config.env | tee ${DATA_PATH}/vaultwarden/docker/config.env > /dev/null

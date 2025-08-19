@@ -136,7 +136,7 @@ export ENTE_JWT_SECRET=$(openssl rand -base64 32 | tr -d '\n')
 git -C ${HOME}/homelab pull
 
 # Update containers env vars
-cd ${HOME}/dns-server
+cd ${HOME}/homelab/dns-server
 ./applications.sh
 
 # Update containers
@@ -158,7 +158,7 @@ docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recre
 git -C ${HOME}/homelab pull
 
 # Update containers env vars
-cd ${HOME}/homelab
+cd ${HOME}/homelab/homelab
 ./applications.sh
 
 # Update containers
