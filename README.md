@@ -163,7 +163,7 @@ cd ${HOME}/homelab
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml pull
+# docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
@@ -174,7 +174,7 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 
 # Shutdown containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml down
+# docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
@@ -185,7 +185,7 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
 
 # Start containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml up --force-recreate -d
+# docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
@@ -400,6 +400,33 @@ sudo dracut --regenerate-all --force
     - Delete logical volume
         - swap_1
     - Finish
+
+## Debian - Upgrade
+```bash
+# See Debian's release notes on upgrading:
+# https://www.debian.org/releases/trixie/release-notes/upgrading.en.html
+
+# Update all packages to newest version
+sudo apt update
+sudo apt full-upgrade -y
+
+# Update sources to new codename
+sudo sed -i 's/trixie/forky/g' /etc/apt/sources.list.d/debian.sources
+
+# Perform minimal upgrade
+sudo apt update
+sudo apt upgrade --without-new-pkgs
+
+# Perform full upgrade
+sudo apt full-upgrade --autoremove -y
+
+# Ensure all unneeded packages are removed
+sudo apt --purge autoremove -y
+sudo apt autoclean
+
+# Reboot
+sudo reboot
+```
 
 # New services
 * See [THIS](https://github.com/gjpin/homelab/commit/eaf9747716e9c0766c5a05d1258e6174e0b204d6) commit for example

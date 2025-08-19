@@ -1,6 +1,25 @@
 #!/usr/bin/bash
 
 ################################################
+##### Repositories
+################################################
+
+# Ensure repos are correct
+sudo tee /etc/apt/sources.list.d/debian.sources << 'EOF'
+Types: deb
+URIs: https://deb.debian.org/debian
+Suites: trixie trixie-updates
+Components: main non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: https://security.debian.org/debian-security
+Suites: trixie-security
+Components: main non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+EOF
+
+################################################
 ##### Update system and install base packages
 ################################################
 
@@ -67,19 +86,19 @@ EOF
 # https://backports.debian.org/changes/bookworm-backports.html
 
 # Get release codename
-. /etc/os-release
+# . /etc/os-release
 
 # Add backports repo
-sudo tee /etc/apt/sources.list.d/$VERSION_CODENAME-backports.list << EOF
-deb http://deb.debian.org/debian $VERSION_CODENAME-backports main
-EOF
+# sudo tee /etc/apt/sources.list.d/$VERSION_CODENAME-backports.list << EOF
+# deb http://deb.debian.org/debian $VERSION_CODENAME-backports main
+# EOF
 
 # Update repos
-sudo apt update
+# sudo apt update
 
 # Install latest kernel from backports
-sudo apt install -y linux-base/$VERSION_CODENAME-backports
-sudo apt install -y linux-image-amd64/$VERSION_CODENAME-backports
+# sudo apt install -y linux-base/$VERSION_CODENAME-backports
+# sudo apt install -y linux-image-amd64/$VERSION_CODENAME-backports
 
 ################################################
 ##### WireGuard
@@ -163,8 +182,13 @@ sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyring
 sudo chmod a+r /etc/apt/keyrings/docker.asc
 
 # Setup Docker's repository
-sudo tee /etc/apt/sources.list.d/docker.list << EOF
-deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable
+sudo tee -a /etc/apt/sources.list.d/debian.sources << 'EOF'
+
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: trixie
+Components: stable
+Signed-By: /etc/apt/keyrings/docker.asc
 EOF
 
 # Install Docker engine
