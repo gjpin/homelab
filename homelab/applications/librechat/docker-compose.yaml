@@ -1,6 +1,6 @@
 services:
   librechat:
-    image: ghcr.io/danny-avila/librechat-dev:f4680b016cda71a132abe8719416169734a1f10a
+    image: ghcr.io/danny-avila/librechat-dev:5a14ee9c6a1ce413a93d3229eb49dea935fc304e # ghcr.io/danny-avila/librechat-dev
     pull_policy: always
     container_name: librechat
     restart: always
@@ -19,7 +19,7 @@ services:
 
   librechat-mongodb:
     container_name: librechat-mongodb
-    image: docker.io/mongo:8.0.11-noble
+    image: docker.io/mongo:8.0.12-noble # https://hub.docker.com/_/mongo/tags
     restart: always
     user: "${UID}:${GID}"
     volumes:
@@ -30,7 +30,7 @@ services:
 
   librechat-meilisearch:
     container_name: librechat-meilisearch
-    image: docker.io/getmeili/meilisearch:v1.15.2
+    image: docker.io/getmeili/meilisearch:v1.18.0 # https://hub.docker.com/r/getmeili/meilisearch/tags
     env_file:
       - config.env
     user: "${UID}:${GID}"
@@ -54,7 +54,7 @@ services:
 
   librechat-rag:
     container_name: librechat-rag
-    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:33a221a6f5f5ee0af03e0cecca2508d9bc1f649b
+    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:2f08fc37b77771fd79c9ddd1e2daf3346ae1953a # ghcr.io/danny-avila/librechat-rag-api-dev-lite
     pull_policy: always
     restart: always
     networks:

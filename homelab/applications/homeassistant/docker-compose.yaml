@@ -6,7 +6,7 @@
 services:
   homeassistant:
     container_name: homeassistant
-    image: ghcr.io/home-assistant/home-assistant:2025.7.0
+    image: ghcr.io/home-assistant/home-assistant:2025.8.2 # https://github.com/home-assistant/core/pkgs/container/home-assistant
     restart: always
     volumes:
       - ${DATA_PATH}/homeassistant/volumes/homeassistant:/config
@@ -19,7 +19,7 @@ services:
 
   homeassistant-zigbee2mqtt:
     container_name: homeassistant-zigbee2mqtt
-    image: ghcr.io/koenkk/zigbee2mqtt:2.5.1
+    image: ghcr.io/koenkk/zigbee2mqtt:2.6.0 # https://github.com/koenkk/zigbee2mqtt/pkgs/container/zigbee2mqtt
     restart: always
     volumes:
       - ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt:/app/data
@@ -34,7 +34,7 @@ services:
 
   homeassistant-mosquitto:
     container_name: homeassistant-mosquitto
-    image: docker.io/library/eclipse-mosquitto:2.0.21
+    image: docker.io/library/eclipse-mosquitto:2.0.22 # https://hub.docker.com/_/eclipse-mosquitto
     restart: always
     volumes:
       - ${DATA_PATH}/homeassistant/volumes/mosquitto/config:/mosquitto/config

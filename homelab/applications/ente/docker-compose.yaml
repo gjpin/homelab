@@ -4,7 +4,7 @@
 services:
   ente-postgres:
     container_name: ente-postgres
-    image: docker.io/postgres:17.5-bookworm
+    image: docker.io/postgres:17.6-bookworm # https://hub.docker.com/_/postgres
     env_file:
       - config.env
     volumes:
@@ -19,7 +19,7 @@ services:
 
   ente-museum:
     container_name: ente-museum
-    image: ghcr.io/ente-io/server:30262f82a56a83f2bfda190e247c926a8084bbfa
+    image: ghcr.io/ente-io/server:1fe2a941ffa72f986be76099e7a75a21fc2fee8e # https://github.com/ente-io/ente/pkgs/container/server
     volumes:
       - ${DATA_PATH}/ente/configs/museum.yaml:/museum.yaml:ro
       - ${DATA_PATH}/ente/volumes/ente:/data
@@ -31,7 +31,7 @@ services:
 
   ente-web:
     container_name: ente-web
-    image: ghcr.io/ente-io/web:d077d5dcbb5e18784d36348cafb9866677a3c25f
+    image: ghcr.io/ente-io/web:29b12fc6b571551a51b84c1b9abc4908c53fff24 # https://github.com/ente-io/ente/pkgs/container/web
     env_file:
       - config.env
     networks:

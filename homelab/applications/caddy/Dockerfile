@@ -1,3 +1,4 @@
+# https://hub.docker.com/_/caddy
 FROM docker.io/caddy:2.10.0-builder-alpine AS builder
 
 RUN xcaddy build \

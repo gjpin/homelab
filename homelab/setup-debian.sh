@@ -313,8 +313,8 @@ sudo ufw allow 22/tcp comment 'SSH'
 sudo ufw allow 51900 comment 'Wireguard'
 
 # Configure rules for Docker containers
-sudo ufw route allow proto tcp from any to any port 443 comment 'Caddy HTTPS'
-sudo ufw route allow from any to any port 22000 comment 'Syncthing'
+# sudo ufw route allow proto tcp from any to any port 443 comment 'Caddy HTTPS'
+# sudo ufw route allow from any to any port 22000 comment 'Syncthing'
 
 # Prevent Docker from overriding UFW
 # https://github.com/chaifeng/ufw-docker

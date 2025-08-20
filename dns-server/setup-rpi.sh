@@ -150,8 +150,8 @@ sudo ufw allow 22/tcp comment 'SSH'
 sudo ufw allow 51900 comment 'Wireguard'
 
 # Configure rules for Docker containers
-sudo ufw route allow proto tcp from any to any port 443 comment 'Caddy HTTPS'
-sudo ufw route allow from any to any port 53 comment 'Pi-hole DNS'
+# sudo ufw route allow proto tcp from any to any port 443 comment 'Caddy HTTPS'
+# sudo ufw route allow from any to any port 53 comment 'Pi-hole DNS'
 
 # Prevent Docker from overriding UFW
 # https://github.com/chaifeng/ufw-docker
