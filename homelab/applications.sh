@@ -170,16 +170,16 @@ docker run --rm -v ${DATA_PATH}/homeassistant/volumes/mosquitto/config/pwfile:/d
 # Install HACS
 # Configure HACS:
 # https://hacs.xyz/docs/use/configuration/basic/
-mkdir -p "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs"
-wget -P "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components" https://github.com/hacs/integration/releases/latest/download/hacs.zip
-unzip "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs.zip" -d "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs" >/dev/null 2>&1
-rm -f "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs.zip"
+# mkdir -p "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs"
+# wget -P "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components" https://github.com/hacs/integration/releases/latest/download/hacs.zip
+# unzip "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs.zip" -d "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs" >/dev/null 2>&1
+# rm -f "${DATA_PATH}/homeassistant/volumes/homeassistant/custom_components/hacs.zip"
 
 # Install bambulab custom resources
 # https://www.wolfwithsword.com/bambulab-home-assistant-dashboard/
-wget -P "${DATA_PATH}/homeassistant/volumes/homeassistant" https://github.com/WolfwithSword/Bambu-HomeAssistant-Flows/releases/download/nightly/bambu-ha-media-files.zip
-unzip "${DATA_PATH}/homeassistant/volumes/homeassistant/bambu-ha-media-files.zip"
-rm -f "${DATA_PATH}/homeassistant/volumes/homeassistant/bambu-ha-media-files.zip"
+# wget -P "${DATA_PATH}/homeassistant/volumes/homeassistant" https://github.com/WolfwithSword/Bambu-HomeAssistant-Flows/releases/download/nightly/bambu-ha-media-files.zip
+# unzip "${DATA_PATH}/homeassistant/volumes/homeassistant/bambu-ha-media-files.zip"
+# rm -f "${DATA_PATH}/homeassistant/volumes/homeassistant/bambu-ha-media-files.zip"
 
 # Add HA cards
 # Enable them: Settings -> Dashboards -> 3 dots -> Resources -> Add resource
