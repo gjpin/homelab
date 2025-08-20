@@ -26,7 +26,8 @@ sudo apt install -y \
   wakeonlan \
   git \
   nano \
-  htop
+  htop \
+  dnsutils
 
 # Install borgbackup
 sudo apt install -y borgbackup

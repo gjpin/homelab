@@ -49,7 +49,8 @@ sudo apt install -y \
   lm-sensors \
   udisks2 \
   unzip \
-  jq
+  jq \
+  dnsutils
 
 # Install borgbackup
 sudo apt install -y borgbackup
