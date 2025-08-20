@@ -103,14 +103,12 @@ git.${BASE_DOMAIN} {
 
 # Home Assistant
 home.${BASE_DOMAIN} {
-        import default-header
-
         encode gzip
 
         reverse_proxy homeassistant:8123
 }
 
-# # Home Assistant - Zigbee2MQTT
+# Home Assistant - Zigbee2MQTT
 home-zigbee.${BASE_DOMAIN} {
         import default-header
 
@@ -138,26 +136,26 @@ supabase.${BASE_DOMAIN} {
 }
 
 # Ente
-api.ente.${BASE_DOMAIN} {
-        import default-header
+# api.ente.${BASE_DOMAIN} {
+#         import default-header
 
-        encode gzip
+#         encode gzip
 
-        reverse_proxy ente-museum:8080
-}
+#         reverse_proxy ente-museum:8080
+# }
 
-accounts.ente.${BASE_DOMAIN} {
-        import default-header
+# accounts.ente.${BASE_DOMAIN} {
+#         import default-header
 
-        encode gzip
+#         encode gzip
 
-        reverse_proxy ente-web:3001
-}
+#         reverse_proxy ente-web:3001
+# }
 
-2fa.${BASE_DOMAIN} {
-        import default-header
+# 2fa.${BASE_DOMAIN} {
+#         import default-header
 
-        encode gzip
+#         encode gzip
 
-        reverse_proxy ente-web:3003
-}
+#         reverse_proxy ente-web:3003
+# }
