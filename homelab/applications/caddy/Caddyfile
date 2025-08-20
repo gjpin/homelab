@@ -103,6 +103,8 @@ git.${BASE_DOMAIN} {
 
 # Home Assistant
 home.${BASE_DOMAIN} {
+        import default-header
+
         encode gzip
 
         reverse_proxy homeassistant:8123
