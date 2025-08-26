@@ -163,9 +163,11 @@ mkdir -p ${DATA_PATH}/homeassistant/volumes/homeassistant/{www,custom_components
 mkdir -p ${DATA_PATH}/homeassistant/volumes/mosquitto/{config,data,log}
 
 # Create mosquitto password file
+if [ ! "${DATA_PATH}/homeassistant/volumes/mosquitto/config/pwfile" ]; then
 touch ${DATA_PATH}/homeassistant/volumes/mosquitto/config/pwfile
 docker run --rm -v ${DATA_PATH}/homeassistant/volumes/mosquitto/config/pwfile:/data/pwfile eclipse-mosquitto:2 \
     sh -c "mosquitto_passwd -b /data/pwfile ha ${HOMEASSISTANT_MOSQUITTO_PASSWORD}"
+fi
 
 # Install HACS
 # Configure HACS:
