@@ -1,7 +1,7 @@
 services:
   immich-server:
     container_name: immich-server
-    image: ghcr.io/immich-app/immich-server:v1.138.1 # https://github.com/immich-app/immich/releases
+    image: ghcr.io/immich-app/immich-server:v1.139.4 # https://github.com/immich-app/immich/releases
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/usr/src/app/upload:Z
     env_file:
