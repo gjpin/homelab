@@ -136,28 +136,3 @@ supabase.${BASE_DOMAIN} {
 
         reverse_proxy supabase-kong:8000
 }
-
-# Ente
-# api.ente.${BASE_DOMAIN} {
-#         import default-header
-
-#         encode gzip
-
-#         reverse_proxy ente-museum:8080
-# }
-
-# accounts.ente.${BASE_DOMAIN} {
-#         import default-header
-
-#         encode gzip
-
-#         reverse_proxy ente-web:3001
-# }
-
-# 2fa.${BASE_DOMAIN} {
-#         import default-header
-
-#         encode gzip
-
-#         reverse_proxy ente-web:3003
-# }

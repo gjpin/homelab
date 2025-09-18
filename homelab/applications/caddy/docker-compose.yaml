@@ -8,7 +8,6 @@ services:
       - 443:443
     networks:
       - caddy
-      - ente
       - gitea
       - homeassistant
       - immich
@@ -24,8 +23,6 @@ services:
 
 networks:
   caddy:
-    external: true
-  ente:
     external: true
   gitea:
     external: true
