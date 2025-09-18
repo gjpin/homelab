@@ -1,6 +1,6 @@
 services:
   syncthing:
-    image: docker.io/syncthing/syncthing:2.0.2 # https://hub.docker.com/r/syncthing/syncthing/tags
+    image: docker.io/syncthing/syncthing:2.0.9 # https://hub.docker.com/r/syncthing/syncthing/tags
     pull_policy: always
     container_name: syncthing
     hostname: homelab

@@ -1,0 +1,16 @@
+- id: '1756233778378'
+  alias: Turn off 3D printer if there is smoke
+  description: ''
+  triggers:
+  - trigger: state
+    entity_id:
+    - binary_sensor.office_smoke_detector_smoke
+    from:
+    to: 'on'
+  conditions: []
+  actions:
+  - type: turn_off
+    device_id: 092a5b72603ac34ebf30e7692780e0d9
+    entity_id: 272289f4b8074fe741e422163c4dbef7
+    domain: switch
+  mode: single

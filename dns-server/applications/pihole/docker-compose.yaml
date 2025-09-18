@@ -4,6 +4,7 @@ services:
     pull_policy: always
     container_name: pihole
     restart: always
+    hostname: pi400
     networks:
       - pihole
     ports:

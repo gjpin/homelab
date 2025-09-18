@@ -8,7 +8,6 @@ docker network create --internal immich
 docker network create librechat
 docker network create --internal obsidian
 docker network create --internal radicale
-docker network create supabase
 docker network create syncthing
 docker network create --internal vaultwarden
 
@@ -171,6 +170,7 @@ fi
 # Copy files to expected directories and expand variables
 envsubst < ./applications/homeassistant/docker-compose.yaml | tee ${DATA_PATH}/homeassistant/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/homeassistant/homeassistant.yaml | tee ${DATA_PATH}/homeassistant/volumes/homeassistant/configuration.yaml > /dev/null
+envsubst < ./applications/homeassistant/automations.yaml | tee ${DATA_PATH}/homeassistant/volumes/homeassistant/automations.yaml > /dev/null
 envsubst < ./applications/homeassistant/zigbee2mqtt.yaml | tee ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt/configuration.yaml > /dev/null
 
 if [ ! -f "${DATA_PATH}/homeassistant/volumes/mosquitto/config/mosquitto.conf" ]; then
