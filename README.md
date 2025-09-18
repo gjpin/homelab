@@ -13,7 +13,6 @@
 | [LibreChat](https://github.com/danny-avila/LibreChat) | chat.${BASE_DOMAIN} | Enhanced ChatGPT Clone | Yes |
 | [Home Assistant](https://github.com/home-assistant/core) | home.${BASE_DOMAIN} | Home automation | Yes |
 | [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt) | home-zigbee.${BASE_DOMAIN} | Zigbee to MQTT bridge | Yes |
-| [Ente](https://github.com/ente-io/ente) | 2fa.${BASE_DOMAIN} | End-to-end encrypted cloud for photos, videos and 2FA secrets. Only 2FA is configured | no |
 
 # Getting started
 0. Copy SSH public key to PC. If it's on a USB, mount it and copy to ${HOME}/.ssh:
@@ -121,12 +120,6 @@ export SUPABASE_ADDITIONAL_REDIRECT_URLS=
 export SUPABASE_SECRET_KEY_BASE=
 export SUPABASE_VAULT_ENC_KEY=
 export SUPABASE_DOCKER_SOCKET_LOCATION=
-
-# Ente
-export ENTE_DATABASE_PASSWORD=$(openssl rand -hex 48)
-export ENTE_KEY_ENCRYPTION=$(openssl rand -base64 32)
-export ENTE_KEY_HASH=$(openssl rand -base64 64 | tr -d '\n')
-export ENTE_JWT_SECRET=$(openssl rand -base64 32 | tr -d '\n')
 ```
 
 # Cheat sheet
