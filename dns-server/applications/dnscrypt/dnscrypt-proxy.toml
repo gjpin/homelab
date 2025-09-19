@@ -311,6 +311,8 @@ enabled = true
 listen_address = "0.0.0.0:8080"
 
 # Optional username and password for basic authentication
+username = ""
+password = ""
 # username = "${DNSCRYPT_UI_USER}"
 # password = "${DNSCRYPT_UI_PASSWORD}"
 
