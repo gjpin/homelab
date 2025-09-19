@@ -13,6 +13,7 @@
 | [LibreChat](https://github.com/danny-avila/LibreChat) | chat.${BASE_DOMAIN} | Enhanced ChatGPT Clone | Yes |
 | [Home Assistant](https://github.com/home-assistant/core) | home.${BASE_DOMAIN} | Home automation | Yes |
 | [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt) | home-zigbee.${BASE_DOMAIN} | Zigbee to MQTT bridge | Yes |
+| [dnscrypt-proxy](https://github.com/DNSCrypt/dnscrypt-proxy) | dns.${BASE_DOMAIN} | DNS Proxy | Yes |
 
 # Getting started
 0. Copy SSH public key to PC. If it's on a USB, mount it and copy to ${HOME}/.ssh:
