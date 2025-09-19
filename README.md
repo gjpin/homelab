@@ -139,14 +139,17 @@ cd ${HOME}/homelab/dns-server
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/dnscrypt/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml pull
 
 # Shutdown containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/dnscrypt/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
 
 # Start containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/dnscrypt/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
 ```
 
