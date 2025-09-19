@@ -10,6 +10,7 @@ services:
       - caddy
       - pihole
       - technitium
+      - dnscrypt
     volumes:
       - ${DATA_PATH}/caddy/configs/Caddyfile:/etc/caddy/Caddyfile:Z
       - ${DATA_PATH}/caddy/volumes/caddy:/data/caddy:Z
@@ -21,4 +22,6 @@ networks:
   pihole:
     external: true
   technitium:
+    external: true
+  dnscrypt:
     external: true
