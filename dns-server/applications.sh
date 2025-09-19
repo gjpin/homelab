@@ -14,7 +14,7 @@ sudo docker network create technitium
 ################################################
 
 # Store main env vars
-cat <<EOF >> "${HOME}/.bashrc.d/env"
+cat <<EOF > "${HOME}/.bashrc.d/env"
 export BASE_DOMAIN=${BASE_DOMAIN}
 export DATA_PATH="${DATA_PATH}"
 
