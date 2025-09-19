@@ -5,6 +5,7 @@ export DATA_PATH=${HOME}/containers
 
 # Create networks (Caddy belongs to all networks)
 sudo docker network create caddy
+sudo docker network create dnscrypt
 sudo docker network create pihole
 sudo docker network create technitium
 
@@ -24,6 +25,10 @@ export CADDY_CLOUDFLARE_TOKEN='${CADDY_CLOUDFLARE_TOKEN}'
 # Pi-Hole
 export PIHOLE_ADMIN_TOKEN='${PIHOLE_ADMIN_TOKEN}'
 export PIHOLE_WEBPASSWORD='${PIHOLE_WEBPASSWORD}'
+
+# dnscrypt
+export DNSCRYPT_UI_USER='${DNSCRYPT_UI_USER}'
+export DNSCRYPT_UI_PASSWORD='${DNSCRYPT_UI_PASSWORD}'
 
 # Technitium
 export TECHNITIUM_ADMIN_PASSWORD='${TECHNITIUM_ADMIN_PASSWORD}'
@@ -48,6 +53,23 @@ envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/doc
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
 
 ################################################
+##### dnscrypt
+################################################
+
+# References:
+# https://dnscrypt.info/doc
+# https://github.com/DNSCrypt/dnscrypt-proxy/blob/master/dnscrypt-proxy/example-dnscrypt-proxy.toml
+
+# Create directories
+mkdir -p ${DATA_PATH}/dnscrypt/docker
+mkdir -p ${DATA_PATH}/dnscrypt/configs
+
+# Copy files to expected directories and expand variables
+envsubst < ./applications/dnscrypt/Dockerfile | tee ${DATA_PATH}/dnscrypt/docker/Dockerfile > /dev/null
+envsubst < ./applications/dnscrypt/docker-compose.yaml | tee ${DATA_PATH}/dnscrypt/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/dnscrypt/dnscrypt-proxy.toml | tee ${DATA_PATH}/dnscrypt/configs/dnscrypt-proxy.toml > /dev/null
+
+################################################
 ##### Pi-Hole
 ################################################
 
@@ -60,7 +82,6 @@ mkdir -p ${DATA_PATH}/pihole/configs
 mkdir -p ${DATA_PATH}/pihole/volumes/pihole
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/pihole/Dockerfile | tee ${DATA_PATH}/pihole/docker/Dockerfile > /dev/null
 envsubst < ./applications/pihole/docker-compose.yaml | tee ${DATA_PATH}/pihole/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/pihole/config.env | tee ${DATA_PATH}/pihole/docker/config.env > /dev/null
 envsubst < ./applications/pihole/99-edns.conf | tee ${DATA_PATH}/pihole/configs/99-edns.conf > /dev/null
