@@ -27,9 +27,6 @@
 
                 # Remove Server header
                 -Server
-
-                # Preserve backend-provided auth challenges
-                +WWW-Authenticate
         }
 }
 
