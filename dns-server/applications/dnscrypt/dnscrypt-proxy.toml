@@ -308,7 +308,7 @@ skip_incompatible = false
 enabled = true
 
 # Listen address for the monitoring UI
-listen_address = "127.0.0.1:8080"
+listen_address = "0.0.0.0:8080"
 
 # Optional username and password for basic authentication
 username = "${DNSCRYPT_UI_USER}"
