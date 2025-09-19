@@ -1,0 +1,14 @@
+services:
+  dnscrypt:
+    build:
+      context: ${DATA_PATH}/dnscrypt/docker
+    container_name: dnscrypt
+    restart: always
+    networks:
+      - dnscrypt
+    volumes:
+      - ${DATA_PATH}/dnscrypt/configs/dnscrypt-proxy.toml:/etc/dnscrypt-proxy/dnscrypt-proxy.toml:Z
+
+networks:
+  dnscrypt:
+    external: true

@@ -48,6 +48,10 @@ export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 # Pi-Hole
 export PIHOLE_WEBPASSWORD=$(openssl rand -hex 48)
 
+# dnscrypt
+export DNSCRYPT_UI_USER=
+export DNSCRYPT_UI_PASSWORD=$(openssl rand -hex 48)
+
 # Technitium
 export TECHNITIUM_ADMIN_PASSWORD=$(openssl rand -hex 48)
 ```

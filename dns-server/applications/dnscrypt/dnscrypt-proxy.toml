@@ -5,6 +5,7 @@
 # Ports:
 # DNS: 53
 # DoH: 3000
+# UI: 8080
 
 ################################################
 ##### Global Settings
@@ -310,8 +311,8 @@ enabled = true
 listen_address = "127.0.0.1:8080"
 
 # Optional username and password for basic authentication
-username = "admin"
-password = "changeme"
+username = "${DNSCRYPT_UI_USER}"
+password = "${DNSCRYPT_UI_PASSWORD}"
 
 # Optional TLS certificate and key for HTTPS. If both are empty, HTTP will be used
 tls_certificate = ""

@@ -7,13 +7,12 @@ services:
     hostname: pi400
     networks:
       - pihole
+      - dnscrypt
     ports:
       - 53:53/tcp
       - 53:53/udp
     env_file:
       - config.env
-    depends_on:
-      - pihole-dnscrypt
     volumes:
       - ${DATA_PATH}/pihole/volumes/pihole:/etc/pihole:Z
       - ${DATA_PATH}/pihole/configs/99-edns.conf:/etc/dnsmasq.d/99-edns.conf:Z
@@ -21,14 +20,8 @@ services:
       - CAP_SYS_TIME
       - CAP_SYS_NICE
 
-  pihole-dnscrypt:
-    build:
-      context: ${DATA_PATH}/pihole/docker
-    container_name: pihole-dnscrypt
-    restart: always
-    networks:
-      - pihole
-
 networks:
   pihole:
+    external: true
+  dnscrypt:
     external: true

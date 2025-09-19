@@ -48,3 +48,12 @@ technitium.${BASE_DOMAIN} {
         # Web Console (HTTP)
         reverse_proxy technitium:5380
 }
+
+# dnscrypt-proxy
+dns.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy dnscrypt:8080
+}
