@@ -136,3 +136,12 @@ supabase.${BASE_DOMAIN} {
 
         reverse_proxy supabase-kong:8000
 }
+
+# Devdocs
+docs.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy devdocs-frontend:3001
+}

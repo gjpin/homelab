@@ -2,6 +2,7 @@
 
 # Create networks (Caddy belongs to all networks)
 docker network create caddy
+docker network create devdocs
 docker network create gitea
 docker network create homeassistant
 docker network create --internal immich
@@ -24,6 +25,9 @@ export BACKUP_PATH='${BACKUP_PATH}'
 # Caddy
 export CADDY_HASHED_PASSWORD='${CADDY_HASHED_PASSWORD}'
 export CADDY_CLOUDFLARE_TOKEN='${CADDY_CLOUDFLARE_TOKEN}'
+
+# DevDocs
+export DEVDOCS_CRAWL4AI_API_TOKEN='${DEVDOCS_CRAWL4AI_API_TOKEN}'
 
 # Home Assistant
 export HOMEASSISTANT_MOSQUITTO_PASSWORD='${HOMEASSISTANT_MOSQUITTO_PASSWORD}'
@@ -99,6 +103,23 @@ mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
 envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
+
+################################################
+##### DevDocs
+################################################
+
+# References:
+# https://github.com/cyberagiinc/DevDocs
+
+# Create directories
+mkdir -p ${DATA_PATH}/devdocs/docker
+mkdir -p ${DATA_PATH}/devdocs/volumes/backend-{storage,logs,crawl_results}
+mkdir -p ${DATA_PATH}/devdocs/volumes/mcp-{storage-markdown,logs}
+mkdir -p ${DATA_PATH}/devdocs/volumes/crawl4ai-crawl-results
+
+# Copy files to expected directories and expand variables
+envsubst < ./applications/devdocs/docker-compose.yaml | tee ${DATA_PATH}/devdocs/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/devdocs/config.env | tee ${DATA_PATH}/devdocs/docker/config.env > /dev/null
 
 ################################################
 ##### Gitea

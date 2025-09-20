@@ -13,7 +13,8 @@
 | [LibreChat](https://github.com/danny-avila/LibreChat) | chat.${BASE_DOMAIN} | Enhanced ChatGPT Clone | Yes |
 | [Home Assistant](https://github.com/home-assistant/core) | home.${BASE_DOMAIN} | Home automation | Yes |
 | [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt) | home-zigbee.${BASE_DOMAIN} | Zigbee to MQTT bridge | Yes |
-| [dnscrypt-proxy](https://github.com/DNSCrypt/dnscrypt-proxy) | dns.${BASE_DOMAIN} | DNS Proxy | Yes |
+| [DNSCrypt](https://github.com/DNSCrypt/dnscrypt-proxy) | dns.${BASE_DOMAIN} | DNS Proxy | Yes |
+| [DevDocs](https://github.com/cyberagiinc/DevDocs) | docs.${BASE_DOMAIN} | Documentation MCP server | Yes |
 
 # Getting started
 0. Copy SSH public key to PC. If it's on a USB, mount it and copy to ${HOME}/.ssh:
@@ -67,6 +68,9 @@ export BACKUP_PATH=/backup/containers
 export CADDY_PASSWORD=$(openssl rand -hex 48)
 export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
+
+# DevDocs
+export DEVDOCS_CRAWL4AI_API_TOKEN=$(openssl rand -hex 48)
 
 # Home Assistant
 export HOMEASSISTANT_MOSQUITTO_PASSWORD=
@@ -164,6 +168,7 @@ cd ${HOME}/homelab/homelab
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/devdocs/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
@@ -174,6 +179,7 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 
 # Shutdown containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/devdocs/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
@@ -184,6 +190,7 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
 
 # Start containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/devdocs/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d

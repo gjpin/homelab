@@ -1,0 +1,69 @@
+# https://github.com/cyberagiinc/DevDocs/blob/feature-main/docker/compose/docker-compose.yml
+
+services:
+  devdocs-crawl4ai:
+    image: docker.io/unclecode/crawl4ai:0.7.4 # https://hub.docker.com/r/unclecode/crawl4ai/tags
+    pull_policy: always
+    container_name: devdocs-crawl4ai
+    restart: always
+    networks:
+      - devdocs
+    env_file:
+      - config.env
+    volumes:
+      - /dev/shm:/dev/shm
+      - ${DATA_PATH}/devdocs/volumes/crawl4ai-crawl-results:/app/crawl_results
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+
+  devdocs-mcp:
+    image: ghcr.io/gjpin/devdocs/mcp:latest
+    pull_policy: always
+    container_name: devdocs-mcp
+    restart: always
+    stdin_open: true
+    tty: true
+    networks:
+      - devdocs
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/devdocs/volumes/mcp-storage-markdown:/app/storage/markdown
+      - ${DATA_PATH}/devdocs/volumes/mcp-logs:/app/logs
+
+  devdocs-backend:
+    image: ghcr.io/gjpin/devdocs/backend:latest
+    pull_policy: always
+    container_name: devdocs-backend
+    restart: always
+    networks:
+      - devdocs
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/devdocs/volumes/backend-storage:/app/storage
+      - ${DATA_PATH}/devdocs/volumes/backend-logs:/app/logs
+      - ${DATA_PATH}/devdocs/volumes/backend-crawl_results:/app/crawl_results
+    depends_on:
+      - devdocs-mcp
+      - devdocs-crawl4ai
+
+  devdocs-frontend:
+    image: ghcr.io/gjpin/devdocs/frontend:latest
+    pull_policy: always
+    container_name: devdocs-frontend
+    restart: always
+    networks:
+      - devdocs
+    env_file:
+      - config.env
+    depends_on:
+      - devdocs-backend
+
+networks:
+  devdocs:
+    external: true
