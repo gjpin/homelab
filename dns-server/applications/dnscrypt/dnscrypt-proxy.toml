@@ -15,7 +15,7 @@
 # https://www.privacyguides.org/en/dns/#recommended-providers
 # List of servers to use
 # server_names = ['quad9-doh-ip4-port443-filter-ecs-pri', 'cloudflare-security', 'controld-block-malware-ad', 'mullvad-base-doh', 'dns0']
-server_names = ['custom-quad9', 'custom-dns0', 'custom-cloudflare', 'custom-controld']
+server_names = ['custom-quad9', 'custom-dns0', 'custom-cloudflare', 'custom-controld', 'custom-mullvad']
 
 # List of local addresses and ports to listen to
 listen_addresses = ['0.0.0.0:53']
