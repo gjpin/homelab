@@ -14,7 +14,8 @@
 # https://dnscrypt.info/public-servers/
 # https://www.privacyguides.org/en/dns/#recommended-providers
 # List of servers to use
-server_names = ['quad9-doh-ip4-port443-filter-ecs-pri', 'cloudflare-security', 'controld-block-malware-ad', 'mullvad-base-doh', 'dns0']
+# server_names = ['quad9-doh-ip4-port443-filter-ecs-pri', 'cloudflare-security', 'controld-block-malware-ad', 'mullvad-base-doh', 'dns0']
+server_names = ['custom-quad9', 'custom-dns0', 'custom-cloudflare', 'custom-controld', 'custom-mullvad']
 
 # List of local addresses and ports to listen to
 listen_addresses = ['0.0.0.0:53']
@@ -334,4 +335,60 @@ max_memory_mb = 20
 ##### Static Entries
 ################################################
 
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+# https://dnscrypt.info/stamps/
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+# quad9
+# https://quad9.net/service/service-addresses-and-features/
+# dns.quad9.net:443
+# /dns-query
+# sdns://AgMAAAAAAAAAAAARZG5zLnF1YWQ5Lm5ldDo0NDMKL2Rucy1xdWVyeQ
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+# dns0
+# https://www.dns0.eu/zero
+# zero.dns0.eu:443
+# /
+# sdns://AgMAAAAAAAAAAAAQemVyby5kbnMwLmV1OjQ0MwEv
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+# cloudflare
+# https://developers.cloudflare.com/1.1.1.1/setup/#dns-over-https-doh
+# security.cloudflare-dns.com:443
+# /dns-query
+# sdns://AgMAAAAAAAAAAAAfc2VjdXJpdHkuY2xvdWRmbGFyZS1kbnMuY29tOjQ0MwovZG5zLXF1ZXJ5
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+# controld
+# https://controld.com/free-dns
+# freedns.controld.com:443
+# /p2
+# sdns://AgMAAAAAAAAAAAAYZnJlZWRucy5jb250cm9sZC5jb206NDQzAy9wMg
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+# mullvad
+# https://mullvad.net/en/help/dns-over-https-and-dns-over-tls
+# base.dns.mullvad.net:443
+# /dns-query
+# sdns://AgMAAAAAAAAAAAAYYmFzZS5kbnMubXVsbHZhZC5uZXQ6NDQzCi9kbnMtcXVlcnk
+# ------------------------------------------------------------
+# ------------------------------------------------------------
+
 [static]
+
+  [static.'custom-quad9']
+  stamp = 'sdns://AgMAAAAAAAAAAAARZG5zLnF1YWQ5Lm5ldDo0NDMKL2Rucy1xdWVyeQ'
+
+  [static.'custom-dns0']
+  stamp = 'sdns://AgMAAAAAAAAAAAAQemVyby5kbnMwLmV1OjQ0MwEv'
+
+  [static.'custom-cloudflare']
+  stamp = 'sdns://AgMAAAAAAAAAAAAfc2VjdXJpdHkuY2xvdWRmbGFyZS1kbnMuY29tOjQ0MwovZG5zLXF1ZXJ5'
+
+  [static.'custom-controld']
+  stamp = 'sdns://AgMAAAAAAAAAAAAYZnJlZWRucy5jb250cm9sZC5jb206NDQzAy9wMg'
+
+  [static.'custom-mullvad']
+  stamp = 'sdns://AgMAAAAAAAAAAAAYYmFzZS5kbnMubXVsbHZhZC5uZXQ6NDQzCi9kbnMtcXVlcnk'
