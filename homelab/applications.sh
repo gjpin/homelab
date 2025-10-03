@@ -4,7 +4,7 @@
 docker network create caddy
 docker network create gitea
 docker network create homeassistant
-docker network create --internal immich
+docker network create immich
 docker network create librechat
 docker network create --internal obsidian
 docker network create --internal radicale
