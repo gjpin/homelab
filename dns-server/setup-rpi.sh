@@ -1,6 +1,31 @@
 #!/usr/bin/bash
 
 ################################################
+##### Repositories
+################################################
+
+# Ensure repos are correct
+sudo tee /etc/apt/sources.list.d/debian.sources << 'EOF'
+Types: deb
+URIs: https://deb.debian.org/debian
+Suites: trixie trixie-updates
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: https://security.debian.org/debian-security
+Suites: trixie-security
+Components: main contrib non-free non-free-firmware
+Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+Types: deb
+URIs: http://archive.raspberrypi.com/debian
+Suites: trixie
+Components: main
+Signed-By: /usr/share/keyrings/raspberrypi-archive-keyring.gpg
+EOF
+
+################################################
 ##### Update system and install base packages
 ################################################
 
@@ -31,6 +56,9 @@ sudo apt install -y \
 
 # Install borgbackup
 sudo apt install -y borgbackup
+
+# Create directory for GRUB dropins
+sudo mkdir -p /etc/default/grub.d
 
 # bashrc.d
 mkdir -p ${HOME}/.bashrc.d
@@ -74,10 +102,14 @@ sudo chmod 700 /etc/wireguard/
 ##### AppArmor
 ################################################
 
-# Install AppArmor
+# Install AppArmor userspace tools
 sudo apt -y install \
   apparmor \
   apparmor-utils \
+  auditd
+
+# Install additional AppArmor profiles
+sudo apt -y install \
   apparmor-profiles \
   apparmor-profiles-extra
 
@@ -97,8 +129,13 @@ sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyring
 sudo chmod a+r /etc/apt/keyrings/docker.asc
 
 # Setup Docker's repository
-sudo tee /etc/apt/sources.list.d/docker.list << EOF
-deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable
+sudo tee -a /etc/apt/sources.list.d/debian.sources << 'EOF'
+
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: trixie
+Components: stable
+Signed-By: /etc/apt/keyrings/docker.asc
 EOF
 
 # Install Docker engine
@@ -121,15 +158,18 @@ sudo tee /etc/sysctl.d/99-overcommit-memory.conf << EOF
 vm.overcommit_memory=1
 EOF
 
-sudo sysctl net.core.rmem_max=2500000
 sudo tee /etc/sysctl.d/99-udp-max-buffer-size.conf << EOF
-net.core.rmem_max=2500000
+net.core.rmem_max=7500000
+net.core.wmem_max=7500000
 EOF
 
 sudo sysctl net.ipv4.ip_forward=1
 sudo tee /etc/sysctl.d/99-ipv4-ip-forward.conf << EOF
 net.ipv4.ip_forward=1
 EOF
+
+# Reload configurations
+sudo sysctl --system
 
 ################################################
 ##### UFW
