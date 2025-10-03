@@ -188,7 +188,7 @@ fi
 
 # Create directories
 mkdir -p ${DATA_PATH}/immich/docker
-mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres}
+mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres,machine-learning}
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yml > /dev/null
