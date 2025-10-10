@@ -1,7 +1,7 @@
 services:
   immich-server:
     container_name: immich-server
-    image: ghcr.io/immich-app/immich-server:v2.0.0 # https://github.com/immich-app/immich/releases
+    image: ghcr.io/immich-app/immich-server:v2.0.1 # https://github.com/immich-app/immich/releases
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/data
       - /etc/localtime:/etc/localtime:ro
@@ -18,7 +18,7 @@ services:
 
   immich-machine-learning:
     container_name: immich-machine-learning
-    image: ghcr.io/immich-app/immich-machine-learning:v2.0.0
+    image: ghcr.io/immich-app/immich-machine-learning:v2.0.1
     volumes:
       - ${DATA_PATH}/immich/volumes/machine-learning:/cache
     env_file:
@@ -31,7 +31,7 @@ services:
 
   immich-redis:
     container_name: immich-redis
-    image: docker.io/redis:8.2.1-alpine # https://hub.docker.com/_/redis
+    image: docker.io/redis:8.2.2-alpine # https://hub.docker.com/_/redis
     healthcheck:
       test: redis-cli ping || exit 1
     restart: always
