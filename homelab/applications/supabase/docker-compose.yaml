@@ -1,7 +1,9 @@
+# https://github.com/supabase/supabase/blob/master/docker/docker-compose.yml
+
 services:
   supabase-studio:
     container_name: supabase-studio
-    image: supabase/studio:2025.05.05-sha-3c3fe9b
+    image: supabase/studio:2025.10.09-sha-433e578 # https://hub.docker.com/r/supabase/studio/tags
     networks:
       - supabase
     restart: unless-stopped
@@ -24,7 +26,7 @@ services:
 
   supabase-kong:
     container_name: supabase-kong
-    image: kong:3.9.0
+    image: kong:3.9.1 # https://hub.docker.com/r/kong/kong/tags
     networks:
       - supabase
     restart: unless-stopped
@@ -39,7 +41,7 @@ services:
 
   supabase-auth:
     container_name: supabase-auth
-    image: supabase/gotrue:v2.172.1
+    image: supabase/gotrue:v2.180.0 # https://hub.docker.com/r/supabase/gotrue/tags
     networks:
       - supabase
     restart: unless-stopped
@@ -66,7 +68,7 @@ services:
 
   supabase-rest:
     container_name: supabase-rest
-    image: postgrest/postgrest:v12.2.7
+    image: postgrest/postgrest:v13.0.7 # https://hub.docker.com/r/postgrest/postgrest/tags
     networks:
       - supabase
     restart: unless-stopped
@@ -85,7 +87,7 @@ services:
   supabase-realtime:
     # This container name looks inconsistent but is correct because realtime constructs tenant id by parsing the subdomain
     container_name: realtime-dev.supabase-realtime
-    image: supabase/realtime:v2.35.0
+    image: supabase/realtime:v2.53.4 # 
     networks:
       - supabase
     restart: unless-stopped
@@ -115,7 +117,7 @@ services:
 
   supabase-storage:
     container_name: supabase-storage
-    image: supabase/storage-api:v1.22.13
+    image: supabase/storage-api:v1.22.13 # https://hub.docker.com/r/supabase/realtime/tags
     networks:
       - supabase
     restart: unless-stopped
@@ -146,7 +148,7 @@ services:
 
   supabase-imgproxy:
     container_name: supabase-imgproxy
-    image: ghcr.io/imgproxy/imgproxy:v3.28.0
+    image: ghcr.io/imgproxy/imgproxy:v3.30.0 # http://ghcr.io/imgproxy/imgproxy
     networks:
       - supabase
     restart: unless-stopped
@@ -167,7 +169,7 @@ services:
 
   supabase-meta:
     container_name: supabase-meta
-    image: supabase/postgres-meta:v0.89.0
+    image: supabase/postgres-meta:v0.91.7 # https://hub.docker.com/r/supabase/postgres-meta/tags
     networks:
       - supabase
     restart: unless-stopped
@@ -181,7 +183,7 @@ services:
 
   supabase-functions:
     container_name: supabase-edge-functions
-    image: supabase/edge-runtime:v1.67.4
+    image: supabase/edge-runtime:v1.69.12 # https://hub.docker.com/r/supabase/edge-runtime/tags
     networks:
       - supabase
     restart: unless-stopped
@@ -201,7 +203,7 @@ services:
 
   supabase-analytics:
     container_name: supabase-analytics
-    image: supabase/logflare:1.14.0
+    image: supabase/logflare:1.23.0 # https://hub.docker.com/r/supabase/logflare/tags
     networks:
       - supabase
     restart: unless-stopped
@@ -223,7 +225,7 @@ services:
 
   supabase-db:
     container_name: supabase-db
-    image: supabase/postgres:15.8.1.085
+    image: supabase/postgres:17.6.1.020 # https://hub.docker.com/r/supabase/postgres/tags
     networks:
       - supabase
     restart: unless-stopped
@@ -276,7 +278,7 @@ services:
 
   supabase-vector:
     container_name: supabase-vector
-    image: timberio/vector:0.46.1-alpine
+    image: timberio/vector:0.50.0-alpine # https://hub.docker.com/r/timberio/vector/tags
     networks:
       - supabase
     restart: unless-stopped
@@ -308,7 +310,7 @@ services:
 
   supabase-supavisor:
     container_name: supabase-pooler
-    image: supabase/supavisor:2.5.1
+    image: supabase/supavisor:2.7.3 # https://hub.docker.com/r/supabase/supavisor/tags
     networks:
       - supabase
     restart: unless-stopped
