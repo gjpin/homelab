@@ -14,6 +14,7 @@
 | [Home Assistant](https://github.com/home-assistant/core) | home.${BASE_DOMAIN} | Home automation | Yes |
 | [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt) | home-zigbee.${BASE_DOMAIN} | Zigbee to MQTT bridge | Yes |
 | [dnscrypt-proxy](https://github.com/DNSCrypt/dnscrypt-proxy) | dns.${BASE_DOMAIN} | DNS Proxy | Yes |
+| [FreshRSS](https://github.com/FreshRSS/FreshRSS) | rss.${BASE_DOMAIN} | News aggregator | Yes |
 
 # Getting started
 0. Copy SSH public key to PC. If it's on a USB, mount it and copy to ${HOME}/.ssh:
@@ -89,6 +90,13 @@ export VAULTWARDEN_ADMIN_TOKEN=$(openssl rand -hex 48)
 # Gitea
 export GITEA_DATABASE_PASSWORD=$(openssl rand -hex 48)
 
+# FreshRSS
+export FRESHRSS_TIMEZONE=$(timedatectl show -p Timezone --value)
+export FRESHRSS_ADMIN_PASSWORD=$(openssl rand -hex 48)
+export FRESHRSS_ADMIN_API_PASSWORD=$(openssl rand -hex 48)
+export FRESHRSS_DATABASE_PASSWORD=$(openssl rand -hex 48)
+export FRESHRSS_ADMIN_EMAIL=
+
 # LibreChat
 export LIBRECHAT_DOMAIN_CLIENT=https://chat.${BASE_DOMAIN}
 export LIBRECHAT_DOMAIN_SERVER=https://chat.${BASE_DOMAIN}
@@ -161,30 +169,33 @@ cd ${HOME}/homelab/homelab
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/freshrss/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-# docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 
 # Shutdown containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/freshrss/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-# docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
 
 # Start containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/freshrss/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-# docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d

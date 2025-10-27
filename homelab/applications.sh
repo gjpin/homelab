@@ -2,6 +2,7 @@
 
 # Create networks (Caddy belongs to all networks)
 docker network create caddy
+docker network create freshrss
 docker network create gitea
 docker network create homeassistant
 docker network create immich
@@ -44,6 +45,13 @@ export VAULTWARDEN_ADMIN_TOKEN='${VAULTWARDEN_ADMIN_TOKEN}'
 
 # Gitea
 export GITEA_DATABASE_PASSWORD='${GITEA_DATABASE_PASSWORD}'
+
+# FreshRSS
+export FRESHRSS_TIMEZONE='${FRESHRSS_TIMEZONE}'
+export FRESHRSS_ADMIN_PASSWORD='${FRESHRSS_ADMIN_PASSWORD}'
+export FRESHRSS_ADMIN_API_PASSWORD='${FRESHRSS_ADMIN_API_PASSWORD}'
+export FRESHRSS_DATABASE_PASSWORD='${FRESHRSS_DATABASE_PASSWORD}'
+export FRESHRSS_ADMIN_EMAIL='${FRESHRSS_ADMIN_EMAIL}'
 
 # LibreChat
 export LIBRECHAT_DOMAIN_CLIENT='https://chat.${BASE_DOMAIN}'
@@ -99,6 +107,22 @@ mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
 envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
+
+################################################
+##### FreshRSS
+################################################
+
+# References:
+# https://github.com/FreshRSS/FreshRSS/tree/1.27.1/Docker
+
+# Create directories
+mkdir -p ${DATA_PATH}/freshrss/docker
+mkdir -p ${DATA_PATH}/freshrss/configs
+mkdir -p ${DATA_PATH}/freshrss/volumes/{data,extensions,postgres}
+
+# Copy files to expected directories and expand variables
+envsubst < ./applications/freshrss/docker-compose.yaml | tee ${DATA_PATH}/freshrss/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/freshrss/config.env | tee ${DATA_PATH}/freshrss/docker/config.env > /dev/null
 
 ################################################
 ##### Gitea

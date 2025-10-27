@@ -1,0 +1,33 @@
+# https://github.com/FreshRSS/FreshRSS/blob/1.27.1/Docker/freshrss/docker-compose.yml
+
+services:
+  freshrss:
+    image: docker.io/freshrss/freshrss:1.27.1 # https://github.com/FreshRSS/FreshRSS/releases
+    pull_policy: always
+    container_name: freshrss
+    hostname: freshrss
+    restart: always
+    networks:
+      - freshrss
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/freshrss/volumes/data:/var/www/FreshRSS/data
+      - ${DATA_PATH}/freshrss/volumes/extensions:/var/www/FreshRSS/extensions
+    depends_on:
+      - freshrss-postgres
+
+  freshrss-postgres:
+    container_name: freshrss-postgres
+    image: docker.io/postgres:18.0-trixie # https://hub.docker.com/_/postgres
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/freshrss/volumes/postgres:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - freshrss
+
+networks:
+  freshrss:
+    external: true
