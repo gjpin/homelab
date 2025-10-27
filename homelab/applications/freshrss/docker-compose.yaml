@@ -19,11 +19,11 @@ services:
 
   freshrss-postgres:
     container_name: freshrss-postgres
-    image: docker.io/postgres:18.0-trixie # https://hub.docker.com/_/postgres
+    image: docker.io/postgres:17.6-trixie # https://hub.docker.com/_/postgres
     env_file:
       - config.env
     volumes:
-      - ${DATA_PATH}/freshrss/volumes/postgres:/var/lib/postgresql
+      - ${DATA_PATH}/freshrss/volumes/postgres:/var/lib/postgresql/data
     restart: always
     networks:
       - freshrss
