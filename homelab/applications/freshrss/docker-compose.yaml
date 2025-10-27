@@ -23,7 +23,7 @@ services:
     env_file:
       - config.env
     volumes:
-      - ${DATA_PATH}/freshrss/volumes/postgres:/var/lib/postgresql/data
+      - ${DATA_PATH}/freshrss/volumes/postgres:/var/lib/postgresql
     restart: always
     networks:
       - freshrss
