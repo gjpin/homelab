@@ -143,5 +143,5 @@ rss.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy freshrss:8080
+        reverse_proxy freshrss:80
 }
