@@ -381,9 +381,6 @@ max_memory_mb = 20
   [static.'custom-quad9']
   stamp = 'sdns://AgMAAAAAAAAAAAARZG5zLnF1YWQ5Lm5ldDo0NDMKL2Rucy1xdWVyeQ'
 
-  [static.'custom-dns0']
-  stamp = 'sdns://AgMAAAAAAAAAAAAQemVyby5kbnMwLmV1OjQ0MwEv'
-
   [static.'custom-cloudflare']
   stamp = 'sdns://AgMAAAAAAAAAAAAfc2VjdXJpdHkuY2xvdWRmbGFyZS1kbnMuY29tOjQ0MwovZG5zLXF1ZXJ5'
 
@@ -392,3 +389,7 @@ max_memory_mb = 20
 
   [static.'custom-mullvad']
   stamp = 'sdns://AgMAAAAAAAAAAAAYYmFzZS5kbnMubXVsbHZhZC5uZXQ6NDQzCi9kbnMtcXVlcnk'
+
+  # avg response time of 3s after 25k queries
+  # [static.'custom-dns0']
+  # stamp = 'sdns://AgMAAAAAAAAAAAAQemVyby5kbnMwLmV1OjQ0MwEv'
