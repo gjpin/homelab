@@ -56,7 +56,9 @@ cleanup() {
     if [[ -n "$PAUSED_CONTAINERS" ]]; then
         log "Unpausing containers: $PAUSED_CONTAINERS"
         for c in $PAUSED_CONTAINERS; do
-            docker unpause "$c" || log "Warning: Container $c was not paused, skipping"
+            if ! docker unpause "$c"; then
+                log "Warning: Container $c could not be unpaused (probably not paused)"
+            fi
         done
     fi
     log "Backup script finished."
