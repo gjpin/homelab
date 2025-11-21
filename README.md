@@ -54,7 +54,8 @@ EOF
 # export RESTIC_REPOSITORY="s3:https://s3.eu-central-003.backblazeb2.com/my-bucket"
 # restic init
 
-./homelab/backups.sh
+# ./dns-server/backups.sh
+# ./homelab/backups.sh
 ```
 
 # Env vars
