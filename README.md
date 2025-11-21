@@ -32,7 +32,18 @@ cd homelab
 3. Configure and enable WireGuard `sudo nmcli con import type wireguard file /etc/wireguard/wg0.conf`
 4. Create DNS entries in Cloudflare, pointing to Wireguard's internal address
 5. Reboot
-6. Create borg repo (if not created yet): `borg init --encryption=none /backup/containers`
+6. Setup automated backups to S3/S3-compatible API:
+```bash
+sudo mkdir -p /etc/restic
+sudo tee /etc/restic/env << EOF
+AWS_ACCESS_KEY_ID="get from backblaze b2"
+AWS_SECRET_ACCESS_KEY="get from backblaze b2"
+RESTIC_PASSWORD="password to encrypt data client-side"
+RESTIC_REPOSITORY="s3:https://s3.eu-central-003.backblazeb2.com/my-bucket"
+EOF
+
+./homelab/backups/setup.sh
+```
 
 # Env vars
 ## DNS server
