@@ -67,10 +67,10 @@ cleanup() {
 trap cleanup EXIT
 
 log "Running restic backup..."
-restic -r "$RESTIC_REPO" backup "$BACKUP_PATH" 2>&1 | tee -a "$LOG_FILE"
+restic -r backup "$BACKUP_PATH" 2>&1 | tee -a "$LOG_FILE"
 
 log "Running restic forget + prune..."
-restic -r "$RESTIC_REPO" forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune 2>&1 | tee -a "$LOG_FILE"
+restic -r forget --keep-daily 7 --keep-weekly 4 --keep-monthly 6 --prune 2>&1 | tee -a "$LOG_FILE"
 
 log "Backup completed successfully."
 EOF
