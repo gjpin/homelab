@@ -35,18 +35,29 @@ log "Starting backup script"
 # Get running containers
 RUNNING_CONTAINERS=$(docker ps -q)
 
+# Track successfully paused containers
+PAUSED_CONTAINERS=""
+
 if [[ -n "$RUNNING_CONTAINERS" ]]; then
     log "Pausing containers: $RUNNING_CONTAINERS"
-    docker pause $RUNNING_CONTAINERS | tee -a "$LOG_FILE"
+    for c in $RUNNING_CONTAINERS; do
+        if docker pause "$c"; then
+            PAUSED_CONTAINERS="$PAUSED_CONTAINERS $c"
+        else
+            log "Warning: Failed to pause container $c, skipping"
+        fi
+    done
 else
     log "No containers to pause."
 fi
 
 # Ensure containers unpause even if backup fails
 cleanup() {
-    if [[ -n "$RUNNING_CONTAINERS" ]]; then
-        log "Unpausing containers: $RUNNING_CONTAINERS"
-        docker unpause $RUNNING_CONTAINERS | tee -a "$LOG_FILE"
+    if [[ -n "$PAUSED_CONTAINERS" ]]; then
+        log "Unpausing containers: $PAUSED_CONTAINERS"
+        for c in $PAUSED_CONTAINERS; do
+            docker unpause "$c" || log "Warning: Container $c was not paused, skipping"
+        done
     fi
     log "Backup script finished."
     log "========================================================"
