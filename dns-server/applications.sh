@@ -29,9 +29,6 @@ export PIHOLE_WEBPASSWORD='${PIHOLE_WEBPASSWORD}'
 # dnscrypt
 export DNSCRYPT_UI_USER='${DNSCRYPT_UI_USER}'
 export DNSCRYPT_UI_PASSWORD='${DNSCRYPT_UI_PASSWORD}'
-
-# Technitium
-export TECHNITIUM_ADMIN_PASSWORD='${TECHNITIUM_ADMIN_PASSWORD}'
 EOF
 
 ################################################
@@ -85,23 +82,3 @@ mkdir -p ${DATA_PATH}/pihole/volumes/pihole
 envsubst < ./applications/pihole/docker-compose.yaml | tee ${DATA_PATH}/pihole/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/pihole/config.env | tee ${DATA_PATH}/pihole/docker/config.env > /dev/null
 envsubst < ./applications/pihole/99-edns.conf | tee ${DATA_PATH}/pihole/configs/99-edns.conf > /dev/null
-
-################################################
-##### Technitium
-################################################
-
-# References:
-# https://technitium.com/dns/help.html
-# https://technitium.com/dns/
-# https://hub.docker.com/r/technitium/dns-server
-# https://github.com/TechnitiumSoftware/DnsServer
-# https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml
-
-# Create directories
-mkdir -p ${DATA_PATH}/technitium/docker
-mkdir -p ${DATA_PATH}/technitium/configs
-mkdir -p ${DATA_PATH}/technitium/volumes/technitium
-
-# Copy files to expected directories and expand variables
-envsubst < ./applications/technitium/docker-compose.yaml | tee ${DATA_PATH}/technitium/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/technitium/config.env | tee ${DATA_PATH}/technitium/docker/config.env > /dev/null
