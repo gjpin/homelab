@@ -17,7 +17,7 @@ sudo tee /usr/local/bin/restic-backup.sh << 'EOF'
 set -euo pipefail
 
 # CONFIGURATION ------------------------------------------
-BACKUP_PATH="/data/containers"
+BACKUP_PATH="/home/pi/containers"
 LOG_DIR="/var/log/restic"
 LOG_FILE="${LOG_DIR}/restic-backup-$(date +%F).log"
 # ---------------------------------------------------------
