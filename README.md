@@ -42,7 +42,14 @@ RESTIC_PASSWORD="password to encrypt data client-side"
 RESTIC_REPOSITORY="s3:https://s3.eu-central-003.backblazeb2.com/my-bucket"
 EOF
 
-./homelab/backups/setup.sh
+# Init a new restic repo (bootstrap only)
+# export AWS_ACCESS_KEY_ID="get from backblaze b2"
+# export AWS_SECRET_ACCESS_KEY="get from backblaze b2"
+# export RESTIC_PASSWORD="password to encrypt data client-side"
+# export RESTIC_REPOSITORY="s3:https://s3.eu-central-003.backblazeb2.com/my-bucket"
+# restic init
+
+./homelab/backups.sh
 ```
 
 # Env vars

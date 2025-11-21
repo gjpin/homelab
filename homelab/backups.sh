@@ -1,5 +1,8 @@
 #!/usr/bin/bash
 
+# TODO:
+# Review https://www.seanh.cc/2022/04/03/restic/
+
 # Install restic
 sudo apt install -y restic
 
