@@ -7,7 +7,6 @@ export DATA_PATH=${HOME}/containers
 sudo docker network create caddy
 sudo docker network create dnscrypt
 sudo docker network create pihole
-sudo docker network create technitium
 
 ################################################
 ##### Env vars
