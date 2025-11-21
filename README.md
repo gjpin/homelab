@@ -70,9 +70,6 @@ export PIHOLE_WEBPASSWORD=$(openssl rand -hex 48)
 # dnscrypt
 export DNSCRYPT_UI_USER=
 export DNSCRYPT_UI_PASSWORD=$(openssl rand -hex 48)
-
-# Technitium
-export TECHNITIUM_ADMIN_PASSWORD=$(openssl rand -hex 48)
 ```
 
 ## Homelab
@@ -87,6 +84,9 @@ export CADDY_PASSWORD=$(openssl rand -hex 48)
 export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 
+# Forgejo
+export FORGEJO_DATABASE_PASSWORD=$(openssl rand -hex 48)
+
 # Home Assistant
 export HOMEASSISTANT_MOSQUITTO_PASSWORD=
 export HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID= # check devices under /dev/serial/by-id
@@ -95,59 +95,12 @@ export HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID= # check devices under /dev/serial/
 export IMMICH_DATABASE_PASSWORD=$(openssl rand -hex 48)
 export IMMICH_JWT_SECRET=$(openssl rand -hex 48)
 
-# Obsidian
-export OBSIDIAN_COUCHDB_PASSWORD=$(openssl rand -hex 48)
-
 # Radicale
 export RADICALE_PASSWORD=$(openssl rand -hex 48)
 export RADICALE_USER_PASSWORD=$(htpasswd -n -b admin ${RADICALE_PASSWORD})
 
 # Vaultwarden
 export VAULTWARDEN_ADMIN_TOKEN=$(openssl rand -hex 48)
-
-# Gitea
-export GITEA_DATABASE_PASSWORD=$(openssl rand -hex 48)
-
-# FreshRSS
-export FRESHRSS_TIMEZONE=$(timedatectl show -p Timezone --value)
-export FRESHRSS_ADMIN_PASSWORD=$(openssl rand -hex 48)
-export FRESHRSS_ADMIN_API_PASSWORD=$(openssl rand -hex 48)
-export FRESHRSS_DATABASE_PASSWORD=$(openssl rand -hex 48)
-export FRESHRSS_ADMIN_EMAIL=
-
-# LibreChat
-export LIBRECHAT_DOMAIN_CLIENT=https://chat.${BASE_DOMAIN}
-export LIBRECHAT_DOMAIN_SERVER=https://chat.${BASE_DOMAIN}
-export LIBRECHAT_CREDS_KEY=$(openssl rand -hex 32)
-export LIBRECHAT_CREDS_IV=$(openssl rand -hex 16)
-export LIBRECHAT_MEILI_MASTER_KEY=$(openssl rand -hex 16)
-export LIBRECHAT_JWT_SECRET=$(openssl rand -hex 32)
-export LIBRECHAT_JWT_REFRESH_SECRET=$(openssl rand -hex 32)
-export LIBRECHAT_POSTGRES_PASSWORD=$(openssl rand -hex 32)
-export LIBRECHAT_RAG_OPENAI_API_KEY=
-export LIBRECHAT_OPENAI_API_KEY=
-export LIBRECHAT_GROQ_API_KEY=
-export LIBRECHAT_MISTRAL_API_KEY=
-export LIBRECHAT_DEEPSEEK_API_KEY=
-
-# Supabase
-export SUPABASE_POSTGRES_PASSWORD=
-export SUPABASE_JWT_SECRET=
-export SUPABASE_ANON_KEY=
-export SUPABASE_SERVICE_ROLE_KEY=
-export SUPABASE_KONG_DASHBOARD_USERNAME=
-export SUPABASE_KONG_DASHBOARD_PASSWORD=
-export SUPABASE_SECRET_KEY_BASE=
-export SUPABASE_VAULT_ENC_KEY=
-export SUPABASE_PG_META_CRYPTO_KEY=
-export SUPABASE_PUBLIC_URL="https://supabase.${BASE_DOMAIN}$" # http://localhost:8000
-export SUPABASE_SITE_URL="https://supabase.${BASE_DOMAIN}$" # http://localhost:3000
-export SUPABASE_API_EXTERNAL_URL="https://supabase.${BASE_DOMAIN}$" # http://localhost:8000
-export SUPABASE_LOGFLARE_PUBLIC_ACCESS_TOKEN=
-export SUPABASE_LOGFLARE_PRIVATE_ACCESS_TOKEN=
-export SUPABASE_STUDIO_DEFAULT_ORGANIZATION=
-export SUPABASE_STUDIO_DEFAULT_PROJECT=
-export SUPABASE_OPENAI_API_KEY=
 ```
 
 # Cheat sheet
@@ -187,33 +140,27 @@ cd ${HOME}/homelab/homelab
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/freshrss/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 
 # Shutdown containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/freshrss/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
 
 # Start containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/freshrss/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/gitea/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d

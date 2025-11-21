@@ -2,12 +2,9 @@
 
 # Create networks (Caddy belongs to all networks)
 docker network create caddy
-docker network create freshrss
-docker network create gitea
+docker network create forgejo
 docker network create homeassistant
 docker network create immich
-docker network create librechat
-docker network create --internal obsidian
 docker network create --internal radicale
 docker network create syncthing
 docker network create --internal vaultwarden
@@ -26,6 +23,9 @@ export BACKUP_PATH='${BACKUP_PATH}'
 export CADDY_HASHED_PASSWORD='${CADDY_HASHED_PASSWORD}'
 export CADDY_CLOUDFLARE_TOKEN='${CADDY_CLOUDFLARE_TOKEN}'
 
+# Forgejo
+export FORGEJO_DATABASE_PASSWORD='${FORGEJO_DATABASE_PASSWORD}'
+
 # Home Assistant
 export HOMEASSISTANT_MOSQUITTO_PASSWORD='${HOMEASSISTANT_MOSQUITTO_PASSWORD}'
 export HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID='${HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID}'
@@ -42,52 +42,6 @@ export RADICALE_USER_PASSWORD='${RADICALE_USER_PASSWORD}'
 
 # Vaultwarden
 export VAULTWARDEN_ADMIN_TOKEN='${VAULTWARDEN_ADMIN_TOKEN}'
-
-# Gitea
-export GITEA_DATABASE_PASSWORD='${GITEA_DATABASE_PASSWORD}'
-
-# FreshRSS
-export FRESHRSS_TIMEZONE='${FRESHRSS_TIMEZONE}'
-export FRESHRSS_ADMIN_PASSWORD='${FRESHRSS_ADMIN_PASSWORD}'
-export FRESHRSS_ADMIN_API_PASSWORD='${FRESHRSS_ADMIN_API_PASSWORD}'
-export FRESHRSS_DATABASE_PASSWORD='${FRESHRSS_DATABASE_PASSWORD}'
-export FRESHRSS_ADMIN_EMAIL='${FRESHRSS_ADMIN_EMAIL}'
-
-# LibreChat
-export LIBRECHAT_DOMAIN_CLIENT='https://chat.${BASE_DOMAIN}'
-export LIBRECHAT_DOMAIN_SERVER='https://chat.${BASE_DOMAIN}'
-export LIBRECHAT_CREDS_KEY='${LIBRECHAT_CREDS_KEY}'
-export LIBRECHAT_CREDS_IV='${LIBRECHAT_CREDS_IV}'
-export LIBRECHAT_MEILI_MASTER_KEY='${LIBRECHAT_MEILI_MASTER_KEY}'
-export LIBRECHAT_JWT_SECRET='${LIBRECHAT_JWT_SECRET}'
-export LIBRECHAT_JWT_REFRESH_SECRET='${LIBRECHAT_JWT_REFRESH_SECRET}'
-export LIBRECHAT_POSTGRES_PASSWORD='${LIBRECHAT_POSTGRES_PASSWORD}'
-export LIBRECHAT_RAG_OPENAI_API_KEY='${LIBRECHAT_RAG_OPENAI_API_KEY}'
-export LIBRECHAT_OPENAI_API_KEY='${LIBRECHAT_OPENAI_API_KEY}'
-export LIBRECHAT_GROQ_API_KEY='${LIBRECHAT_GROQ_API_KEY}'
-export LIBRECHAT_MISTRAL_API_KEY='${LIBRECHAT_MISTRAL_API_KEY}'
-export LIBRECHAT_DEEPSEEK_API_KEY='${LIBRECHAT_DEEPSEEK_API_KEY}'
-
-# Supabase
-export SUPABASE_LOGFLARE_API_KEY='${SUPABASE_LOGFLARE_API_KEY}'
-export SUPABASE_POSTGRES_PASSWORD='${SUPABASE_POSTGRES_PASSWORD}'
-export SUPABASE_POSTGRES_PORT='${SUPABASE_POSTGRES_PORT}'
-export SUPABASE_POSTGRES_DB='${SUPABASE_POSTGRES_DB}'
-export SUPABASE_POSTGRES_HOST='${SUPABASE_POSTGRES_HOST}'
-export SUPABASE_JWT_SECRET='${SUPABASE_JWT_SECRET}'
-export SUPABASE_ANON_KEY='${SUPABASE_ANON_KEY}'
-export SUPABASE_SERVICE_KEY='${SUPABASE_SERVICE_KEY}'
-export SUPABASE_DEFAULT_ORGANIZATION_NAME='${SUPABASE_DEFAULT_ORGANIZATION_NAME}'
-export SUPABASE_DEFAULT_PROJECT_NAME='${SUPABASE_DEFAULT_PROJECT_NAME}'
-export SUPABASE_OPENAI_API_KEY='${SUPABASE_OPENAI_API_KEY}'
-export SUPABASE_PUBLIC_URL='https://supabase.${BASE_DOMAIN}'
-export SUPABASE_KONG_DASHBOARD_USERNAME='${SUPABASE_KONG_DASHBOARD_USERNAME}'
-export SUPABASE_KONG_DASHBOARD_PASSWORD='${SUPABASE_KONG_DASHBOARD_PASSWORD}'
-export SUPABASE_API_EXTERNAL_URL='https://supabase.${BASE_DOMAIN}'
-export SUPABASE_SITE_URL='https://supabase.${BASE_DOMAIN}'
-export SUPABASE_ADDITIONAL_REDIRECT_URLS=
-export SUPABASE_SECRET_KEY_BASE='${SUPABASE_SECRET_KEY_BASE}'
-export SUPABASE_VAULT_ENC_KEY='${SUPABASE_VAULT_ENC_KEY}'
 EOF
 
 ################################################
@@ -109,40 +63,24 @@ envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/doc
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
 
 ################################################
-##### FreshRSS
+##### Forgejo
 ################################################
 
 # References:
-# https://github.com/FreshRSS/FreshRSS/tree/1.27.1/Docker
-
-# Create directories
-mkdir -p ${DATA_PATH}/freshrss/docker
-mkdir -p ${DATA_PATH}/freshrss/configs
-mkdir -p ${DATA_PATH}/freshrss/volumes/{data,extensions,postgres}
-
-# Copy files to expected directories and expand variables
-envsubst < ./applications/freshrss/docker-compose.yaml | tee ${DATA_PATH}/freshrss/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/freshrss/config.env | tee ${DATA_PATH}/freshrss/docker/config.env > /dev/null
-
-################################################
-##### Gitea
-################################################
-
-# References:
-# https://docs.gitea.com/installation/install-with-docker-rootless
+# https://forgejo.org/docs/latest/admin/installation/docker/
 # https://caddy.community/t/need-help-configuring-caddy-l4-for-git-ssh-access-on-domain/26405/2
 
 # Create directories
-mkdir -p ${DATA_PATH}/gitea/docker
-mkdir -p ${DATA_PATH}/gitea/configs
-mkdir -p ${DATA_PATH}/gitea/volumes/{gitea,postgres}
+mkdir -p ${DATA_PATH}/forgejo/docker
+mkdir -p ${DATA_PATH}/forgejo/configs
+mkdir -p ${DATA_PATH}/forgejo/volumes/{data,postgres}
 
-sudo chown -R 1000:1000 ${DATA_PATH}/gitea/configs
-sudo chown -R 1000:1000 ${DATA_PATH}/gitea/volumes/gitea
+sudo chown -R 1000:1000 ${DATA_PATH}/forgejo/configs
+sudo chown -R 1000:1000 ${DATA_PATH}/forgejo/volumes/data
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/gitea/docker-compose.yaml | tee ${DATA_PATH}/gitea/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/gitea/config.env | tee ${DATA_PATH}/gitea/docker/config.env > /dev/null
+envsubst < ./applications/forgejo/docker-compose.yaml | tee ${DATA_PATH}/forgejo/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/forgejo/config.env | tee ${DATA_PATH}/forgejo/docker/config.env > /dev/null
 
 ################################################
 ##### Home Assistant
@@ -219,50 +157,6 @@ envsubst < ./applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/d
 envsubst < ./applications/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
 
 ################################################
-##### LibreChat
-################################################
-
-# References:
-# https://github.com/danny-avila/LibreChat/blob/main/docker-compose.yml
-# https://www.librechat.ai/docs/local/docker
-# https://github.com/themattman/mongodb-raspberrypi-docker
-# https://github.com/gjpin/mongodb-raspberrypi-docker
-# https://github.com/danny-avila/LibreChat/blob/main/.env.example
-# https://www.librechat.ai/docs/configuration/dotenv
-
-# Create directories
-mkdir -p ${DATA_PATH}/librechat/docker
-mkdir -p ${DATA_PATH}/librechat/configs
-mkdir -p ${DATA_PATH}/librechat/volumes/librechat/{logs,images}
-mkdir -p ${DATA_PATH}/librechat/volumes/{mongodb,pgvector,meilisearch}
-
-# Fix permissions
-sudo chown -R 1000:1000 ${DATA_PATH}/librechat/configs
-sudo chown -R 1000:1000 ${DATA_PATH}/librechat/volumes
-
-# Copy files to expected directories and expand variables
-envsubst < ./applications/librechat/docker-compose.yaml $| tee ${DATA_PATH}/librechat/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
-envsubst < ./applications/librechat/librechat.yaml | tee ${DATA_PATH}/librechat/configs/librechat.yaml > /dev/null
-
-################################################
-##### Obsidian
-################################################
-
-# References:
-# https://github.com/vrtmrz/obsidian-livesync/blob/main/docs/setup_own_server.md
-
-# Create directories
-mkdir -p ${DATA_PATH}/obsidian/docker
-mkdir -p ${DATA_PATH}/obsidian/configs
-mkdir -p ${DATA_PATH}/obsidian/volumes/obsidian
-
-# Copy files to expected directories and expand variables
-envsubst < ./applications/obsidian/docker-compose.yaml | tee ${DATA_PATH}/obsidian/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/obsidian/config.env | tee ${DATA_PATH}/obsidian/docker/config.env > /dev/null
-envsubst < ./applications/obsidian/local.ini | tee ${DATA_PATH}/obsidian/configs/local.ini > /dev/null
-
-################################################
 ##### Radicale
 ################################################
 
@@ -280,21 +174,6 @@ envsubst < ./applications/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker
 envsubst < ./applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/radicale/config | tee ${DATA_PATH}/radicale/configs/config > /dev/null
 envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/users > /dev/null
-
-################################################
-##### Supabase
-################################################
-
-# Create directories
-mkdir -p ${DATA_PATH}/supabase/docker/volumes
-mkdir -p ${DATA_PATH}/supabase/configs
-mkdir -p ${DATA_PATH}/supabase/volumes
-
-# Copy files to expected directories and expand variables
-sudo cp -R ./applications/supabase/volumes/* ${DATA_PATH}/supabase/docker/volumes/
-envsubst < ./applications/supabase/volumes/api/kong.yml | tee ${DATA_PATH}/supabase/volumes/api/kong.yml > /dev/null
-envsubst < ./applications/supabase/docker-compose.yaml | tee ${DATA_PATH}/supabase/docker/docker-compose.yml > /dev/null
-envsubst < ./applications/supabase/config.env | tee ${DATA_PATH}/supabase/docker/config.env > /dev/null
 
 ################################################
 ##### Syncthing

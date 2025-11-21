@@ -8,13 +8,10 @@ services:
       - 443:443
     networks:
       - caddy
-      - freshrss
-      - gitea
+      - forgejo
       - homeassistant
       - immich
-      - librechat
       - radicale
-      - supabase
       - syncthing
       - vaultwarden
     volumes:
@@ -25,19 +22,13 @@ services:
 networks:
   caddy:
     external: true
-  freshrss:
-    external: true
-  gitea:
+  forgejo:
     external: true
   homeassistant:
     external: true
   immich:
     external: true
-  librechat:
-    external: true
   radicale:
-    external: true
-  supabase:
     external: true
   syncthing:
     external: true

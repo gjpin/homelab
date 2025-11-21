@@ -92,13 +92,13 @@ vault.${BASE_DOMAIN} {
         reverse_proxy /notifications/hub/negotiate vaultwarden:8080
 }
 
-# Gitea
+# Forgejo
 git.${BASE_DOMAIN} {
         import default-header
 
         encode gzip
 
-        reverse_proxy gitea:3000
+        reverse_proxy forgejo:3000
 }
 
 # Home Assistant
