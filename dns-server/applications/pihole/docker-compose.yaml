@@ -1,6 +1,6 @@
 services:
   pihole:
-    image: docker.io/pihole/pihole:2025.11.0 # https://hub.docker.com/r/pihole/pihole/tags
+    image: docker.io/pihole/pihole:2025.11.1 # https://hub.docker.com/r/pihole/pihole/tags
     pull_policy: always
     container_name: pihole
     restart: always
