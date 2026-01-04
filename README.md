@@ -102,7 +102,7 @@ export IMMICH_DATABASE_PASSWORD=$(openssl rand -hex 48)
 export IMMICH_JWT_SECRET=$(openssl rand -hex 48)
 
 # Radicale
-export RADICALE_PASSWORD=$(openssl rand -hex 48)
+export RADICALE_PASSWORD=$(openssl rand -hex 36) # bcrypt has a limit of 72 bytes
 export RADICALE_USER_PASSWORD=$(htpasswd -n -b admin ${RADICALE_PASSWORD})
 
 # Vaultwarden
