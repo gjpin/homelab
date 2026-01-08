@@ -102,6 +102,93 @@ EOF
 # sudo apt install -y linux-image-amd64/$VERSION_CODENAME-backports
 
 ################################################
+##### nftables
+################################################
+
+sudo tee /etc/nftables.conf << 'EOF'
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+########################
+# FILTER (IPv4 + IPv6)
+########################
+table inet filter {
+
+    ########################
+    # INPUT chain
+    ########################
+    chain input {
+        type filter hook input priority filter;
+        policy drop;
+
+        # Early drop of invalid connections
+        ct state invalid drop comment "early drop of invalid connections"
+
+        # Allow established/related
+        ct state {established, related} accept comment "allow tracked connections"
+
+        # Loopback
+        iif "lo" accept comment "allow from loopback"
+
+        # ICMP for IPv4
+        ip protocol icmp accept comment "allow icmp"
+
+        # ICMP for IPv6
+        meta l4proto ipv6-icmp accept comment "allow icmp v6"
+
+        # SSH
+        tcp dport 22 accept comment "allow sshd"
+
+        # WireGuard UDP port
+        udp dport 51900 accept comment "allow WireGuard"
+
+        # Rate-limited reject for other packets
+        pkttype host limit rate 5/second counter reject with icmpx type admin-prohibited
+        counter
+    }
+
+    ########################
+    # FORWARD chain
+    ########################
+    chain forward {
+        type filter hook forward priority filter;
+        policy drop;
+
+        # WireGuard → Internet
+        iif "wg0" oif "enp34s0" accept comment "WireGuard clients to Internet"
+
+        # Internet → WireGuard (return traffic)
+        iif "enp34s0" oif "wg0" ct state established,related accept comment "return traffic"
+    }
+
+    ########################
+    # OUTPUT chain
+    ########################
+    chain output {
+        type filter hook output priority filter;
+        policy accept;
+    }
+}
+
+########################
+# NAT (IPv4 only)
+########################
+table ip nat {
+
+    chain postrouting {
+        type nat hook postrouting priority srcnat;
+
+        ip saddr 10.0.0.0/24 oif "enp34s0" masquerade comment "WireGuard NAT"
+    }
+}
+EOF
+
+# Start and enable nftables
+sudo systemctl start nftables
+sudo systemctl enable nftables
+
+################################################
 ##### WireGuard
 ################################################
 
@@ -113,7 +200,7 @@ sudo mkdir -p /etc/wireguard/
 sudo chmod 700 /etc/wireguard/
 
 ################################################
-##### Networking and Firewall
+##### Networking
 ################################################
 
 # Install NetworkManager
@@ -298,60 +385,60 @@ sudo dracut --regenerate-all --force
 ##### UFW
 ################################################
 
-# References:
-# https://wiki.debian.org/Uncomplicated%20Firewall%20%28ufw%29
-# https://wiki.archlinux.org/title/Uncomplicated_Firewall
+# # References:
+# # https://wiki.debian.org/Uncomplicated%20Firewall%20%28ufw%29
+# # https://wiki.archlinux.org/title/Uncomplicated_Firewall
 
-# Install UFW
-sudo apt install -y ufw
+# # Install UFW
+# sudo apt install -y ufw
 
-# Configure UFW default behaviour
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
+# # Configure UFW default behaviour
+# sudo ufw default deny incoming
+# sudo ufw default allow outgoing
 
-# Configure rules for SSH / Wireguard
-sudo ufw allow 22/tcp comment 'SSH'
-sudo ufw allow 51900 comment 'Wireguard'
+# # Configure rules for SSH / Wireguard
+# sudo ufw allow 22/tcp comment 'SSH'
+# sudo ufw allow 51900 comment 'Wireguard'
 
-# Configure rules for Docker containers
-# sudo ufw route allow proto tcp from any to any port 443 comment 'Caddy HTTPS'
-# sudo ufw route allow from any to any port 22000 comment 'Syncthing'
+# # Configure rules for Docker containers
+# # sudo ufw route allow proto tcp from any to any port 443 comment 'Caddy HTTPS'
+# # sudo ufw route allow from any to any port 22000 comment 'Syncthing'
 
-# Prevent Docker from overriding UFW
-# https://github.com/chaifeng/ufw-docker
-sudo tee -a /etc/ufw/after.rules << 'EOF'
+# # Prevent Docker from overriding UFW
+# # https://github.com/chaifeng/ufw-docker
+# sudo tee -a /etc/ufw/after.rules << 'EOF'
 
-# BEGIN UFW AND DOCKER
-*filter
-:ufw-user-forward - [0:0]
-:ufw-docker-logging-deny - [0:0]
-:DOCKER-USER - [0:0]
--A DOCKER-USER -j ufw-user-forward
+# # BEGIN UFW AND DOCKER
+# *filter
+# :ufw-user-forward - [0:0]
+# :ufw-docker-logging-deny - [0:0]
+# :DOCKER-USER - [0:0]
+# -A DOCKER-USER -j ufw-user-forward
 
--A DOCKER-USER -j RETURN -s 10.0.0.0/8
--A DOCKER-USER -j RETURN -s 172.16.0.0/12
--A DOCKER-USER -j RETURN -s 192.168.0.0/16
+# -A DOCKER-USER -j RETURN -s 10.0.0.0/8
+# -A DOCKER-USER -j RETURN -s 172.16.0.0/12
+# -A DOCKER-USER -j RETURN -s 192.168.0.0/16
 
--A DOCKER-USER -p udp -m udp --sport 53 --dport 1024:65535 -j RETURN
+# -A DOCKER-USER -p udp -m udp --sport 53 --dport 1024:65535 -j RETURN
 
--A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 192.168.0.0/16
--A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 10.0.0.0/8
--A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 172.16.0.0/12
--A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 192.168.0.0/16
--A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 10.0.0.0/8
--A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 172.16.0.0/12
+# -A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 192.168.0.0/16
+# -A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 10.0.0.0/8
+# -A DOCKER-USER -j ufw-docker-logging-deny -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -d 172.16.0.0/12
+# -A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 192.168.0.0/16
+# -A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 10.0.0.0/8
+# -A DOCKER-USER -j ufw-docker-logging-deny -p udp -m udp --dport 0:32767 -d 172.16.0.0/12
 
--A DOCKER-USER -j RETURN
+# -A DOCKER-USER -j RETURN
 
--A ufw-docker-logging-deny -m limit --limit 3/min --limit-burst 10 -j LOG --log-prefix "[UFW DOCKER BLOCK] "
--A ufw-docker-logging-deny -j DROP
+# -A ufw-docker-logging-deny -m limit --limit 3/min --limit-burst 10 -j LOG --log-prefix "[UFW DOCKER BLOCK] "
+# -A ufw-docker-logging-deny -j DROP
 
-COMMIT
-# END UFW AND DOCKER
-EOF
+# COMMIT
+# # END UFW AND DOCKER
+# EOF
 
-# Restart UFW service
-sudo systemctl restart ufw
+# # Restart UFW service
+# sudo systemctl restart ufw
 
-# Enable UFW
-sudo ufw enable
+# # Enable UFW
+# sudo ufw enable
