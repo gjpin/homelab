@@ -197,7 +197,7 @@ mkdir -p ${DATA_PATH}/supernote/volumes/{mariadb,redis,resources}
 mkdir -p ${DATA_PATH}/supernote/volumes/supernote/{data,recycle,logs-cloud,logs-app,logs-web,convert}
 
 # Copy files to expected directories and expand variables
-cp applications/supernote/supernotedb.sql ${DATA_PATH}/supernote/volumes/resources/supernotedb.sql
+cp applications/supernote/supernotedb.sql ${DATA_PATH}/supernote/volumes/resources
 envsubst < ./applications/supernote/docker-compose.yaml | tee ${DATA_PATH}/supernote/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/supernote/config.env | tee ${DATA_PATH}/supernote/docker/config.env > /dev/null
 
