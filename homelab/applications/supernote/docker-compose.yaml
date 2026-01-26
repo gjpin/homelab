@@ -28,7 +28,7 @@ services:
       - supernote
     command: --skip-name-resolve --bind-address=0.0.0.0
     healthcheck:
-      test: ["CMD-SHELL", "mariadb -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      test: ["CMD-SHELL", "mariadb -h localhost -u root -p${MYSQL_ROOT_PASSWORD} -e \"SELECT 1;\" || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
