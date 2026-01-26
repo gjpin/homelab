@@ -145,3 +145,12 @@ rss.${BASE_DOMAIN} {
 
         reverse_proxy freshrss:80
 }
+
+# Supernote
+supernote.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy supernote-service:8080
+}

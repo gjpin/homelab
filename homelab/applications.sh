@@ -6,6 +6,7 @@ docker network create forgejo
 docker network create homeassistant
 docker network create immich
 docker network create --internal radicale
+docker network create supernote
 docker network create syncthing
 docker network create --internal vaultwarden
 
@@ -39,6 +40,11 @@ export OBSIDIAN_COUCHDB_PASSWORD='${OBSIDIAN_COUCHDB_PASSWORD}'
 
 # Radicale
 export RADICALE_USER_PASSWORD='${RADICALE_USER_PASSWORD}'
+
+# Supernote
+export SUPERNOTE_DATABASE_ROOT_PASSWORD='${SUPERNOTE_DATABASE_ROOT_PASSWORD}'
+export SUPERNOTE_DATABASE_USER_PASSWORD='${SUPERNOTE_DATABASE_USER_PASSWORD}'
+export SUPERNOTE_REDIS_PASSWORD='${SUPERNOTE_REDIS_PASSWORD}'
 
 # Vaultwarden
 export VAULTWARDEN_ADMIN_TOKEN='${VAULTWARDEN_ADMIN_TOKEN}'
@@ -174,6 +180,25 @@ envsubst < ./applications/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker
 envsubst < ./applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/radicale/config | tee ${DATA_PATH}/radicale/configs/config > /dev/null
 envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/users > /dev/null
+
+################################################
+##### Supernote
+################################################
+
+# References:
+# https://support.supernote.com/setting-up-your-own-supernote-private-cloud-beta
+# https://ib.supernote.com/private-cloud/Supernote-Private-Cloud-Manual-Deployment-Method-Using-Docker-Containers.pdf
+# https://supernote-privatecloud.supernote.com/cloud/supernotedb.sql
+
+# Create directories
+mkdir -p ${DATA_PATH}/supernote/docker
+mkdir -p ${DATA_PATH}/supernote/configs
+mkdir -p ${DATA_PATH}/supernote/volumes/{mariadb,redis,resources}
+mkdir -p ${DATA_PATH}/supernote/volumes/supernote/{data,recycle,logs-cloud,logs-app,logs-web,convert}
+
+# Copy files to expected directories and expand variables
+envsubst < ./applications/supernote/docker-compose.yaml | tee ${DATA_PATH}/supernote/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/supernote/supernotedb.sql | tee ${DATA_PATH}/supernote/volumes/resources/supernotedb.sql > /dev/null
 
 ################################################
 ##### Syncthing

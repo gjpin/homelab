@@ -1,0 +1,72 @@
+# supernotedb.sql downloaded from https://supernote-privatecloud.supernote.com/cloud/supernotedb.sql
+
+services:
+  supernote-redis:
+    container_name: supernote-redis
+    image: docker.io/redis:8.4.0-alpine # https://hub.docker.com/_/redis
+    healthcheck:
+      test: redis-cli ping || exit 1
+    restart: always
+    networks:
+      - supernote
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-supernoteprivatecloud}"]
+    volumes:
+      - ${DATA_PATH}/supernote/volumes/redis:/data
+    env_file:
+      - config.env
+
+  supernote-mariadb:
+    container_name: supernote-mariadb
+    image: docker.io/mariadb:12.1.2-ubi10 # https://hub.docker.com/_/mariadb
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/supernote/volumes/mariadb:/var/lib/mysql
+      - ${DATA_PATH}/supernote/volumes/resources/supernotedb.sql:/docker-entrypoint-initdb.d/supernotedb.sql:ro
+    restart: always
+    networks:
+      - supernote
+    command: --skip-name-resolve --bind-address=0.0.0.0
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  supernote-notelib:
+    image: docker.io/supernote/notelib:6.9.3 # https://hub.docker.com/r/supernote/notelib/tags
+    pull_policy: always
+    container_name: supernote-notelib
+    restart: always
+    networks:
+      - supernote
+
+  supernote-service:
+    image: docker.io/supernote/supernote-service:26.01.21 # https://hub.docker.com/r/supernote/supernote-service/tags
+    pull_policy: always
+    container_name: supernote-service
+    restart: always
+    volumes:
+      - ${DATA_PATH}/supernote/volumes/supernote/data:/home/supernote/data
+      - ${DATA_PATH}/supernote/volumes/supernote/recycle:/home/supernote/recycle
+      - ${DATA_PATH}/supernote/volumes/supernote/logs-cloud:/home/supernote/cloud/logs
+      - ${DATA_PATH}/supernote/volumes/supernote/logs-app:/home/supernote/logs
+      - ${DATA_PATH}/supernote/volumes/supernote/logs-web:/var/log/nginx
+      - ${DATA_PATH}/supernote/volumes/supernote/convert:/home/supernote/convert
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - config.env
+    networks:
+      - supernote
+    depends_on:
+      supernote-mariadb:
+        condition: service_healthy
+      supernote-redis:
+        condition: service_healthy
+    ports:
+      - 18072:18072
+
+networks:
+  supernote:
+    external: true

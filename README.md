@@ -5,6 +5,7 @@
 | [Immich](https://github.com/immich-app/immich) | photos.${BASE_DOMAIN} | Photo and video backup solution | No |
 | [Pi-hole](https://github.com/pi-hole/pi-hole) | pihole.${BASE_DOMAIN} | DNS server | Yes |
 | [Radicale](https://github.com/Kozea/Radicale) | contacts.${BASE_DOMAIN} | CardDAV (contact) server | No |
+| [Supernote Private Cloud](https://support.supernote.com/setting-up-your-own-supernote-private-cloud-beta) | supernote.${BASE_DOMAIN} | Private Cloud for Supernote | Yes |
 | [Syncthing](https://github.com/syncthing/syncthing) | syncthing.${BASE_DOMAIN} | Continuous File Synchronization | Yes |
 | [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | vault.${BASE_DOMAIN} | Unofficial Bitwarden compatible server | No |
 | [Forgejo](https://codeberg.org/forgejo/forgejo) | git.${BASE_DOMAIN} | Git server / DevOps platform | Yes |
@@ -105,6 +106,11 @@ export IMMICH_JWT_SECRET=$(openssl rand -hex 48)
 export RADICALE_PASSWORD=$(openssl rand -hex 36) # bcrypt has a limit of 72 bytes
 export RADICALE_USER_PASSWORD=$(htpasswd -n -b admin ${RADICALE_PASSWORD})
 
+# Supernote
+export SUPERNOTE_DATABASE_ROOT_PASSWORD=$(openssl rand -hex 48)
+export SUPERNOTE_DATABASE_USER_PASSWORD=$(openssl rand -hex 48)
+export SUPERNOTE_REDIS_PASSWORD=$(openssl rand -hex 48)
+
 # Vaultwarden
 export VAULTWARDEN_ADMIN_TOKEN=$(openssl rand -hex 48)
 ```
@@ -150,6 +156,7 @@ docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 
@@ -159,6 +166,7 @@ docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
 
@@ -168,6 +176,7 @@ docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml up --force-recr
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
 ```

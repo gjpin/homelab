@@ -12,6 +12,7 @@ services:
       - homeassistant
       - immich
       - radicale
+      - supernote
       - syncthing
       - vaultwarden
     volumes:
@@ -29,6 +30,8 @@ networks:
   immich:
     external: true
   radicale:
+    external: true
+  supernote:
     external: true
   syncthing:
     external: true
