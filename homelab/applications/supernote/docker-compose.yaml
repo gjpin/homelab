@@ -17,7 +17,7 @@ services:
       - config.env
 
   supernote-mariadb:
-    container_name: mariadb # cannot be changed: hardcoded in supernote-service app
+    container_name: supernote-mariadb
     image: docker.io/mariadb:12.1.2-noble # https://hub.docker.com/_/mariadb
     env_file:
       - config.env
