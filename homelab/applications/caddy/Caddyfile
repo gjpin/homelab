@@ -152,5 +152,9 @@ supernote.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy supernote-service:8080
+        request_body {
+                max_size 20GB
+        }
+
+        reverse_proxy supernote-service:19072
 }
