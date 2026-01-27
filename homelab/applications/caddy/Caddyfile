@@ -156,5 +156,5 @@ supernote.${BASE_DOMAIN} {
                 max_size 20GB
         }
 
-        reverse_proxy supernote-service:19072
+        reverse_proxy supernote-service:8080
 }

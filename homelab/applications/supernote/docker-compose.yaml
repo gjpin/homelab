@@ -1,4 +1,5 @@
 # supernotedb.sql downloaded from https://supernote-privatecloud.supernote.com/cloud/supernotedb.sql
+# https://ib.supernote.com/private-cloud/Supernote-Private-Cloud-Manual-Deployment-Method-Using-Docker-Containers.pdf
 
 services:
   supernote-redis:
