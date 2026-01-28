@@ -179,7 +179,7 @@ supernote.${BASE_DOMAIN} {
                 }
         }
 
-        # WebSocket support for /socket.io
+        # WebSocket /socket.io
         @sockets path_regexp socket ^/socket.io/(.*)
         reverse_proxy @sockets supernote-service:8080 {
                 header_up Host {host}
@@ -192,7 +192,7 @@ supernote.${BASE_DOMAIN} {
 
                 # Support websocket upgrade
                 transport http {
-                        versions h1 h2c
+                        versions 1.1 h2c
                         read_timeout 3600s
                         write_timeout 3600s
                 }
