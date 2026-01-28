@@ -10,7 +10,7 @@ services:
     restart: always
     networks:
       - supernote
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    command: ["redis-server", "--requirepass", "${SUPERNOTE_REDIS_PASSWORD}"]
     volumes:
       - ${DATA_PATH}/supernote/volumes/redis:/data
     env_file:
