@@ -435,3 +435,8 @@ docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recrea
 docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml up --force-recreate -d
 ```
+
+# Supernote
+## Get OTP from Redis
+docker exec -it supernote-redis redis-cli -a ${SUPERNOTE_REDIS_PASSWORD}
+GET your@email.com_validCode
