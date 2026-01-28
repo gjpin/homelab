@@ -440,3 +440,12 @@ docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml up --force-recreat
 ## Get OTP from Redis
 docker exec -it supernote-redis redis-cli -a ${SUPERNOTE_REDIS_PASSWORD}
 GET your@email.com_validCode
+
+# WireGuard
+## Reload config after modifying it
+```bash
+sudo nmcli con down wg0
+sudo nmcli con delete wg0
+sudo nmcli con import type wireguard file /etc/wireguard/wg0.conf
+sudo nmcli con up wg0
+```
