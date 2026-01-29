@@ -38,7 +38,7 @@ services:
   supernote-notelib:
     image: docker.io/supernote/notelib:6.9.3 # https://hub.docker.com/r/supernote/notelib/tags
     pull_policy: always
-    container_name: supernote-notelib
+    container_name: notelib # cannot be changed, as it's hardcoded in supernote-service
     restart: always
     networks:
       - supernote
