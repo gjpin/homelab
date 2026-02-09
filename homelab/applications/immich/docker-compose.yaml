@@ -1,7 +1,7 @@
 services:
   immich-server:
     container_name: immich-server
-    image: ghcr.io/immich-app/immich-server:v2.4.1 # https://github.com/immich-app/immich/releases
+    image: ghcr.io/immich-app/immich-server:v2.5.5 # https://github.com/immich-app/immich/releases
     volumes:
       - ${DATA_PATH}/immich/volumes/immich:/data
       - /etc/localtime:/etc/localtime:ro
@@ -18,7 +18,7 @@ services:
 
   immich-machine-learning:
     container_name: immich-machine-learning
-    image: ghcr.io/immich-app/immich-machine-learning:v2.4.1 # https://github.com/immich-app/immich/pkgs/container/immich-machine-learning
+    image: ghcr.io/immich-app/immich-machine-learning:v2.5.5 # https://github.com/immich-app/immich/pkgs/container/immich-machine-learning
     volumes:
       - ${DATA_PATH}/immich/volumes/machine-learning:/cache
     env_file:
