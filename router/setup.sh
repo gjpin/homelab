@@ -10,6 +10,27 @@ opkg install \
     nano
 
 ################################################
+##### Configure VLANs, Wireless and Firewall
+################################################
+
+export MAIN_WIFI_PASSWORD=
+export SECONDARY_WIFI_PASSWORD=
+export GUEST_WIFI_PASSWORD=
+export IOT_WIFI_PASSWORD=
+
+# Configure network
+uclient-fetch https://raw.githubusercontent.com/gjpin/homelab/refs/heads/main/router/configs/openwrt/network -O /etc/config/network
+/etc/init.d/network restart
+
+# Configure firewall
+uclient-fetch https://raw.githubusercontent.com/gjpin/homelab/refs/heads/main/router/configs/openwrt/firewall -O /etc/config/firewall
+/etc/init.d/firewall restart
+
+# Configure wireless
+uclient-fetch https://raw.githubusercontent.com/gjpin/homelab/refs/heads/main/router/configs/openwrt/wireless -O /etc/config/wireless
+wifi reload
+
+################################################
 ##### DNS over HTTPS
 ################################################
 
@@ -25,7 +46,7 @@ uci set dhcp.@dnsmasq[0].noresolv="1"
 uci set dhcp.@dnsmasq[0].cachesize='0'
 uci -q delete dhcp.@dnsmasq[0].server
 uci add_list dhcp.@dnsmasq[0].server="127.0.0.53"
-uclient-fetch https://raw.githubusercontent.com/gjpin/homelab/refs/heads/main/router/configs/dnscrypt-proxy.toml -O /etc/dnscrypt-proxy2/dnscrypt-proxy.toml
+uclient-fetch https://raw.githubusercontent.com/gjpin/homelab/refs/heads/main/router/configs/dnscrypt/dnscrypt-proxy.toml -O /etc/dnscrypt-proxy2/dnscrypt-proxy.toml
 uci commit dhcp
 service dnsmasq start
 service dnscrypt-proxy restart

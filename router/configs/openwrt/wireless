@@ -1,0 +1,39 @@
+################################################
+##### Wi-Fi SSID
+################################################
+
+# PixelMain WiFi - Full access
+config wifi-iface 'wifinet1'
+    option device 'radio0'
+    option mode 'ap'
+    option network 'pixelmain'
+    option ssid 'PixelMain'
+    option encryption 'sae'
+    option key "'${MAIN_WIFI_PASSWORD}'"
+
+# PixelSecondary WiFi - Internet
+config wifi-iface 'wifinet4'
+    option device 'radio0'
+    option mode 'ap'
+    option network 'pixelsecondary'
+    option ssid 'PixelSecondary'
+    option encryption 'sae'
+    option key "'${SECONDARY_WIFI_PASSWORD}'"
+
+# PixelGuest WiFi - Internet
+config wifi-iface 'wifinet2'
+    option device 'radio0'
+    option mode 'ap'
+    option network 'pixelguest'
+    option ssid 'PixelGuest'
+    option encryption 'sae'
+    option key "'${GUEST_WIFI_PASSWORD}'"
+
+# PixelIoT WiFi - No internet
+config wifi-iface 'wifinet3'
+    option device 'radio0'
+    option mode 'ap'
+    option network 'pixeliot'
+    option ssid 'PixelIoT'
+    option encryption 'sae'
+    option key "'${IOT_WIFI_PASSWORD}'"

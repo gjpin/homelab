@@ -1,0 +1,76 @@
+################################################
+##### Devices
+################################################
+
+# Bridge device with VLAN filtering
+config device
+    option name 'br-lan'
+    option type 'bridge'
+    list ports 'lan1'
+    list ports 'lan2'
+    list ports 'lan3'
+    list ports 'lan4'
+
+################################################
+##### VLANs
+################################################
+
+# VLAN 1 - PixelMain (full access)
+config bridge-vlan
+    option device 'br-lan'
+    option vlan '1'
+    list ports 'lan1:u*'    # Untagged, primary VLAN
+    list ports 'lan2:u*'
+    list ports 'lan3:u*'
+    list ports 'lan4:u*'
+
+# VLAN 4 - PixelSecondary (internet)
+config bridge-vlan
+    option device 'br-lan'
+    option vlan '4'
+    list ports 'lan1:t'     # Tagged on lan1 for trunk
+
+# VLAN 2 - PixelGuest (internet access)
+config bridge-vlan
+    option device 'br-lan'
+    option vlan '2'
+    list ports 'lan1:t'     # Tagged on lan1 for trunk
+
+# VLAN 3 - PixelIoT (no internet)
+config bridge-vlan
+    option device 'br-lan'
+    option vlan '3'
+    list ports 'lan1:t'     # Tagged on lan1 for trunk
+
+################################################
+##### Interfaces
+################################################
+
+# Interface: PixelMain (VLAN 1)
+config interface 'pixelmain'
+    option device 'br-lan.1'
+    option proto 'static'
+    option ipaddr '192.168.1.1'
+    option netmask '255.255.255.0'
+    option ip6assign '60'
+
+# Interface: PixelSecondary (VLAN 4)
+config interface 'pixelsecondary'
+    option device 'br-lan.4'
+    option proto 'static'
+    option ipaddr '192.168.4.1'
+    option netmask '255.255.255.0'
+
+# Interface: PixelGuest (VLAN 2)
+config interface 'pixelguest'
+    option device 'br-lan.2'
+    option proto 'static'
+    option ipaddr '192.168.2.1'
+    option netmask '255.255.255.0'
+
+# Interface: PixelIoT (VLAN 3)
+config interface 'pixeliot'
+    option device 'br-lan.3'
+    option proto 'static'
+    option ipaddr '192.168.3.1'
+    option netmask '255.255.255.0'

@@ -1,0 +1,97 @@
+################################################
+##### Zones
+################################################
+
+# Zone: PixelMain - Can access internet and other VLANs
+config zone
+    option name 'pixelmain'
+    list network 'pixelmain'
+    option input 'ACCEPT'
+    option output 'ACCEPT'
+    option forward 'REJECT'
+
+# Zone: PixelGuest - Internet access, isolated from other VLANs
+config zone
+    option name 'pixelguest'
+    list network 'pixelguest'
+    option input 'REJECT'     # Block access to router
+    option output 'ACCEPT'     # Allow internet
+    option forward 'REJECT'   # Block inter-VLAN
+
+# Zone: PixelIoT - No internet, isolated
+config zone
+    option name 'pixeliot'
+    list network 'pixeliot'
+    option input 'REJECT'
+    option output 'REJECT'
+    option forward 'REJECT'
+
+# Zone: PixelSecondary - Internet access, no VLAN access
+config zone
+    option name 'pixelsecondary'
+    list network 'pixelsecondary'
+    option input 'REJECT'     # Block access to router
+    option output 'ACCEPT'    # Allow internet
+    option forward 'REJECT'   # Block inter-VLAN
+
+################################################
+##### Forwarding rules
+################################################
+
+# Forwarding: PixelMain -> WAN (internet access)
+config forwarding
+    option src 'pixelmain'
+    option dest 'wan'
+
+# Forwarding: PixelGuest -> WAN (internet access)
+config forwarding
+    option src 'pixelguest'
+    option dest 'wan'
+
+# Forwarding: PixelSecondary -> WAN (internet access)
+config forwarding
+    option src 'pixelsecondary'
+    option dest 'wan'
+
+# Forwarding: PixelMain -> PixelSecondary (PixelMain can access PixelSecondary)
+config forwarding
+    option src 'pixelmain'
+    option dest 'pixelsecondary'
+
+# Forwarding: PixelMain -> PixelGuest (PixelMain can access PixelGuest)
+config forwarding
+    option src 'pixelmain'
+    option dest 'pixelguest'
+
+# Forwarding: PixelMain -> PixelIoT (PixelMain can access PixelIoT)
+config forwarding
+    option src 'pixelmain'
+    option dest 'pixeliot'
+
+################################################
+##### Rules
+################################################
+
+# Allow PixelSecondary to reach DNS/DHCP on router
+config rule
+    option name 'PixelSecondary-DNS-DHCP'
+    option src 'pixelsecondary'
+    option dest_port '53 67 68'
+    option proto 'tcp udp'
+    option target 'ACCEPT'
+
+# Allow PixelGuest to reach DNS/DHCP on router (optional)
+config rule
+    option name 'PixelGuest-DNS-DHCP'
+    option src 'pixelguest'
+    option dest_port '53 67 68'
+    option proto 'tcp udp'
+    option target 'ACCEPT'
+
+# Allow PixelIoT to reach DNS/DHCP on router (optional)
+config rule
+    option name 'PixelIoT-DNS-DHCP'
+    option src 'pixeliot'
+    option dest_port '53 67 68'
+    option proto 'tcp udp'
+    option target 'ACCEPT'
