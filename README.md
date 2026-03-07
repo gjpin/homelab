@@ -58,6 +58,10 @@ EOF
 # ./dns-server/backups.sh
 # ./homelab/backups.sh
 ```
+7. Add masquerading for wg subnet:
+```bash
+sudo iptables -t nat -A POSTROUTING -s 10.0.0.0/24 -o enp34s0 -j MASQUERADE
+```
 
 # Env vars
 ## DNS server
