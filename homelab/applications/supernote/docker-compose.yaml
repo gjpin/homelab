@@ -4,7 +4,7 @@
 services:
   supernote-redis:
     container_name: supernote-redis
-    image: docker.io/redis:8.4.0-alpine # https://hub.docker.com/_/redis
+    image: docker.io/redis:8.6.2-alpine # https://hub.docker.com/_/redis
     healthcheck:
       test: redis-cli ping || exit 1
     restart: always
@@ -18,7 +18,7 @@ services:
 
   supernote-mariadb:
     container_name: supernote-mariadb
-    image: docker.io/mariadb:12.1.2-noble # https://hub.docker.com/_/mariadb
+    image: docker.io/mariadb:12.2.2-noble # https://hub.docker.com/_/mariadb
     env_file:
       - config.env
     volumes:
@@ -44,7 +44,7 @@ services:
       - supernote
 
   supernote-service:
-    image: docker.io/supernote/supernote-service:26.01.21 # https://hub.docker.com/r/supernote/supernote-service/tags
+    image: docker.io/supernote/supernote-service:26.02.23 # https://hub.docker.com/r/supernote/supernote-service/tags
     pull_policy: always
     container_name: supernote-service
     restart: always
