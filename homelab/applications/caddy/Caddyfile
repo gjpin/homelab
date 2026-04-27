@@ -82,7 +82,7 @@ chat.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy openwebui:3000
+        reverse_proxy openwebui:8080
 }
 
 # Radicale
