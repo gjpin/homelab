@@ -6,7 +6,7 @@
 services:
   homeassistant:
     container_name: homeassistant
-    image: ghcr.io/home-assistant/home-assistant:2026.4.0 # https://github.com/home-assistant/core/pkgs/container/home-assistant
+    image: ghcr.io/home-assistant/home-assistant:2026.4.4 # https://github.com/home-assistant/core/tags
     restart: always
     volumes:
       - ${DATA_PATH}/homeassistant/volumes/homeassistant:/config

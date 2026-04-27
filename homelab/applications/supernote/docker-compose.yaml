@@ -18,7 +18,7 @@ services:
 
   supernote-mariadb:
     container_name: supernote-mariadb
-    image: docker.io/mariadb:12.2.2-noble # https://hub.docker.com/_/mariadb
+    image: docker.io/mariadb:12.3.1-noble # https://hub.docker.com/_/mariadb
     env_file:
       - config.env
     volumes:

@@ -1,6 +1,6 @@
 services:
   librechat:
-    image: ghcr.io/danny-avila/librechat-dev:5a14ee9c6a1ce413a93d3229eb49dea935fc304e # ghcr.io/danny-avila/librechat-dev
+    image: registry.librechat.ai/danny-avila/librechat:v0.8.5 # https://github.com/danny-avila/LibreChat/releases
     pull_policy: always
     container_name: librechat
     restart: always

@@ -1,0 +1,14 @@
+services:
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:0.9.2-slim # https://github.com/open-webui/open-webui/pkgs/container/open-webui
+    pull_policy: always
+    container_name: openwebui
+    restart: always
+    networks:
+      - openwebui
+    volumes:
+      - ${DATA_PATH}/openwebui/volumes/data:/app/backend/data
+
+networks:
+  openwebui:
+    external: true

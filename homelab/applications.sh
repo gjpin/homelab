@@ -5,6 +5,7 @@ docker network create caddy
 docker network create forgejo
 docker network create homeassistant
 docker network create immich
+docker network create openwebui
 docker network create --internal radicale
 docker network create supernote
 docker network create syncthing
@@ -161,6 +162,21 @@ mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres,machine-learning}
 # Copy files to expected directories and expand variables
 envsubst < ./applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
+
+################################################
+##### Open WebUI
+################################################
+
+# References:
+# https://docs.openwebui.com/getting-started/quick-start/
+# https://docs.openwebui.com/reference/env-configuration/
+
+# Create directories
+mkdir -p ${DATA_PATH}/openwebui/docker
+mkdir -p ${DATA_PATH}/openwebui/volumes/data
+
+# Copy files to expected directories and expand variables
+envsubst < ./applications/openwebui/docker-compose.yaml | tee ${DATA_PATH}/openwebui/docker/docker-compose.yml > /dev/null
 
 ################################################
 ##### Radicale

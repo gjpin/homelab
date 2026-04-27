@@ -1,5 +1,5 @@
 # https://hub.docker.com/_/alpine
-FROM docker.io/alpine:3.23.3
+FROM docker.io/alpine:3.23.4
 
 RUN apk add --update --no-cache radicale py3-bcrypt
 

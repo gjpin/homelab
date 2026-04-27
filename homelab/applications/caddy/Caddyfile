@@ -40,58 +40,6 @@ bookmarks.${BASE_DOMAIN} {
         webdav
 }
 
-# Immich
-photos.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        reverse_proxy immich-server:2283
-}
-
-# Obsidian
-obsidian.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        reverse_proxy obsidian:5984
-}
-
-# Radicale
-contacts.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        reverse_proxy radicale:5232
-}
-
-# Syncthing
-syncthing.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        reverse_proxy syncthing:8384
-}
-
-# Vaultwarden
-vault.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        # Vaultwarden HTTP server
-        reverse_proxy vaultwarden:80
-
-        # Websockets server
-        reverse_proxy /notifications/hub vaultwarden:3012
-
-        # Negotiation endpoint
-        reverse_proxy /notifications/hub/negotiate vaultwarden:8080
-}
-
 # Forgejo
 git.${BASE_DOMAIN} {
         import default-header
@@ -119,31 +67,31 @@ home-zigbee.${BASE_DOMAIN} {
         reverse_proxy homeassistant-zigbee2mqtt:8080
 }
 
-# LibreChat
+# Immich
+photos.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy immich-server:2283
+}
+
+# Open WebUI
 chat.${BASE_DOMAIN} {
         import default-header
 
         encode gzip
 
-        reverse_proxy librechat:3080
+        reverse_proxy openwebui:3000
 }
 
-# Supabase
-supabase.${BASE_DOMAIN} {
+# Radicale
+contacts.${BASE_DOMAIN} {
         import default-header
 
         encode gzip
 
-        reverse_proxy supabase-kong:8000
-}
-
-# Fresh RSS
-rss.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        reverse_proxy freshrss:80
+        reverse_proxy radicale:5232
 }
 
 # Supernote
@@ -164,4 +112,29 @@ supernote.${BASE_DOMAIN} {
 		header_up X-Forwarded-Port 443
 		header_up X-Forwarded-Host {host}
 	}
+}
+
+# Syncthing
+syncthing.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy syncthing:8384
+}
+
+# Vaultwarden
+vault.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        # Vaultwarden HTTP server
+        reverse_proxy vaultwarden:80
+
+        # Websockets server
+        reverse_proxy /notifications/hub vaultwarden:3012
+
+        # Negotiation endpoint
+        reverse_proxy /notifications/hub/negotiate vaultwarden:8080
 }

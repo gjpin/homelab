@@ -12,6 +12,7 @@
 | [Home Assistant](https://github.com/home-assistant/core) | home.${BASE_DOMAIN} | Home automation | Yes |
 | [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt) | home-zigbee.${BASE_DOMAIN} | Zigbee to MQTT bridge | Yes |
 | [dnscrypt-proxy](https://github.com/DNSCrypt/dnscrypt-proxy) | dns.${BASE_DOMAIN} | DNS Proxy | Yes |
+| [Open WebUI](https://github.com/open-webui/open-webui) | chat.${BASE_DOMAIN} | AI UI | Yes |
 
 ## Unused (misc/)
 | Name | URL | Description | Access to internet |
@@ -159,6 +160,7 @@ docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/openwebui/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
 docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
@@ -169,6 +171,7 @@ docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/openwebui/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
@@ -179,6 +182,7 @@ docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recrea
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/openwebui/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
