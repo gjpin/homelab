@@ -11,6 +11,7 @@ services:
       - forgejo
       - homeassistant
       - immich
+      - openwebui
       - radicale
       - supernote
       - syncthing
@@ -28,6 +29,8 @@ networks:
   homeassistant:
     external: true
   immich:
+    external: true
+  openwebui:
     external: true
   radicale:
     external: true
