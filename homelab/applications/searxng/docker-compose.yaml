@@ -5,11 +5,9 @@ services:
     restart: always
     networks:
       - searxng
-    env_file:
-      - config.env
     volumes:
       - ${DATA_PATH}/searxng/configs:/etc/searxng
-      - ${DATA_PATH}/searxng/volumes/librechat/data:/var/cache/searxng
+      - ${DATA_PATH}/searxng/volumes/data/data:/var/cache/searxng
     depends_on:
       - searxng-valkey
 

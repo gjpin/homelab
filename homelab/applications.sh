@@ -241,7 +241,7 @@ envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/use
 # Create directories
 mkdir -p ${DATA_PATH}/searxng/docker
 mkdir -p ${DATA_PATH}/searxng/configs
-mkdir -p ${DATA_PATH}/searxng/volumes/librechat/data
+mkdir -p ${DATA_PATH}/searxng/volumes/data
 mkdir -p ${DATA_PATH}/searxng/volumes/valkey
 
 # Copy files to expected directories and expand variables
