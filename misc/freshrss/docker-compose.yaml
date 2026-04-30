@@ -1,4 +1,4 @@
-# https://github.com/FreshRSS/FreshRSS/blob/1.27.1/Docker/freshrss/docker-compose.yml
+# https://github.com/FreshRSS/FreshRSS/blob/1.27.1/Docker/freshrss/docker-compose.yaml
 
 services:
   freshrss:

@@ -38,6 +38,6 @@ mkdir -p ${DATA_PATH}/ente/volumes/{ente,postgres}
 mkdir -p ${DATA_PATH}/ente/configs
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/ente/docker-compose.yaml | tee ${DATA_PATH}/ente/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/ente/docker-compose.yaml | tee ${DATA_PATH}/ente/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/ente/config.env | tee ${DATA_PATH}/ente/docker/config.env > /dev/null
 envsubst < ./applications/ente/museum.yaml | tee ${DATA_PATH}/ente/configs/museum.yaml > /dev/null

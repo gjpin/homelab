@@ -144,19 +144,19 @@ cd ${HOME}/homelab/dns-server
 ./applications.sh
 
 # Update containers
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/dnscrypt/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml build --pull --no-cache
+docker compose -f ${DATA_PATH}/dnscrypt/docker/docker-compose.yaml build --pull --no-cache
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yaml pull
 
 # Shutdown containers
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/dnscrypt/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/dnscrypt/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yaml down
 
 # Start containers
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/dnscrypt/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/dnscrypt/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/pihole/docker/docker-compose.yaml up --force-recreate -d
 ```
 
 ## Update all containers (homelab / debian)
@@ -169,43 +169,43 @@ cd ${HOME}/homelab/homelab
 ./applications.sh
 
 # Update containers
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
-docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml build --pull --no-cache
+docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yaml pull
+docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml pull
+docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml pull
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml pull
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yaml pull
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yaml build --pull --no-cache
+docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yaml pull
+docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yaml pull
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yaml pull
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yaml pull
 
 # Shutdown containers
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yaml down
 
 # Start containers
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yaml up --force-recreate -d
 ```
 
 ## Backup containers data
@@ -225,20 +225,20 @@ docker system prune -af
 export IMMICH_DATABASE_PASSWORD=
 
 # Shutdown Immich
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml down
 
 # Backup Immich database volume
 sudo cp -R ${DATA_PATH}/immich/volumes/postgres /tmp/postgres_backup
 
 # Bring up only the postgres container
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml up -d immich-postgres
 
 # Backup the database
 docker exec -t immich-postgres env PGPASSWORD=${IMMICH_DATABASE_PASSWORD} pg_dump -U immich -d immich -F c -f /tmp/immich.dump
 docker cp immich-postgres:/tmp/immich.dump /tmp/immich.dump
 
 # Shutdown the postgres container
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down immich-postgres
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml down immich-postgres
 
 # Remove Immich database volume data
 sudo rm -rf ${DATA_PATH}/immich/volumes/postgres/*
@@ -246,8 +246,8 @@ sudo rm -rf ${DATA_PATH}/immich/volumes/postgres/*
 # Update docker-compose with new pg version
 
 # Bring up only the postgres container
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull immich-postgres
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml pull immich-postgres
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml up -d immich-postgres
 
 # Copy the dump file into the new container
 docker cp /tmp/immich.dump immich-postgres:/tmp/immich.dump
@@ -261,13 +261,13 @@ docker exec -e PGPASSWORD="${IMMICH_DATABASE_PASSWORD}" immich-postgres \
   pg_restore -U immich -d immich /tmp/immich.dump
 
 # Bring up the rest of the containers
-docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml up --force-recreate -d
 ```
 
 ## Restore Immich
 1. Restore volumes to correct directories
-2. Start only postgres: `docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d immich-postgres`
-3. Start the rest of the containers: `docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up -d`
+2. Start only postgres: `docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml up -d immich-postgres`
+3. Start the rest of the containers: `docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml up -d`
 
 ## Setup existing disks
 ```bash
@@ -451,16 +451,16 @@ sudo reboot
    * Run the new "block" that was added to applications.sh
 * Restart Caddy with updated configs:
 ```bash
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml down
 envsubst < ./homelab/applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
-envsubst < ./homelab/applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
+envsubst < ./homelab/applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yaml > /dev/null
 envsubst < ./homelab/applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
-docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml up --force-recreate -d
 ```
 * Bring the containers up:
 ```bash
-docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yaml pull
+docker compose -f ${DATA_PATH}/ente/docker/docker-compose.yaml up --force-recreate -d
 ```
 
 # Supernote

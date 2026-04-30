@@ -45,7 +45,7 @@ mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
-envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
 
 ################################################
@@ -62,7 +62,7 @@ mkdir -p ${DATA_PATH}/dnscrypt/configs
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/dnscrypt/Dockerfile | tee ${DATA_PATH}/dnscrypt/docker/Dockerfile > /dev/null
-envsubst < ./applications/dnscrypt/docker-compose.yaml | tee ${DATA_PATH}/dnscrypt/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/dnscrypt/docker-compose.yaml | tee ${DATA_PATH}/dnscrypt/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/dnscrypt/dnscrypt-proxy.toml | tee ${DATA_PATH}/dnscrypt/configs/dnscrypt-proxy.toml > /dev/null
 
 ################################################
@@ -78,6 +78,6 @@ mkdir -p ${DATA_PATH}/pihole/configs
 mkdir -p ${DATA_PATH}/pihole/volumes/pihole
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/pihole/docker-compose.yaml | tee ${DATA_PATH}/pihole/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/pihole/docker-compose.yaml | tee ${DATA_PATH}/pihole/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/pihole/config.env | tee ${DATA_PATH}/pihole/docker/config.env > /dev/null
 envsubst < ./applications/pihole/99-edns.conf | tee ${DATA_PATH}/pihole/configs/99-edns.conf > /dev/null

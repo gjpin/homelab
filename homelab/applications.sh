@@ -85,7 +85,7 @@ mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
-envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
 
 ################################################
@@ -96,7 +96,7 @@ envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddy
 mkdir -p ${DATA_PATH}/firecrawl/docker
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/firecrawl/docker-compose.yaml | tee ${DATA_PATH}/firecrawl/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/firecrawl/docker-compose.yaml | tee ${DATA_PATH}/firecrawl/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/firecrawl/config.env | tee ${DATA_PATH}/firecrawl/docker/config.env > /dev/null
 
 ################################################
@@ -116,7 +116,7 @@ sudo chown -R 1000:1000 ${DATA_PATH}/forgejo/configs
 sudo chown -R 1000:1000 ${DATA_PATH}/forgejo/volumes/data
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/forgejo/docker-compose.yaml | tee ${DATA_PATH}/forgejo/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/forgejo/docker-compose.yaml | tee ${DATA_PATH}/forgejo/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/forgejo/config.env | tee ${DATA_PATH}/forgejo/docker/config.env > /dev/null
 
 ################################################
@@ -167,7 +167,7 @@ if [ ! -d "${DATA_PATH}/homeassistant/volumes/homeassistant/www/community/mini-g
 fi
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/homeassistant/docker-compose.yaml | tee ${DATA_PATH}/homeassistant/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/homeassistant/docker-compose.yaml | tee ${DATA_PATH}/homeassistant/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/homeassistant/homeassistant.yaml | tee ${DATA_PATH}/homeassistant/volumes/homeassistant/configuration.yaml > /dev/null
 envsubst < ./applications/homeassistant/automations.yaml | tee ${DATA_PATH}/homeassistant/volumes/homeassistant/automations.yaml > /dev/null
 envsubst < ./applications/homeassistant/zigbee2mqtt.yaml | tee ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt/configuration.yaml > /dev/null
@@ -181,7 +181,7 @@ fi
 ################################################
 
 # References:
-# https://github.com/immich-app/immich/blob/main/docker/docker-compose.yml
+# https://github.com/immich-app/immich/blob/main/docker/docker-compose.yaml
 # https://github.com/immich-app/immich/blob/main/docker/example.env
 # https://github.com/immich-app/immich/blob/main/nginx/nginx.conf
 
@@ -190,7 +190,7 @@ mkdir -p ${DATA_PATH}/immich/docker
 mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres,machine-learning}
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
 
 ################################################
@@ -209,7 +209,7 @@ mkdir -p ${DATA_PATH}/librechat/volumes/{mongodb,meilisearch,pgvector}
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
-envsubst < ./applications/librechat/docker-compose.yaml | tee ${DATA_PATH}/librechat/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/librechat/docker-compose.yaml | tee ${DATA_PATH}/librechat/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/librechat/librechat.yaml | tee ${DATA_PATH}/librechat/configs/librechat.yaml > /dev/null
 
 ################################################
@@ -227,7 +227,7 @@ mkdir -p ${DATA_PATH}/radicale/volumes/radicale
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker/Dockerfile > /dev/null
-envsubst < ./applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/radicale/config | tee ${DATA_PATH}/radicale/configs/config > /dev/null
 envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/users > /dev/null
 
@@ -245,7 +245,7 @@ mkdir -p ${DATA_PATH}/searxng/volumes/librechat/data
 mkdir -p ${DATA_PATH}/searxng/volumes/valkey
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/searxng/docker-compose.yaml | tee ${DATA_PATH}/searxng/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/searxng/docker-compose.yaml | tee ${DATA_PATH}/searxng/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/searxng/settings.yml | tee ${DATA_PATH}/searxng/configs/settings.yml > /dev/null
 
 ################################################
@@ -265,7 +265,7 @@ mkdir -p ${DATA_PATH}/supernote/volumes/supernote/{data,recycle,logs-cloud,logs-
 
 # Copy files to expected directories and expand variables
 cp applications/supernote/supernotedb.sql ${DATA_PATH}/supernote/volumes/resources
-envsubst '$DATA_PATH' < ./applications/supernote/docker-compose.yaml | tee ${DATA_PATH}/supernote/docker/docker-compose.yml > /dev/null
+envsubst '$DATA_PATH' < ./applications/supernote/docker-compose.yaml | tee ${DATA_PATH}/supernote/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/supernote/config.env | tee ${DATA_PATH}/supernote/docker/config.env > /dev/null
 
 ################################################
@@ -281,7 +281,7 @@ mkdir -p ${DATA_PATH}/syncthing/configs
 mkdir -p ${DATA_PATH}/syncthing/volumes/syncthing
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/syncthing/docker-compose.yaml | tee ${DATA_PATH}/syncthing/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/syncthing/docker-compose.yaml | tee ${DATA_PATH}/syncthing/docker/docker-compose.yaml > /dev/null
 
 ################################################
 ##### Vaultwarden
@@ -293,5 +293,5 @@ mkdir -p ${DATA_PATH}/vaultwarden/configs
 mkdir -p ${DATA_PATH}/vaultwarden/volumes/vaultwarden
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/vaultwarden/docker-compose.yaml | tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/vaultwarden/docker-compose.yaml | tee ${DATA_PATH}/vaultwarden/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/vaultwarden/config.env | tee ${DATA_PATH}/vaultwarden/docker/config.env > /dev/null
