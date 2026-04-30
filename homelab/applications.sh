@@ -27,7 +27,7 @@ export BACKUP_PATH='${BACKUP_PATH}'
 export CADDY_HASHED_PASSWORD='${CADDY_HASHED_PASSWORD}'
 export CADDY_CLOUDFLARE_TOKEN='${CADDY_CLOUDFLARE_TOKEN}'
 
-# FireCrawl
+# Firecrawl
 export FIRECRAWL_POSTGRES_PASSWORD='${FIRECRAWL_POSTGRES_PASSWORD}'
 export FIRECRAWL_OPENAI_API_KEY='${FIRECRAWL_OPENAI_API_KEY}'
 
@@ -87,6 +87,17 @@ mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
 envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
+
+################################################
+##### Firecrawl
+################################################
+
+# Create directories
+mkdir -p ${DATA_PATH}/firecrawl/docker
+
+# Copy files to expected directories and expand variables
+envsubst < ./applications/firecrawl/docker-compose.yaml | tee ${DATA_PATH}/firecrawl/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/firecrawl/config.env | tee ${DATA_PATH}/firecrawl/docker/config.env > /dev/null
 
 ################################################
 ##### Forgejo
