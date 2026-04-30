@@ -12,16 +12,9 @@
 | [Home Assistant](https://github.com/home-assistant/core) | home.${BASE_DOMAIN} | Home automation | Yes |
 | [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt) | home-zigbee.${BASE_DOMAIN} | Zigbee to MQTT bridge | Yes |
 | [dnscrypt-proxy](https://github.com/DNSCrypt/dnscrypt-proxy) | dns.${BASE_DOMAIN} | DNS Proxy | Yes |
-| [Open WebUI](https://github.com/open-webui/open-webui) | chat.${BASE_DOMAIN} | AI UI | Yes |
-
-## Unused (misc/)
-| Name | URL | Description | Access to internet |
-| --- | --- | --- | --- |
-| [Gitea](https://github.com/go-gitea/gitea) | git.${BASE_DOMAIN} | Git server / DevOps platform | Yes |
-| [FreshRSS](https://github.com/FreshRSS/FreshRSS) | rss.${BASE_DOMAIN} | News aggregator | Yes |
-| [LibreChat](https://github.com/danny-avila/LibreChat) | chat.${BASE_DOMAIN} | Enhanced ChatGPT Clone | Yes |
-| [Technitium](https://github.com/TechnitiumSoftware/DnsServer) | technitium.${BASE_DOMAIN} | DNS server | Yes |
-| [Obsidian LiveSync](https://github.com/vrtmrz/obsidian-livesync) | obsidian.${BASE_DOMAIN} | Community-implemented synchronization plugin | No |
+| [LibreChat](https://github.com/danny-avila/LibreChat) | chat.${BASE_DOMAIN} | AI UI | Yes |
+| [Firecrawl](https://github.com/firecrawl/firecrawl) | firecrawl.${BASE_DOMAIN} | API to search, scrape, and interact with the web | Yes |
+| [SearXNG](https://github.com/searxng/searxng) | search.${BASE_DOMAIN} | Internet metasearch engine | Yes |
 
 # Getting started
 0. Copy SSH public key to PC. If it's on a USB, mount it and copy to ${HOME}/.ssh:
@@ -96,6 +89,10 @@ export CADDY_PASSWORD=$(openssl rand -hex 48)
 export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 
+# Firecrawl
+export FIRECRAWL_POSTGRES_PASSWORD=$(openssl rand -hex 32)
+export FIRECRAWL_OPENAI_API_KEY=
+
 # Forgejo
 export FORGEJO_DATABASE_PASSWORD=$(openssl rand -hex 48)
 
@@ -107,9 +104,25 @@ export HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID= # check devices under /dev/serial/
 export IMMICH_DATABASE_PASSWORD=$(openssl rand -hex 48)
 export IMMICH_JWT_SECRET=$(openssl rand -hex 48)
 
+# LibreChat
+export LIBRECHAT_CREDS_KEY=$(openssl rand -hex 32)
+export LIBRECHAT_CREDS_IV=$(openssl rand -hex 16)
+export LIBRECHAT_MEILI_MASTER_KEY=$(openssl rand -hex 16)
+export LIBRECHAT_JWT_SECRET=$(openssl rand -hex 32)
+export LIBRECHAT_JWT_REFRESH_SECRET=$(openssl rand -hex 32)
+export LIBRECHAT_POSTGRES_PASSWORD=$(openssl rand -hex 32)
+export LIBRECHAT_OPENAI_API_KEY=
+export LIBRECHAT_DEEPSEEK_API_KEY=
+export LIBRECHAT_OPENROUTER_API_KEY=
+export LIBRECHAT_JINA_API_KEY="1234567" # jina/reranker is not stricly mandatory
+export LIBRECHAT_FIRECRAWL_API_KEY="1234567" # self hosted does not have API key
+
 # Radicale
 export RADICALE_PASSWORD=$(openssl rand -hex 36) # bcrypt has a limit of 72 bytes
 export RADICALE_USER_PASSWORD=$(htpasswd -n -b admin ${RADICALE_PASSWORD})
+
+# SearXNG
+export SEARXNG_SECRET_KEY=$(openssl rand -hex 32)
 
 # Supernote
 export SUPERNOTE_DATABASE_ROOT_PASSWORD=$(openssl rand -hex 48)
@@ -157,33 +170,39 @@ cd ${HOME}/homelab/homelab
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml pull
-docker compose -f ${DATA_PATH}/openwebui/docker/docker-compose.yml pull
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml build --pull --no-cache
+docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml pull
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml pull
 
 # Shutdown containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml down
-docker compose -f ${DATA_PATH}/openwebui/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml down
+docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml down
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml down
 
 # Start containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yml up --force-recreate -d
-docker compose -f ${DATA_PATH}/openwebui/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yml up --force-recreate -d
+docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yml up --force-recreate -d
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yml up --force-recreate -d

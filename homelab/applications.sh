@@ -3,10 +3,12 @@
 # Create networks (Caddy belongs to all networks)
 docker network create caddy
 docker network create forgejo
+docker network create firecrawl
 docker network create homeassistant
 docker network create immich
-docker network create openwebui
+docker network create librechat
 docker network create --internal radicale
+docker network create searxng
 docker network create supernote
 docker network create syncthing
 docker network create --internal vaultwarden
@@ -25,6 +27,10 @@ export BACKUP_PATH='${BACKUP_PATH}'
 export CADDY_HASHED_PASSWORD='${CADDY_HASHED_PASSWORD}'
 export CADDY_CLOUDFLARE_TOKEN='${CADDY_CLOUDFLARE_TOKEN}'
 
+# FireCrawl
+export FIRECRAWL_POSTGRES_PASSWORD='${FIRECRAWL_POSTGRES_PASSWORD}'
+export FIRECRAWL_OPENAI_API_KEY='${FIRECRAWL_OPENAI_API_KEY}'
+
 # Forgejo
 export FORGEJO_DATABASE_PASSWORD='${FORGEJO_DATABASE_PASSWORD}'
 
@@ -36,11 +42,24 @@ export HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID='${HOMEASSISTANT_ZIGBEE_ROUTER_SERI
 export IMMICH_DATABASE_PASSWORD='${IMMICH_DATABASE_PASSWORD}'
 export IMMICH_JWT_SECRET='${IMMICH_JWT_SECRET}'
 
-# Obsidian
-export OBSIDIAN_COUCHDB_PASSWORD='${OBSIDIAN_COUCHDB_PASSWORD}'
+# LibreChat
+export LIBRECHAT_CREDS_KEY='${LIBRECHAT_CREDS_KEY}'
+export LIBRECHAT_CREDS_IV='${LIBRECHAT_CREDS_IV}'
+export LIBRECHAT_MEILI_MASTER_KEY='${LIBRECHAT_MEILI_MASTER_KEY}'
+export LIBRECHAT_JWT_SECRET='${LIBRECHAT_JWT_SECRET}'
+export LIBRECHAT_JWT_REFRESH_SECRET='${LIBRECHAT_JWT_REFRESH_SECRET}'
+export LIBRECHAT_POSTGRES_PASSWORD='${LIBRECHAT_POSTGRES_PASSWORD}'
+export LIBRECHAT_OPENAI_API_KEY='${LIBRECHAT_OPENAI_API_KEY}'
+export LIBRECHAT_DEEPSEEK_API_KEY='${LIBRECHAT_DEEPSEEK_API_KEY}'
+export LIBRECHAT_OPENROUTER_API_KEY='${LIBRECHAT_OPENROUTER_API_KEY}'
+export LIBRECHAT_JINA_API_KEY='${LIBRECHAT_JINA_API_KEY}'
+export LIBRECHAT_FIRECRAWL_API_KEY='${LIBRECHAT_FIRECRAWL_API_KEY}'
 
 # Radicale
 export RADICALE_USER_PASSWORD='${RADICALE_USER_PASSWORD}'
+
+# SearXNG
+export SEARXNG_SECRET_KEY='${SEARXNG_SECRET_KEY}'
 
 # Supernote
 export SUPERNOTE_DATABASE_ROOT_PASSWORD='${SUPERNOTE_DATABASE_ROOT_PASSWORD}'
@@ -164,19 +183,23 @@ envsubst < ./applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/d
 envsubst < ./applications/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
 
 ################################################
-##### Open WebUI
+##### LibreChat
 ################################################
 
 # References:
-# https://docs.openwebui.com/getting-started/quick-start/
-# https://docs.openwebui.com/reference/env-configuration/
+# https://github.com/danny-avila/LibreChat/blob/v0.8.5/.env.example
+# https://github.com/danny-avila/LibreChat/blob/v0.8.5/librechat.example.yaml
+# https://www.librechat.ai/docs/configuration/librechat_yaml
 
 # Create directories
-mkdir -p ${DATA_PATH}/openwebui/docker
-mkdir -p ${DATA_PATH}/openwebui/volumes/data
+mkdir -p ${DATA_PATH}/librechat/docker
+mkdir -p ${DATA_PATH}/librechat/volumes/librechat/{images,logs}
+mkdir -p ${DATA_PATH}/librechat/volumes/{mongodb,meilisearch,pgvector}
 
 # Copy files to expected directories and expand variables
-envsubst < ./applications/openwebui/docker-compose.yaml | tee ${DATA_PATH}/openwebui/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
+envsubst < ./applications/librechat/docker-compose.yaml | tee ${DATA_PATH}/librechat/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/librechat/librechat.yaml | tee ${DATA_PATH}/librechat/configs/librechat.yaml > /dev/null
 
 ################################################
 ##### Radicale
@@ -196,6 +219,23 @@ envsubst < ./applications/radicale/Dockerfile | tee ${DATA_PATH}/radicale/docker
 envsubst < ./applications/radicale/docker-compose.yaml | tee ${DATA_PATH}/radicale/docker/docker-compose.yml > /dev/null
 envsubst < ./applications/radicale/config | tee ${DATA_PATH}/radicale/configs/config > /dev/null
 envsubst < ./applications/radicale/users | tee ${DATA_PATH}/radicale/configs/users > /dev/null
+
+################################################
+##### SearXNG
+################################################
+
+# References:
+# https://docs.searxng.org/admin/settings/index.html
+
+# Create directories
+mkdir -p ${DATA_PATH}/searxng/docker
+mkdir -p ${DATA_PATH}/searxng/configs
+mkdir -p ${DATA_PATH}/searxng/volumes/librechat/data
+mkdir -p ${DATA_PATH}/searxng/volumes/valkey
+
+# Copy files to expected directories and expand variables
+envsubst < ./applications/searxng/docker-compose.yaml | tee ${DATA_PATH}/searxng/docker/docker-compose.yml > /dev/null
+envsubst < ./applications/searxng/settings.yml | tee ${DATA_PATH}/searxng/configs/settings.yml > /dev/null
 
 ################################################
 ##### Supernote

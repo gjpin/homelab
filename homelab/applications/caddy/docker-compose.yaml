@@ -11,8 +11,9 @@ services:
       - forgejo
       - homeassistant
       - immich
-      - openwebui
+      - librechat
       - radicale
+      - searxng
       - supernote
       - syncthing
       - vaultwarden
@@ -30,9 +31,11 @@ networks:
     external: true
   immich:
     external: true
-  openwebui:
+  librechat:
     external: true
   radicale:
+    external: true
+  searxng:
     external: true
   supernote:
     external: true

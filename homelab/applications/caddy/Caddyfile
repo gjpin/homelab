@@ -40,6 +40,15 @@ bookmarks.${BASE_DOMAIN} {
         webdav
 }
 
+# Firewcrawl
+firewcrawl.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy firecrawl-api:3002
+}
+
 # Forgejo
 git.${BASE_DOMAIN} {
         import default-header
@@ -76,13 +85,13 @@ photos.${BASE_DOMAIN} {
         reverse_proxy immich-server:2283
 }
 
-# Open WebUI
+# LibreChat
 chat.${BASE_DOMAIN} {
         import default-header
 
         encode gzip
 
-        reverse_proxy openwebui:8080
+        reverse_proxy librechat:3080
 }
 
 # Radicale
@@ -92,6 +101,15 @@ contacts.${BASE_DOMAIN} {
         encode gzip
 
         reverse_proxy radicale:5232
+}
+
+# SearXNG
+search.${BASE_DOMAIN} {
+        import default-header
+
+        encode gzip
+
+        reverse_proxy searxng-core:80
 }
 
 # Supernote

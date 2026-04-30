@@ -1,0 +1,79 @@
+services:
+  firecrawl-api:
+    image: ghcr.io/firecrawl/firecrawl:latest # versions are not tagged
+    pull_policy: always
+    container_name: firecrawl-api
+    restart: always
+    networks:
+      - firecrawl
+    environment:
+      PORT: 3002
+    env_file:
+      - config.env
+    command: node dist/src/harness.js --start-docker
+    depends_on:
+      firecrawl-redis:
+        condition: service_started
+      firecrawl-playwright:
+        condition: service_started
+      firecrawl-rabbitmq:
+        condition: service_healthy
+      firecrawl-postgres:
+        condition: service_started
+
+  firecrawl-playwright:
+    container_name: firecrawl-playwright
+    image: ghcr.io/firecrawl/playwright-service:latest # versions are not tagged
+    pull_policy: always
+    restart: always
+    environment:
+      PORT: 3000
+    env_file:
+      - config.env
+    networks:
+      - firecrawl
+    cpus: 2.0
+    mem_limit: 4G
+    memswap_limit: 4G
+    tmpfs:
+      - /tmp/.cache:noexec,nosuid,size=1g
+
+  firecrawl-rabbitmq:
+    container_name: firecrawl-rabbitmq
+    image: docker.io/library/rabbitmq:4.3.0-management # https://hub.docker.com/_/rabbitmq
+    restart: always
+    env_file:
+      - config.env
+    networks:
+      - firecrawl
+    command: rabbitmq-server
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_running"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+  firecrawl-postgres:
+    container_name: firecrawl-postgres
+    image: ghcr.io/firecrawl/nuq-postgres:latest # versions are not tagged
+    pull_policy: always
+    restart: always
+    env_file:
+      - config.env
+    networks:
+      - firecrawl
+
+  firecrawl-redis:
+    container_name: firecrawl-redis
+    image: docker.io/redis:8.6.2-alpine # https://hub.docker.com/_/redis
+    healthcheck:
+      test: redis-cli ping || exit 1
+    restart: always
+    networks:
+      - firecrawl
+    command: redis-server --bind 0.0.0.0
+
+networks:
+  firecrawl:
+    external: true
