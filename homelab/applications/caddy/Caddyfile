@@ -109,7 +109,7 @@ search.${BASE_DOMAIN} {
 
         encode gzip
 
-        reverse_proxy searxng-core:80
+        reverse_proxy searxng-core:8080
 }
 
 # Supernote

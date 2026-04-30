@@ -17,7 +17,7 @@ general:
 
 server:
   base_url: https://search.${BASE_DOMAIN}
-  port: 80
+  port: 8080
   bind_address: "0.0.0.0"
   secret_key: "${SEARXNG_SECRET_KEY}"
   limiter: false
