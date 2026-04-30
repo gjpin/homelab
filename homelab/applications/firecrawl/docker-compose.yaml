@@ -63,6 +63,8 @@ services:
       - config.env
     networks:
       - firecrawl
+    volumes:
+      - ${DATA_PATH}/firecrawl/volumes/postgres:/var/lib/postgresql/data
 
   firecrawl-redis:
     container_name: firecrawl-redis

@@ -94,6 +94,7 @@ envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddy
 
 # Create directories
 mkdir -p ${DATA_PATH}/firecrawl/docker
+mkdir -p ${DATA_PATH}/firecrawl/volumes/postgres
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/firecrawl/docker-compose.yaml | tee ${DATA_PATH}/firecrawl/docker/docker-compose.yaml > /dev/null
