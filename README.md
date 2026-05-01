@@ -113,8 +113,7 @@ export LIBRECHAT_POSTGRES_PASSWORD=$(openssl rand -hex 32)
 export LIBRECHAT_OPENAI_API_KEY=
 export LIBRECHAT_DEEPSEEK_API_KEY=
 export LIBRECHAT_OPENROUTER_API_KEY=
-export LIBRECHAT_JINA_API_KEY="1234567" # jina/reranker is not stricly mandatory
-export LIBRECHAT_FIRECRAWL_API_KEY="1234567" # self hosted does not have API key
+export LIBRECHAT_JINA_API_KEY=
 
 # Radicale
 export RADICALE_PASSWORD=$(openssl rand -hex 36) # bcrypt has a limit of 72 bytes
