@@ -100,6 +100,12 @@ mkdir -p ${DATA_PATH}/firecrawl/volumes/postgres
 envsubst < ./applications/firecrawl/docker-compose.yaml | tee ${DATA_PATH}/firecrawl/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/firecrawl/config.env | tee ${DATA_PATH}/firecrawl/docker/config.env > /dev/null
 
+# Git clone firewcrawl
+# https://github.com/firecrawl/firecrawl/releases
+git clone https://github.com/firecrawl/firecrawl.git ${DATA_PATH}/firecrawl/docker/src
+git -C ${DATA_PATH}/firecrawl/docker/src fetch --tags
+git -C ${DATA_PATH}/firecrawl/docker/src checkout v2.9.0
+
 ################################################
 ##### Forgejo
 ################################################

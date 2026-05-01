@@ -1,6 +1,6 @@
 services:
   firecrawl-api:
-    image: ghcr.io/firecrawl/firecrawl:latest # versions are not tagged
+    build: apps/api # version is set in applications.sh
     pull_policy: always
     container_name: firecrawl-api
     restart: always
@@ -22,8 +22,8 @@ services:
         condition: service_started
 
   firecrawl-playwright:
+    build: apps/playwright-service-ts # version is set in applications.sh
     container_name: firecrawl-playwright
-    image: ghcr.io/firecrawl/playwright-service:latest # versions are not tagged
     pull_policy: always
     restart: always
     environment:
@@ -55,8 +55,8 @@ services:
       start_period: 5s
 
   firecrawl-postgres:
+    build: apps/nuq-postgres # version is set in applications.sh
     container_name: firecrawl-postgres
-    image: ghcr.io/firecrawl/nuq-postgres:latest # versions are not tagged
     pull_policy: always
     restart: always
     env_file:
