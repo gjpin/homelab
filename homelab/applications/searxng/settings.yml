@@ -21,7 +21,7 @@ server:
   bind_address: "0.0.0.0"
   secret_key: "${SEARXNG_SECRET_KEY}"
   limiter: false
-  public_instance: false
+  public_instance: true
   image_proxy: false
   method: "POST"
   default_http_headers:
