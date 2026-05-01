@@ -47,7 +47,7 @@ endpoints:
   custom:
     # Deepseek
     - name: "Deepseek"
-      apiKey: "${DEEPSEEK_API_KEY}"
+      apiKey: "${LIBRECHAT_DEEPSEEK_API_KEY}"
       baseURL: "https://api.deepseek.com/v1"
       models:
         default: ["deepseek-v4-pro", "deepseek-v4-flash"]
@@ -57,7 +57,7 @@ endpoints:
       modelDisplayLabel: "Deepseek"
     # OpenRouter
     - name: "OpenRouter"
-      apiKey: "${OPENROUTER_KEY}"
+      apiKey: "${LIBRECHAT_OPENROUTER_API_KEY}"
       baseURL: "https://openrouter.ai/api/v1"
       models:
         default: ["deepseek/deepseek-v4-pro", "moonshotai/kimi-k2.6", "z-ai/glm-5.1"]
@@ -72,14 +72,14 @@ endpoints:
 webSearch:
   searchProvider: "searxng"
   # Reranker
-  jinaApiKey: "${JINA_API_KEY}"
-  jinaApiUrl: "${JINA_API_URL}"
+  jinaApiKey: "${LIBRECHAT_JINA_API_KEY}"
+  jinaApiUrl: "https://api.jina.ai/v1/rerank"
   # Search provider
-  searxngInstanceUrl: "${SEARXNG_INSTANCE_URL}"
-  searxngApiKey: "${SEARXNG_API_KEY}"
+  searxngInstanceUrl: "http://searxng-core"
+  searxngApiKey: ""
   # Scraper
-  firecrawlApiKey: "${FIRECRAWL_API_KEY}"
-  firecrawlApiUrl: "${FIRECRAWL_API_URL}"
+  firecrawlApiKey: "${LIBRECHAT_FIRECRAWL_API_KEY}"
+  firecrawlApiUrl: "http://firecrawl-api"
 
 # https://www.librechat.ai/docs/configuration/librechat_yaml/object_structure/memory
 # https://www.librechat.ai/docs/features/memory
