@@ -210,6 +210,7 @@ envsubst < ./applications/immich/config.env | tee ${DATA_PATH}/immich/docker/con
 
 # Create directories
 mkdir -p ${DATA_PATH}/librechat/docker
+mkdir -p ${DATA_PATH}/librechat/configs
 mkdir -p ${DATA_PATH}/librechat/volumes/librechat/{images,logs}
 mkdir -p ${DATA_PATH}/librechat/volumes/{mongodb,meilisearch,pgvector}
 
