@@ -102,9 +102,9 @@ envsubst < ./applications/firecrawl/config.env | tee ${DATA_PATH}/firecrawl/dock
 
 # Git clone firewcrawl
 # https://github.com/firecrawl/firecrawl/releases
-git clone https://github.com/firecrawl/firecrawl.git ${DATA_PATH}/firecrawl/docker/src
-git -C ${DATA_PATH}/firecrawl/docker/src fetch --tags
-git -C ${DATA_PATH}/firecrawl/docker/src checkout v2.9.0
+# git clone https://github.com/firecrawl/firecrawl.git ${DATA_PATH}/firecrawl/docker/src
+# git -C ${DATA_PATH}/firecrawl/docker/src fetch --tags
+# git -C ${DATA_PATH}/firecrawl/docker/src checkout v2.9.0
 
 ################################################
 ##### Forgejo
