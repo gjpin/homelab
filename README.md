@@ -90,7 +90,6 @@ export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --p
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 
 # Firecrawl
-export FIRECRAWL_POSTGRES_PASSWORD=$(openssl rand -hex 32)
 export FIRECRAWL_OPENAI_API_KEY=
 
 # Forgejo
@@ -170,7 +169,7 @@ cd ${HOME}/homelab/homelab
 
 # Update containers
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml build --pull --no-cache
-docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yaml build --pull --no-cache
+docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml pull
