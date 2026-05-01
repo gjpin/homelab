@@ -32,3 +32,6 @@ server:
 
 valkey:
   url: valkey://searxng-valkey:6379/0
+
+search:
+  formats: [html, csv, json, rss]
