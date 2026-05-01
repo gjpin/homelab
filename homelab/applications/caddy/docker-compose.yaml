@@ -7,11 +7,11 @@ services:
     ports:
       - 443:443
     networks:
+      - anythingllm
       - caddy
       - forgejo
       - homeassistant
       - immich
-      - librechat
       - radicale
       - searxng
       - supernote
@@ -23,6 +23,8 @@ services:
       - ${DATA_PATH}/caddy/volumes/bookmarks:/data/bookmarks:Z
 
 networks:
+  anythingllm:
+    external: true
   caddy:
     external: true
   forgejo:
@@ -30,8 +32,6 @@ networks:
   homeassistant:
     external: true
   immich:
-    external: true
-  librechat:
     external: true
   radicale:
     external: true

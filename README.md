@@ -12,8 +12,7 @@
 | [Home Assistant](https://github.com/home-assistant/core) | home.${BASE_DOMAIN} | Home automation | Yes |
 | [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt) | home-zigbee.${BASE_DOMAIN} | Zigbee to MQTT bridge | Yes |
 | [dnscrypt-proxy](https://github.com/DNSCrypt/dnscrypt-proxy) | dns.${BASE_DOMAIN} | DNS Proxy | Yes |
-| [LibreChat](https://github.com/danny-avila/LibreChat) | chat.${BASE_DOMAIN} | AI UI | Yes |
-| [Firecrawl](https://github.com/firecrawl/firecrawl) | firecrawl.${BASE_DOMAIN} | API to search, scrape, and interact with the web | Yes |
+| [Anything LLM](https://github.com/mintplex-labs/anything-llm) | chat.${BASE_DOMAIN} | AI UI | Yes |
 | [SearXNG](https://github.com/searxng/searxng) | search.${BASE_DOMAIN} | Internet metasearch engine | Yes |
 
 # Getting started
@@ -89,9 +88,6 @@ export CADDY_PASSWORD=$(openssl rand -hex 48)
 export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 
-# Firecrawl
-export FIRECRAWL_OPENAI_API_KEY=
-
 # Forgejo
 export FORGEJO_DATABASE_PASSWORD=$(openssl rand -hex 48)
 
@@ -102,18 +98,6 @@ export HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID= # check devices under /dev/serial/
 # Immich
 export IMMICH_DATABASE_PASSWORD=$(openssl rand -hex 48)
 export IMMICH_JWT_SECRET=$(openssl rand -hex 48)
-
-# LibreChat
-export LIBRECHAT_CREDS_KEY=$(openssl rand -hex 32)
-export LIBRECHAT_CREDS_IV=$(openssl rand -hex 16)
-export LIBRECHAT_MEILI_MASTER_KEY=$(openssl rand -hex 16)
-export LIBRECHAT_JWT_SECRET=$(openssl rand -hex 32)
-export LIBRECHAT_JWT_REFRESH_SECRET=$(openssl rand -hex 32)
-export LIBRECHAT_POSTGRES_PASSWORD=$(openssl rand -hex 32)
-export LIBRECHAT_OPENAI_API_KEY=
-export LIBRECHAT_DEEPSEEK_API_KEY=
-export LIBRECHAT_OPENROUTER_API_KEY=
-export LIBRECHAT_JINA_API_KEY=
 
 # Radicale
 export RADICALE_PASSWORD=$(openssl rand -hex 36) # bcrypt has a limit of 72 bytes
@@ -167,12 +151,11 @@ cd ${HOME}/homelab/homelab
 ./applications.sh
 
 # Update containers
+docker compose -f ${DATA_PATH}/anythingllm/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml build --pull --no-cache
-docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml pull
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yaml build --pull --no-cache
 docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yaml pull
@@ -180,12 +163,11 @@ docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yaml pull
 
 # Shutdown containers
+docker compose -f ${DATA_PATH}/anythingllm/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml down
-docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml down
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yaml down
@@ -193,12 +175,10 @@ docker compose -f ${DATA_PATH}/syncthing/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yaml down
 
 # Start containers
+docker compose -f ${DATA_PATH}/anythingllm/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml up --force-recreate -d
-docker compose -f ${DATA_PATH}/firecrawl/docker/docker-compose.yaml up --force-recreate -d
-docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml up --force-recreate -d
-docker compose -f ${DATA_PATH}/librechat/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/searxng/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/supernote/docker/docker-compose.yaml up --force-recreate -d

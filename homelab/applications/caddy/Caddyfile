@@ -40,13 +40,13 @@ bookmarks.${BASE_DOMAIN} {
         webdav
 }
 
-# Firewcrawl
-firewcrawl.${BASE_DOMAIN} {
+# Anything LLM
+chat.${BASE_DOMAIN} {
         import default-header
 
         encode gzip
 
-        reverse_proxy firecrawl-api:3002
+        reverse_proxy anythingllm:3001
 }
 
 # Forgejo
@@ -83,15 +83,6 @@ photos.${BASE_DOMAIN} {
         encode gzip
 
         reverse_proxy immich-server:2283
-}
-
-# LibreChat
-chat.${BASE_DOMAIN} {
-        import default-header
-
-        encode gzip
-
-        reverse_proxy librechat:3080
 }
 
 # Radicale

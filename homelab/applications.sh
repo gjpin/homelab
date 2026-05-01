@@ -1,12 +1,11 @@
 #!/usr/bin/bash
 
 # Create networks (Caddy belongs to all networks)
+docker network create anythingllm
 docker network create caddy
 docker network create forgejo
-docker network create firecrawl
 docker network create homeassistant
 docker network create immich
-docker network create librechat
 docker network create --internal radicale
 docker network create searxng
 docker network create supernote
@@ -27,9 +26,6 @@ export BACKUP_PATH='${BACKUP_PATH}'
 export CADDY_HASHED_PASSWORD='${CADDY_HASHED_PASSWORD}'
 export CADDY_CLOUDFLARE_TOKEN='${CADDY_CLOUDFLARE_TOKEN}'
 
-# Firecrawl
-export FIRECRAWL_OPENAI_API_KEY='${FIRECRAWL_OPENAI_API_KEY}'
-
 # Forgejo
 export FORGEJO_DATABASE_PASSWORD='${FORGEJO_DATABASE_PASSWORD}'
 
@@ -40,18 +36,6 @@ export HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID='${HOMEASSISTANT_ZIGBEE_ROUTER_SERI
 # Immich
 export IMMICH_DATABASE_PASSWORD='${IMMICH_DATABASE_PASSWORD}'
 export IMMICH_JWT_SECRET='${IMMICH_JWT_SECRET}'
-
-# LibreChat
-export LIBRECHAT_CREDS_KEY='${LIBRECHAT_CREDS_KEY}'
-export LIBRECHAT_CREDS_IV='${LIBRECHAT_CREDS_IV}'
-export LIBRECHAT_MEILI_MASTER_KEY='${LIBRECHAT_MEILI_MASTER_KEY}'
-export LIBRECHAT_JWT_SECRET='${LIBRECHAT_JWT_SECRET}'
-export LIBRECHAT_JWT_REFRESH_SECRET='${LIBRECHAT_JWT_REFRESH_SECRET}'
-export LIBRECHAT_POSTGRES_PASSWORD='${LIBRECHAT_POSTGRES_PASSWORD}'
-export LIBRECHAT_OPENAI_API_KEY='${LIBRECHAT_OPENAI_API_KEY}'
-export LIBRECHAT_DEEPSEEK_API_KEY='${LIBRECHAT_DEEPSEEK_API_KEY}'
-export LIBRECHAT_OPENROUTER_API_KEY='${LIBRECHAT_OPENROUTER_API_KEY}'
-export LIBRECHAT_JINA_API_KEY='${LIBRECHAT_JINA_API_KEY}'
 
 # Radicale
 export RADICALE_USER_PASSWORD='${RADICALE_USER_PASSWORD}'
@@ -67,6 +51,22 @@ export SUPERNOTE_REDIS_PASSWORD='${SUPERNOTE_REDIS_PASSWORD}'
 # Vaultwarden
 export VAULTWARDEN_ADMIN_TOKEN='${VAULTWARDEN_ADMIN_TOKEN}'
 EOF
+
+################################################
+##### Anything LLM
+################################################
+
+# References:
+# https://docs.anythingllm.com/installation-docker/local-docker
+
+# Create directories
+mkdir -p ${DATA_PATH}/anythingllm/docker
+mkdir -p ${DATA_PATH}/anythingllm/configs
+mkdir -p ${DATA_PATH}/anythingllm/volumes/{data,env}
+
+# Copy files to expected directories and expand variables
+envsubst < ./applications/anythingllm/docker-compose.yaml | tee ${DATA_PATH}/anythingllm/docker/docker-compose.yaml > /dev/null
+envsubst < ./applications/anythingllm/config.env | tee ${DATA_PATH}/anythingllm/docker/config.env > /dev/null
 
 ################################################
 ##### Caddy
@@ -85,24 +85,6 @@ mkdir -p ${DATA_PATH}/caddy/volumes/{caddy,bookmarks}
 envsubst < ./applications/caddy/Dockerfile | tee ${DATA_PATH}/caddy/docker/Dockerfile > /dev/null
 envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
-
-################################################
-##### Firecrawl
-################################################
-
-# Create directories
-mkdir -p ${DATA_PATH}/firecrawl/docker
-mkdir -p ${DATA_PATH}/firecrawl/volumes/postgres
-
-# Copy files to expected directories and expand variables
-envsubst < ./applications/firecrawl/docker-compose.yaml | tee ${DATA_PATH}/firecrawl/docker/docker-compose.yaml > /dev/null
-envsubst < ./applications/firecrawl/config.env | tee ${DATA_PATH}/firecrawl/docker/config.env > /dev/null
-
-# Git clone firewcrawl
-# https://github.com/firecrawl/firecrawl/releases
-# git clone https://github.com/firecrawl/firecrawl.git ${DATA_PATH}/firecrawl/docker/src
-# git -C ${DATA_PATH}/firecrawl/docker/src fetch --tags
-# git -C ${DATA_PATH}/firecrawl/docker/src checkout v2.9.0
 
 ################################################
 ##### Forgejo
@@ -197,26 +179,6 @@ mkdir -p ${DATA_PATH}/immich/volumes/{immich,postgres,machine-learning}
 # Copy files to expected directories and expand variables
 envsubst < ./applications/immich/docker-compose.yaml | tee ${DATA_PATH}/immich/docker/docker-compose.yaml > /dev/null
 envsubst < ./applications/immich/config.env | tee ${DATA_PATH}/immich/docker/config.env > /dev/null
-
-################################################
-##### LibreChat
-################################################
-
-# References:
-# https://github.com/danny-avila/LibreChat/blob/v0.8.5/.env.example
-# https://github.com/danny-avila/LibreChat/blob/v0.8.5/librechat.example.yaml
-# https://www.librechat.ai/docs/configuration/librechat_yaml
-
-# Create directories
-mkdir -p ${DATA_PATH}/librechat/docker
-mkdir -p ${DATA_PATH}/librechat/configs
-mkdir -p ${DATA_PATH}/librechat/volumes/librechat/{images,logs}
-mkdir -p ${DATA_PATH}/librechat/volumes/{mongodb,meilisearch,pgvector}
-
-# Copy files to expected directories and expand variables
-envsubst < ./applications/librechat/config.env | tee ${DATA_PATH}/librechat/docker/config.env > /dev/null
-envsubst < ./applications/librechat/docker-compose.yaml | tee ${DATA_PATH}/librechat/docker/docker-compose.yaml > /dev/null
-cp ./applications/librechat/librechat.yaml ${DATA_PATH}/librechat/configs/librechat.yaml
 
 ################################################
 ##### Radicale
