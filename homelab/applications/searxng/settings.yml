@@ -29,13 +29,6 @@ server:
     X-Download-Options : noopen
     X-Robots-Tag : noindex, nofollow
     Referrer-Policy : no-referrer
-  real_ip:
-    enabled: true
-    from:
-      - 0.0.0.0/0
-
-botdetection:
-  enabled: false
 
 valkey:
   url: valkey://searxng-valkey:6379/0
