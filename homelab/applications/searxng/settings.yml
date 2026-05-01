@@ -33,5 +33,6 @@ server:
 valkey:
   url: valkey://searxng-valkey:6379/0
 
+# https://github.com/danny-avila/LibreChat/discussions/11555
 search:
   formats: [html, csv, json, rss]
