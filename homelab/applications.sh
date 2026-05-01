@@ -62,7 +62,8 @@ EOF
 # Create directories
 mkdir -p ${DATA_PATH}/anythingllm/docker
 mkdir -p ${DATA_PATH}/anythingllm/configs
-mkdir -p ${DATA_PATH}/anythingllm/volumes/{data,env}
+mkdir -p ${DATA_PATH}/anythingllm/volumes/{data}
+touch ${DATA_PATH}/anythingllm/volumes/.env
 
 # Copy files to expected directories and expand variables
 envsubst < ./applications/anythingllm/docker-compose.yaml | tee ${DATA_PATH}/anythingllm/docker/docker-compose.yaml > /dev/null

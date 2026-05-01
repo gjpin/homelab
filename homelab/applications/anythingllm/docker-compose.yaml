@@ -10,7 +10,7 @@ services:
       - config.env
     volumes:
       - ${DATA_PATH}/anythingllm/volumes/data:/app/server/storage
-      - ${DATA_PATH}/anythingllm/volumes/env:/app/server/.env
+      - ${DATA_PATH}/anythingllm/volumes/.env:/app/server/.env
 
 networks:
   anythingllm:
