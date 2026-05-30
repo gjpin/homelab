@@ -6,7 +6,7 @@
 services:
   homeassistant:
     container_name: homeassistant
-    image: ghcr.io/home-assistant/home-assistant:2026.4.4 # https://github.com/home-assistant/core/tags
+    image: ghcr.io/home-assistant/home-assistant:2026.5.4 # https://github.com/home-assistant/core/tags
     restart: always
     volumes:
       - ${DATA_PATH}/homeassistant/volumes/homeassistant:/config
@@ -19,7 +19,7 @@ services:
 
   homeassistant-zigbee2mqtt:
     container_name: homeassistant-zigbee2mqtt
-    image: ghcr.io/koenkk/zigbee2mqtt:2.9.2 # https://github.com/koenkk/zigbee2mqtt/pkgs/container/zigbee2mqtt
+    image: ghcr.io/koenkk/zigbee2mqtt:2.10.1 # https://github.com/koenkk/zigbee2mqtt/pkgs/container/zigbee2mqtt
     restart: always
     volumes:
       - ${DATA_PATH}/homeassistant/volumes/zigbee2mqtt:/app/data

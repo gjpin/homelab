@@ -31,7 +31,7 @@ services:
 
   immich-redis:
     container_name: immich-redis
-    image: docker.io/redis:8.6.2-alpine # https://hub.docker.com/_/redis
+    image: docker.io/redis:8.8.0-alpine # https://hub.docker.com/_/redis
     healthcheck:
       test: redis-cli ping || exit 1
     restart: always

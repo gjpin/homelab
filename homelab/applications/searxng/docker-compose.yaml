@@ -1,6 +1,6 @@
 services:
   searxng-core:
-    image: docker.io/searxng/searxng:2026.4.28-ed5955a5c # https://hub.docker.com/r/searxng/searxng/tags
+    image: docker.io/searxng/searxng:2026.5.29-780ee3256 # https://hub.docker.com/r/searxng/searxng/tags
     container_name: searxng-core
     restart: always
     networks:
@@ -13,7 +13,7 @@ services:
 
   searxng-valkey:
     container_name: searxng-valkey
-    image: docker.io/valkey/valkey:9.0.3 # https://hub.docker.com/r/valkey/valkey
+    image: docker.io/valkey/valkey:9.1.0 # https://hub.docker.com/r/valkey/valkey
     volumes:
       - ${DATA_PATH}/searxng/volumes/valkey:/data
     restart: always
