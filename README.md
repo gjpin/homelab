@@ -177,6 +177,7 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yaml down
 # Start containers
 docker compose -f ${DATA_PATH}/anythingllm/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/radicale/docker/docker-compose.yaml up --force-recreate -d
