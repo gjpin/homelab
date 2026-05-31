@@ -3,6 +3,7 @@
 # Create networks (Caddy belongs to all networks)
 docker network create anythingllm
 docker network create caddy
+docker network create docs-mcp
 docker network create forgejo
 docker network create homeassistant
 docker network create immich
@@ -25,6 +26,9 @@ export BACKUP_PATH='${BACKUP_PATH}'
 # Caddy
 export CADDY_HASHED_PASSWORD='${CADDY_HASHED_PASSWORD}'
 export CADDY_CLOUDFLARE_TOKEN='${CADDY_CLOUDFLARE_TOKEN}'
+
+# Docs MCP
+DOCS_MCP_OPENAI_API_KEY='${DOCS_MCP_OPENAI_API_KEY}'
 
 # Forgejo
 export FORGEJO_DATABASE_PASSWORD='${FORGEJO_DATABASE_PASSWORD}'
@@ -88,6 +92,21 @@ envsubst < ./applications/caddy/docker-compose.yaml | tee ${DATA_PATH}/caddy/doc
 envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddyfile > /dev/null
 
 ################################################
+##### Docs MCP
+################################################
+
+# References:
+# https://github.com/arabold/docs-mcp-server
+
+# Create directories
+mkdir -p ${DATA_PATH}/docs-mcp/docker
+mkdir -p ${DATA_PATH}/docs-mcp/volumes/{data,config,database}
+
+# Copy files to expected directories and expand variables
+envsubst < ./applications/docs-mcp/docker-compose.yaml | tee ${DATA_PATH}/docs-mcp/docker/docker-compose.yaml > /dev/null
+envsubst < ./applications/docs-mcp/config.env | tee ${DATA_PATH}/docs-mcp/docker/config.env > /dev/null
+
+################################################
 ##### Forgejo
 ################################################
 
@@ -97,10 +116,8 @@ envsubst < ./applications/caddy/Caddyfile | tee ${DATA_PATH}/caddy/configs/Caddy
 
 # Create directories
 mkdir -p ${DATA_PATH}/forgejo/docker
-mkdir -p ${DATA_PATH}/forgejo/configs
 mkdir -p ${DATA_PATH}/forgejo/volumes/{data,postgres}
 
-sudo chown -R 1000:1000 ${DATA_PATH}/forgejo/configs
 sudo chown -R 1000:1000 ${DATA_PATH}/forgejo/volumes/data
 
 # Copy files to expected directories and expand variables

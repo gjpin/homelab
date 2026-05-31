@@ -1,0 +1,93 @@
+services:
+  # Worker service - handles the actual documentation processing
+  docs-mcp-worker:
+    image: ghcr.io/arabold/docs-mcp-server:2.4.0 # https://github.com/arabold/docs-mcp-server/pkgs/container/docs-mcp-server
+    command: ["worker", "--host", "0.0.0.0", "--port", "8080"]
+    container_name: docs-mcp-worker
+    restart: unless-stopped
+    networks:
+      - docs-mcp
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/docs-mcp/volumes/data:/data
+      - ${DATA_PATH}/docs-mcp/volumes/config:/config
+      - ${DATA_PATH}/docs-mcp/volumes/database:/database
+    healthcheck:
+      test: 'node -e ''require("net").connect(8080, "127.0.0.1").on("connect",()=>process.exit(0)).on("error",()=>process.exit(1))'''
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # MCP server - provides AI tool integration endpoint
+  docs-mcp-server:
+    image: ghcr.io/arabold/docs-mcp-server:2.4.0 # https://github.com/arabold/docs-mcp-server/pkgs/container/docs-mcp-server
+    command:
+      [
+        "mcp",
+        "--protocol",
+        "http",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "6280",
+        "--server-url",
+        "http://docs-mcp-worker:8080/api",
+        "--no-logo",
+      ]
+    container_name: docs-mcp-server
+    restart: unless-stopped
+    networks:
+      - docs-mcp
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/docs-mcp/volumes/config:/config
+      - ${DATA_PATH}/docs-mcp/volumes/database:/database
+    depends_on:
+      docs-mcp-worker:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # Web interface - provides browser-based management
+  docs-mcp-web:
+    image: ghcr.io/arabold/docs-mcp-server:2.4.0 # https://github.com/arabold/docs-mcp-server/pkgs/container/docs-mcp-server
+    command:
+      [
+        "web",
+        "--host",
+        "0.0.0.0",
+        "--port",
+        "6281",
+        "--server-url",
+        "http://docs-mcp-worker:8080/api",
+        "--no-logo",
+      ]
+    container_name: docs-mcp-web
+    restart: unless-stopped
+    networks:
+      - docs-mcp
+    env_file:
+      - config.env
+    volumes:
+      - ${DATA_PATH}/docs-mcp/volumes/config:/config
+      - ${DATA_PATH}/docs-mcp/volumes/database:/database
+    depends_on:
+      docs-mcp-worker:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+networks:
+  docs-mcp:
+    external: true

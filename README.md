@@ -14,6 +14,7 @@
 | [dnscrypt-proxy](https://github.com/DNSCrypt/dnscrypt-proxy) | dns.${BASE_DOMAIN} | DNS Proxy | Yes |
 | [Anything LLM](https://github.com/mintplex-labs/anything-llm) | chat.${BASE_DOMAIN} | AI UI | Yes |
 | [SearXNG](https://github.com/searxng/searxng) | search.${BASE_DOMAIN} | Internet metasearch engine | Yes |
+| [Docs MCP Server](https://github.com/arabold/docs-mcp-server) | docs.${BASE_DOMAIN} | Docs MCP Server | Yes |
 
 # Getting started
 0. Copy SSH public key to PC. If it's on a USB, mount it and copy to ${HOME}/.ssh:
@@ -88,6 +89,9 @@ export CADDY_PASSWORD=$(openssl rand -hex 48)
 export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --plaintext ${CADDY_PASSWORD})
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 
+# Docs MCP
+export DOCS_MCP_OPENAI_API_KEY=
+
 # Forgejo
 export FORGEJO_DATABASE_PASSWORD=$(openssl rand -hex 48)
 
@@ -153,6 +157,7 @@ cd ${HOME}/homelab/homelab
 # Update containers
 docker compose -f ${DATA_PATH}/anythingllm/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml build --pull --no-cache
+docker compose -f ${DATA_PATH}/docs-mcp/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml pull
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml pull
@@ -165,6 +170,7 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yaml pull
 # Shutdown containers
 docker compose -f ${DATA_PATH}/anythingllm/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml down
+docker compose -f ${DATA_PATH}/docs-mcp/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml down
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml down
@@ -177,6 +183,7 @@ docker compose -f ${DATA_PATH}/vaultwarden/docker/docker-compose.yaml down
 # Start containers
 docker compose -f ${DATA_PATH}/anythingllm/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/caddy/docker/docker-compose.yaml up --force-recreate -d
+docker compose -f ${DATA_PATH}/docs-mcp/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/forgejo/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/homeassistant/docker/docker-compose.yaml up --force-recreate -d
 docker compose -f ${DATA_PATH}/immich/docker/docker-compose.yaml up --force-recreate -d

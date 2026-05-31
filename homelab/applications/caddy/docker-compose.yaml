@@ -9,6 +9,7 @@ services:
     networks:
       - anythingllm
       - caddy
+      - docs-mcp
       - forgejo
       - homeassistant
       - immich
@@ -26,6 +27,8 @@ networks:
   anythingllm:
     external: true
   caddy:
+    external: true
+  docs-mcp:
     external: true
   forgejo:
     external: true
