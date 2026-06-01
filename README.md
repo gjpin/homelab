@@ -90,6 +90,7 @@ export CADDY_HASHED_PASSWORD=$(docker run caddy:2-alpine caddy hash-password --p
 export CADDY_CLOUDFLARE_TOKEN=taken from Cloudflare
 
 # Docs MCP
+export DOCS_MCP_POSTHOG_API_KEY=
 export DOCS_MCP_OPENAI_API_KEY=
 
 # Forgejo
