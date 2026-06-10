@@ -1,7 +1,7 @@
 services:
   # Worker service - handles the actual documentation processing
   docs-mcp-worker:
-    image: ghcr.io/arabold/docs-mcp-server:2.4.0 # https://github.com/arabold/docs-mcp-server/pkgs/container/docs-mcp-server
+    image: ghcr.io/arabold/docs-mcp-server:2.4.2 # https://github.com/arabold/docs-mcp-server/pkgs/container/docs-mcp-server
     command: ["worker", "--host", "0.0.0.0", "--port", "8080"]
     container_name: docs-mcp-worker
     restart: unless-stopped
@@ -26,7 +26,7 @@ services:
 
   # MCP server - provides AI tool integration endpoint
   docs-mcp-server:
-    image: ghcr.io/arabold/docs-mcp-server:2.4.0 # https://github.com/arabold/docs-mcp-server/pkgs/container/docs-mcp-server
+    image: ghcr.io/arabold/docs-mcp-server:2.4.2 # https://github.com/arabold/docs-mcp-server/pkgs/container/docs-mcp-server
     command:
       [
         "mcp",
@@ -59,7 +59,7 @@ services:
 
   # Web interface - provides browser-based management
   docs-mcp-web:
-    image: ghcr.io/arabold/docs-mcp-server:2.4.0 # https://github.com/arabold/docs-mcp-server/pkgs/container/docs-mcp-server
+    image: ghcr.io/arabold/docs-mcp-server:2.4.2 # https://github.com/arabold/docs-mcp-server/pkgs/container/docs-mcp-server
     command:
       [
         "web",
