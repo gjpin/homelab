@@ -971,3 +971,17 @@ TRUNCATE TABLE supernotedb.f_file_convert;
 -- 修改表字段长度
 -- ----------------------------
 ALTER TABLE supernotedb.`u_login_record` MODIFY COLUMN ip VARCHAR(200);
+
+-- ----------------------------
+-- 创建错因素认证表
+-- ----------------------------
+CREATE TABLE IF NOT EXISTS supernotedb.t_user_mfa (
+    user_id        BIGINT       NOT NULL                 COMMENT '用户ID（主键，与 t_user.user_id 一致）',
+    secret         VARCHAR(64)  NOT NULL                 COMMENT 'Base32 TOTP 密钥（启用后才落库）',
+    enabled        TINYINT(1)   NOT NULL DEFAULT 0       COMMENT '是否启用：0 未启用 / 1 已启用',
+    recovery_codes TEXT         NULL                     COMMENT '一次性恢复码哈希列表(JSON 数组，SHA-256)',
+    last_used_at   DATETIME     NULL                     COMMENT '最近一次成功使用 MFA 的时间',
+    create_time    DATETIME     NOT NULL                 COMMENT '创建时间',
+    update_time    DATETIME     NOT NULL                 COMMENT '更新时间',
+    PRIMARY KEY (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户 MFA（TOTP / 微软 Authenticator）信息';
