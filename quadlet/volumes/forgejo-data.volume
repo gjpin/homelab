@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-forgejo-data
+Label=io.containers.systemd.application=forgejo

@@ -1,0 +1,39 @@
+[Unit]
+Description=Supernote MariaDB
+After=homelab-secrets.service
+Requires=homelab-secrets.service
+PartOf=homelab-supernote.target
+
+[Container]
+Image=docker.io/mariadb:12.3.3-noble@sha256:dd9b303aed4f4890ed09f766d8ca9ddfd176c0c6f6267feff53b3192ec65a979
+Pull=missing
+ContainerName=supernote-mariadb
+EnvironmentFile=%t/homelab/rendered/site.env
+Network=supernote.network
+Environment=MYSQL_DATABASE=supernotedb
+Environment=MYSQL_USER=supernote
+Secret=supernote-database-root-password,type=env,target=MYSQL_ROOT_PASSWORD
+Secret=supernote-database-user-password,type=env,target=MYSQL_PASSWORD
+Volume=supernote-mariadb.volume:/var/lib/mysql
+Volume=%h/current/assets/supernote/supernotedb.sql:/docker-entrypoint-initdb.d/supernotedb.sql:ro,Z
+Exec=--skip-name-resolve --bind-address=0.0.0.0
+HealthCmd=healthcheck.sh --connect --innodb_initialized
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=10
+HealthStartPeriod=30s
+Notify=healthy
+LogDriver=journald
+NoNewPrivileges=true
+DropCapability=all
+AddCapability=CHOWN DAC_OVERRIDE FOWNER SETGID SETUID
+ReadOnly=true
+ReadOnlyTmpfs=true
+PodmanArgs=--image-volume=ignore
+PidsLimit=1024
+RunInit=true
+
+[Service]
+Restart=always
+RestartSec=5s
+TimeoutStartSec=900

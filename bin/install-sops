@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+[[ ${EUID} -eq 0 ]] || { printf 'Run this command as root.\n' >&2; exit 1; }
+[[ $(uname -m) == x86_64 ]] || { printf 'This deployment supports only x86_64 hosts.\n' >&2; exit 1; }
+
+version=3.13.3
+binary_sha256=e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b
+url="https://github.com/getsops/sops/releases/download/v${version}/sops-v${version}.linux.amd64"
+tmp_binary=$(mktemp)
+trap 'rm -f -- "$tmp_binary"' EXIT
+
+curl --fail --location --proto '=https' --tlsv1.2 --output "$tmp_binary" "$url"
+printf '%s  %s\n' "$binary_sha256" "$tmp_binary" | sha256sum --check --status
+install -m 0755 "$tmp_binary" /usr/local/bin/sops
+sops --version

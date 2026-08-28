@@ -1,0 +1,36 @@
+[Unit]
+Description=Forgejo PostgreSQL
+After=homelab-secrets.service
+Requires=homelab-secrets.service
+PartOf=homelab-forgejo.target
+
+[Container]
+Image=docker.io/postgres:18.6-bookworm@sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af
+Pull=missing
+ContainerName=forgejo-postgres
+EnvironmentFile=%t/homelab/rendered/site.env
+Network=forgejo.network
+Environment=POSTGRES_USER=forgejo
+Environment=POSTGRES_DB=forgejo
+Secret=forgejo-database-password,type=env,target=POSTGRES_PASSWORD
+Volume=forgejo-postgres.volume:/var/lib/postgresql/data
+HealthCmd=pg_isready -U forgejo -d forgejo
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=10
+HealthStartPeriod=20s
+Notify=healthy
+LogDriver=journald
+NoNewPrivileges=true
+DropCapability=all
+AddCapability=CHOWN DAC_OVERRIDE FOWNER SETGID SETUID
+ReadOnly=true
+ReadOnlyTmpfs=true
+PodmanArgs=--image-volume=ignore
+PidsLimit=1024
+RunInit=true
+
+[Service]
+Restart=always
+RestartSec=5s
+TimeoutStartSec=900

@@ -1,0 +1,118 @@
+{
+	acme_dns cloudflare {$CADDY_CLOUDFLARE_TOKEN}
+	order webdav before file_server
+
+	servers {
+		protocols h1 h2
+	}
+}
+
+(default-header) {
+	header {
+		Permissions-Policy "interest-cohort=()"
+		Strict-Transport-Security "max-age=31536000;"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "SAMEORIGIN"
+		X-Robots-Tag "none"
+		-X-Powered-By
+		-Server
+	}
+}
+
+bookmarks.{$BASE_DOMAIN} {
+	root * /data/bookmarks
+	basic_auth {
+		admin {$CADDY_HASHED_PASSWORD}
+	}
+	webdav
+}
+
+chat.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy anythingllm:3001
+}
+
+docs.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy docs-mcp-web:6281
+}
+
+docs-worker.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy docs-mcp-worker:8080
+}
+
+docs-mcp.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy docs-mcp-server:6280
+}
+
+git.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy forgejo:3000
+}
+
+home.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy homeassistant:8123
+}
+
+home-zigbee.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy homeassistant-zigbee2mqtt:8080
+}
+
+photos.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy immich-server:2283
+}
+
+contacts.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy radicale:5232
+}
+
+search.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy searxng-core:8080
+}
+
+supernote.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	request_body {
+		max_size 20GB
+	}
+	reverse_proxy supernote-service:8080 {
+		header_up Host {host}
+		header_up X-Real-IP {remote}
+		header_up X-Forwarded-For {remote}
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Port 443
+		header_up X-Forwarded-Host {host}
+	}
+}
+
+syncthing.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy syncthing:8384
+}
+
+vault.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy vaultwarden:80
+	reverse_proxy /notifications/hub vaultwarden:3012
+	reverse_proxy /notifications/hub/negotiate vaultwarden:8080
+}

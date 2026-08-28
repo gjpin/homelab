@@ -1,0 +1,6 @@
+[Network]
+NetworkName=homelab-supernote-notelib-egress
+Subnet=10.200.17.0/24
+Gateway=10.200.17.1
+Options=isolate=true
+Label=io.containers.systemd.application=supernote

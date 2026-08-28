@@ -1,0 +1,7 @@
+[Network]
+NetworkName=homelab-forgejo
+Subnet=10.200.3.0/24
+Gateway=10.200.3.1
+Internal=true
+Options=isolate=true
+Label=io.containers.systemd.application=forgejo

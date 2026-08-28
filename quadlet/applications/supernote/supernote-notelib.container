@@ -1,0 +1,26 @@
+[Unit]
+Description=Supernote notelib
+After=homelab-secrets.service
+Requires=homelab-secrets.service
+PartOf=homelab-supernote.target
+
+[Container]
+Image=docker.io/supernote/notelib:6.9.3@sha256:0b39123483353bd3c1637e6faee793eee036e46612448eacbc7ba55bfb220e05
+Pull=missing
+ContainerName=notelib
+EnvironmentFile=%t/homelab/rendered/site.env
+Network=supernote.network
+Network=supernote-notelib-egress.network
+LogDriver=journald
+NoNewPrivileges=true
+DropCapability=all
+ReadOnly=true
+ReadOnlyTmpfs=true
+PodmanArgs=--image-volume=ignore
+PidsLimit=1024
+RunInit=true
+
+[Service]
+Restart=always
+RestartSec=5s
+TimeoutStartSec=900

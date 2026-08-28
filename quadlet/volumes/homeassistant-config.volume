@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-homeassistant-config
+Label=io.containers.systemd.application=homeassistant

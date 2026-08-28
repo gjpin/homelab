@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-supernote-recycle
+Label=io.containers.systemd.application=supernote

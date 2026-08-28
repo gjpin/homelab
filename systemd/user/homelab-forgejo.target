@@ -1,0 +1,4 @@
+[Unit]
+Description=forgejo application stack
+Wants=forgejo-postgres.service forgejo.service
+After=homelab-secrets.service

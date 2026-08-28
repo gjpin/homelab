@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+printf '%-28s %s\n' UNIT STATE
+for target in homelab-{anythingllm,caddy,docs-mcp,forgejo,homeassistant,immich,radicale,searxng,supernote,syncthing,vaultwarden}.target; do
+  printf '%-28s %s\n' "$target" "$(systemctl --user is-active "$target" 2>/dev/null || true)"
+done
+printf '\nContainers:\n'
+podman ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+
+printf '\nBackup:\n'
+printf '%-28s %s\n' homelab-backup.timer "$(systemctl --user is-active homelab-backup.timer 2>/dev/null || true)"
+next_run=$(systemctl --user show homelab-backup.timer --property=NextElapseUSecRealtime --value 2>/dev/null || true)
+printf '%-28s %s\n' 'next run' "${next_run:-unknown}"
+backup_result=$(systemctl --user show homelab-backup.service --property=Result --value 2>/dev/null || true)
+printf '%-28s %s\n' 'last service result' "${backup_result:-unknown}"
+if [[ -r $HOME/.local/state/homelab/last-backup-success ]]; then
+  sed 's/^/  /' "$HOME/.local/state/homelab/last-backup-success"
+else
+  printf '  no successful backup recorded\n'
+fi
+if [[ -s $HOME/.local/state/homelab/incomplete-backup-snapshot ]]; then
+  printf '  WARNING incomplete snapshot: %s\n' \
+    "$(<"$HOME/.local/state/homelab/incomplete-backup-snapshot")"
+fi

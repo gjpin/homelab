@@ -1,0 +1,4 @@
+[Unit]
+Description=caddy application stack
+Wants=caddy.service
+After=homelab-secrets.service

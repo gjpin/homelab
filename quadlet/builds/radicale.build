@@ -1,0 +1,5 @@
+[Build]
+ImageTag=localhost/homelab/radicale
+File=%h/current/images/radicale/Containerfile
+SetWorkingDirectory=file
+Pull=always

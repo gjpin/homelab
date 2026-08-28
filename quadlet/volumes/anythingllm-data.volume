@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-anythingllm-data
+Label=io.containers.systemd.application=anythingllm

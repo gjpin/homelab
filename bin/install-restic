@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+[[ ${EUID} -eq 0 ]] || { printf 'Run this command as root.\n' >&2; exit 1; }
+[[ $(uname -m) == x86_64 ]] || { printf 'This deployment supports only x86_64 hosts.\n' >&2; exit 1; }
+
+version=0.19.1
+archive_sha256=f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c
+archive="restic_${version}_linux_amd64.bz2"
+url="https://github.com/restic/restic/releases/download/v${version}/${archive}"
+tmp_dir=$(mktemp -d)
+trap 'rm -rf -- "$tmp_dir"' EXIT
+
+curl --fail --location --proto '=https' --tlsv1.2 --output "$tmp_dir/$archive" "$url"
+printf '%s  %s\n' "$archive_sha256" "$tmp_dir/$archive" | sha256sum --check --status
+bzip2 --decompress "$tmp_dir/$archive"
+install -m 0755 "$tmp_dir/${archive%.bz2}" /usr/local/bin/restic
+/usr/local/bin/restic version

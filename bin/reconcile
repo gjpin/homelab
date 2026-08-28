@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+require_command flock
+require_command git
+require_command jq
+require_command podman
+require_command systemctl
+require_command tar
+
+runtime_home=${HOME:?HOME is not set}
+repo_dir=${HOMELAB_REPO_DIR:-$runtime_home/git/repository}
+releases_dir=${HOMELAB_RELEASES_DIR:-$runtime_home/releases}
+current_link=${HOMELAB_CURRENT_LINK:-$runtime_home/current}
+state_dir=${HOMELAB_STATE_DIR:-$runtime_home/.local/state/homelab}
+branch=${HOMELAB_GIT_BRANCH:-main}
+lock_file="${XDG_RUNTIME_DIR:?}/homelab-operation.lock"
+dry_run=false
+[[ ${1:-} == --dry-run ]] && dry_run=true
+
+exec 9>"$lock_file"
+flock --nonblock 9 || die "another reconciliation is running"
+[[ -d $repo_dir/.git ]] || die "Git checkout not found: $repo_dir"
+install -d -m 0700 "$releases_dir" "$state_dir" "$state_dir/anythingllm"
+touch "$state_dir/anythingllm/.env"
+chmod 0600 "$state_dir/anythingllm/.env"
+
+info "fetching origin/$branch"
+git -C "$repo_dir" fetch --prune origin "$branch"
+target_commit=$(git -C "$repo_dir" rev-parse "origin/$branch")
+deployed_commit=
+[[ -r $state_dir/deployed-commit ]] && read -r deployed_commit <"$state_dir/deployed-commit"
+
+if [[ -n $deployed_commit ]] && ! git -C "$repo_dir" merge-base --is-ancestor "$deployed_commit" "$target_commit"; then
+  die "origin/$branch is not a fast-forward from deployed commit $deployed_commit"
+fi
+if [[ $target_commit == "$deployed_commit" && -e $current_link ]]; then
+  info "already at $target_commit"
+  systemctl --user start homelab-secrets.service
+  while IFS= read -r app; do
+    needs_restart=false
+    while IFS= read -r unit; do
+      if ! systemctl --user is-active --quiet "$unit"; then
+        needs_restart=true
+        break
+      fi
+    done < <(jq -r --arg app "$app" '.[$app].units[]' "$current_link/manifests/applications.json")
+    if $needs_restart; then
+      info "repairing inactive $app application target"
+      systemctl --user restart "homelab-$app.target"
+    fi
+  done < <(jq -r 'keys[]' "$current_link/manifests/applications.json")
+  systemctl --user enable homelab-backup.timer >/dev/null
+  systemctl --user start homelab.target homelab-reconcile.timer homelab-backup.timer
+  "$current_link/bin/security-audit"
+  exit 0
+fi
+
+release="$releases_dir/$target_commit"
+if [[ ! -d $release ]]; then
+  install -d -m 0700 "$release"
+  git -C "$repo_dir" archive "$target_commit" | tar -x -C "$release"
+fi
+
+"$release/bin/validate" --deployment
+"$release/bin/fetch-assets"
+
+if $dry_run; then
+  info "validated $target_commit; dry-run requested"
+  exit 0
+fi
+
+mapfile -t images < <(rg --no-filename '^Image=' "$release/quadlet/applications" | cut -d= -f2- | rg -v '\.build$' | sort -u)
+for image in "${images[@]}"; do
+  if ! podman image exists "$image"; then
+    info "pulling $image"
+    podman pull "$image" >/dev/null
+  fi
+done
+
+apps=()
+if [[ -z $deployed_commit ]]; then
+  mapfile -t apps < <(jq -r 'keys[]' "$release/manifests/applications.json")
+else
+  mapfile -t changed_paths < <(git -C "$repo_dir" diff --name-only "$deployed_commit" "$target_commit")
+  for path in "${changed_paths[@]}"; do
+    case "$path" in
+      quadlet/applications/*)
+        app=$(cut -d/ -f3 <<<"$path")
+        [[ -d "$release/quadlet/applications/$app" ]] && apps+=("$app")
+        ;;
+      config/templates/*)
+        app=$(cut -d/ -f3 <<<"$path")
+        [[ -d "$release/quadlet/applications/$app" ]] && apps+=("$app")
+        ;;
+      images/caddy/*|quadlet/builds/caddy.build)
+        apps+=(caddy)
+        ;;
+      images/radicale/*|quadlet/builds/radicale.build)
+        apps+=(radicale)
+        ;;
+      quadlet/networks/*|quadlet/volumes/*)
+        mapfile -t apps < <(jq -r 'keys[]' "$release/manifests/applications.json")
+        break
+        ;;
+      secrets/*|.sops.yaml|config/site.env|bin/*|systemd/user/*|manifests/*)
+        mapfile -t apps < <(jq -r 'keys[]' "$release/manifests/applications.json")
+        break
+        ;;
+    esac
+  done
+fi
+mapfile -t apps < <(printf '%s\n' "${apps[@]}" | sed '/^$/d' | sort -u)
+
+previous_target=
+[[ -L $current_link ]] && previous_target=$(readlink "$current_link")
+ln -sfn "$release" "$current_link.next"
+mv -Tf "$current_link.next" "$current_link"
+install -d -m 0700 "$runtime_home/.config/containers/systemd" "$runtime_home/.config/systemd/user"
+ln -sfn "$current_link/quadlet" "$runtime_home/.config/containers/systemd/homelab"
+for source in "$current_link"/systemd/user/*; do
+  unit=$(basename -- "$source")
+  ln -sfn "$source" "$runtime_home/.config/systemd/user/$unit"
+done
+
+if ! systemctl --user daemon-reload; then
+  [[ -n $previous_target ]] && ln -sfn "$previous_target" "$current_link"
+  systemctl --user daemon-reload || true
+  die "systemd reload failed; restored prior release"
+fi
+
+systemctl --user restart homelab-secrets.service
+for app in "${apps[@]}"; do
+  [[ -e "$release/systemd/user/homelab-$app.target" ]] || continue
+  info "restarting $app"
+  case "$app" in
+    caddy|radicale) systemctl --user restart "$app-build.service" ;;
+  esac
+  systemctl --user restart "homelab-$app.target"
+done
+
+for app in "${apps[@]}"; do
+  while IFS= read -r unit; do
+    systemctl --user is-active --quiet "$unit" || die "$app unit failed health/activation checks: $unit"
+  done < <(jq -r --arg app "$app" '.[$app].units[]' "$release/manifests/applications.json")
+done
+"$release/bin/security-audit"
+printf '%s\n' "$target_commit" >"$state_dir/deployed-commit"
+systemctl --user enable homelab.target homelab-reconcile.timer homelab-backup.timer >/dev/null
+systemctl --user start homelab.target homelab-reconcile.timer homelab-backup.timer
+info "deployed $target_commit"

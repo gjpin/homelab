@@ -1,0 +1,28 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Validate repository and Quadlets
+        run: |
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/src:ro" \
+            --workdir /src \
+            fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
+            bash -lc 'dnf install -y jq podman ripgrep ShellCheck >/dev/null && ./bin/validate && ./tests/static.sh && ./tests/backup.sh && ln -s /src /root/current && systemd-analyze verify systemd/user/homelab-backup.service systemd/user/homelab-backup.timer'
+
+      - name: Build custom images
+        run: |
+          docker build --pull --file images/caddy/Containerfile --tag localhost/homelab/caddy:test images/caddy
+          docker build --pull --file images/radicale/Containerfile --tag localhost/homelab/radicale:test images/radicale

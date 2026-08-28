@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-vaultwarden-data
+Label=io.containers.systemd.application=vaultwarden

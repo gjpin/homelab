@@ -1,0 +1,69 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "docker:pinDigests"],
+  "dependencyDashboard": true,
+  "rangeStrategy": "pin",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update digest-pinned images in Quadlet container units",
+      "managerFilePatterns": ["/^quadlet\\/applications\\/.*\\.container$/"],
+      "matchStrings": [
+        "Image=(?<depName>[^\\s]+?):(?<currentValue>[^\\s@]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the self-hosted Renovate container version",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/renovate\\.yml$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)\\s+renovate-version: (?<currentValue>[^\\s]+)"
+      ],
+      "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the Fedora validation container version and digest",
+      "managerFilePatterns": ["/^\\.github\\/workflows\\/validate\\.yml$/"],
+      "matchStrings": [
+        "fedora:(?<currentValue>[^\\s@]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
+      ],
+      "datasourceTemplate": "docker",
+      "depNameTemplate": "docker.io/library/fedora",
+      "versioningTemplate": "docker"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Never automerge container updates",
+      "matchDatasources": ["docker"],
+      "automerge": false
+    },
+    {
+      "description": "The Renovate Action accepts a version but not an image digest",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["ghcr.io/renovatebot/renovate"],
+      "pinDigests": false
+    },
+    {
+      "description": "Keep the Immich services on one release",
+      "matchPackageNames": [
+        "ghcr.io/immich-app/immich-server",
+        "ghcr.io/immich-app/immich-machine-learning"
+      ],
+      "groupName": "immich"
+    },
+    {
+      "description": "Keep all Docs MCP services on one release",
+      "matchPackageNames": ["ghcr.io/arabold/docs-mcp-server"],
+      "groupName": "docs-mcp"
+    },
+    {
+      "description": "Keep Caddy build stages on one release",
+      "matchPackageNames": ["docker.io/caddy"],
+      "groupName": "caddy"
+    }
+  ]
+}

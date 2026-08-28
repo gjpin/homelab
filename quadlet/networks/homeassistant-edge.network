@@ -1,0 +1,6 @@
+[Network]
+NetworkName=homelab-homeassistant-edge
+Subnet=10.200.12.0/24
+Gateway=10.200.12.1
+Options=isolate=true
+Label=io.containers.systemd.application=homeassistant

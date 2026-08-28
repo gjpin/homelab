@@ -1,0 +1,4 @@
+[Unit]
+Description=searxng application stack
+Wants=searxng-valkey.service searxng-core.service
+After=homelab-secrets.service

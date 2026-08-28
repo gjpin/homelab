@@ -1,0 +1,8 @@
+[Unit]
+Description=Verify SELinux container confinement
+Before=homelab-secrets.service
+
+[Service]
+Type=oneshot
+ExecStart=%h/current/bin/verify-host-security
+RemainAfterExit=yes

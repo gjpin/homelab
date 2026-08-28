@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-supernote-logs-app
+Label=io.containers.systemd.application=supernote

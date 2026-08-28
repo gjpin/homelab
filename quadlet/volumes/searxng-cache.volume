@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-searxng-cache
+Label=io.containers.systemd.application=searxng

@@ -1,0 +1,29 @@
+[Unit]
+Description=Home Assistant Mosquitto
+After=homelab-secrets.service
+Requires=homelab-secrets.service
+PartOf=homelab-homeassistant.target
+
+[Container]
+Image=docker.io/library/eclipse-mosquitto:2.1.2-alpine@sha256:6f8d8a947c506f8a2290ec65cd4bd2bc7cb4d43fb5f6271f861cb013e2ef9797
+Pull=missing
+ContainerName=homeassistant-mosquitto
+EnvironmentFile=%t/homelab/rendered/site.env
+Network=homeassistant.network
+Volume=%t/homelab/rendered/homeassistant/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro,Z
+Volume=%t/homelab/rendered/homeassistant/mosquitto-passwords:/mosquitto/config/passwords:ro,Z
+Volume=homeassistant-mosquitto-data.volume:/mosquitto/data
+LogDriver=journald
+NoNewPrivileges=true
+DropCapability=all
+AddCapability=CHOWN DAC_OVERRIDE FOWNER SETGID SETUID
+ReadOnly=true
+ReadOnlyTmpfs=true
+PodmanArgs=--image-volume=ignore
+PidsLimit=1024
+RunInit=true
+
+[Service]
+Restart=always
+RestartSec=5s
+TimeoutStartSec=900

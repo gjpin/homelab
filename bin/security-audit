@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+root=$(repo_root)
+containers="$root/quadlet/applications"
+
+require_command jq
+require_command podman
+"$root/bin/verify-host-security"
+
+allowed_capability() {
+  case "$1" in
+    CAP_NET_BIND_SERVICE|CAP_CHOWN|CAP_DAC_OVERRIDE|CAP_FOWNER|CAP_SETGID|CAP_SETUID) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+while IFS= read -r unit; do
+  name=$(sed -n 's/^ContainerName=//p' "$unit")
+  [[ -n $name ]] || die "missing ContainerName in $unit"
+  inspection=$(podman inspect "$name") || die "container is unavailable: $name"
+
+  jq -e '.[0].State.Running == true' <<<"$inspection" >/dev/null || \
+    die "$name is not running"
+  jq -e '.[0].HostConfig.ReadonlyRootfs == true' <<<"$inspection" >/dev/null || \
+    die "$name does not have a read-only root filesystem"
+  jq -e '((.[0].HostConfig.SecurityOpt // []) | index("no-new-privileges")) != null' \
+    <<<"$inspection" >/dev/null || die "$name does not enforce no-new-privileges"
+  jq -e '.[0].HostConfig.PidsLimit > 0 and .[0].HostConfig.PidsLimit <= 1024' \
+    <<<"$inspection" >/dev/null || die "$name has an invalid PID limit"
+  jq -e '[.[0].Mounts[]? | select(.Type == "volume" and (.Name | startswith("homelab-") | not))] | length == 0' \
+    <<<"$inspection" >/dev/null || die "$name has an untracked anonymous image volume"
+
+  while IFS= read -r capability; do
+    allowed_capability "$capability" || die "$name has forbidden effective capability $capability"
+  done < <(jq -r '.[0].EffectiveCaps[]?' <<<"$inspection")
+
+  process_label=$(jq -r '.[0].ProcessLabel // ""' <<<"$inspection")
+  if [[ $name == homeassistant-zigbee2mqtt ]]; then
+    [[ $process_label == *:container_device_t:* ]] || \
+      die "$name is not confined by container_device_t: $process_label"
+  else
+    [[ $process_label == *:container_t:* ]] || \
+      die "$name is not confined by container_t: $process_label"
+  fi
+done < <(find "$containers" -name '*.container' -type f | sort)
+
+caddy_networks=$(podman inspect caddy | jq -r '.[0].NetworkSettings.Networks | keys[]')
+for forbidden in \
+  homelab-forgejo homelab-homeassistant homelab-immich homelab-searxng homelab-supernote; do
+  if grep -Fxq "$forbidden" <<<"$caddy_networks"; then
+    die "Caddy is attached to backend network $forbidden"
+  fi
+done
+
+for internal in \
+  homelab-forgejo homelab-homeassistant homelab-immich homelab-searxng homelab-supernote; do
+  podman network inspect "$internal" | jq -e '.[0].internal == true' >/dev/null || \
+    die "backend network is not internal: $internal"
+done
+
+info "runtime container security audit passed"

@@ -1,0 +1,6 @@
+[Network]
+NetworkName=homelab-supernote-edge
+Subnet=10.200.16.0/24
+Gateway=10.200.16.1
+Options=isolate=true
+Label=io.containers.systemd.application=supernote

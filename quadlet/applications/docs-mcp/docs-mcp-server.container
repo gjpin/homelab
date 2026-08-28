@@ -1,0 +1,34 @@
+[Unit]
+Description=Docs MCP server
+After=docs-mcp-worker.container
+Requires=docs-mcp-worker.container
+PartOf=homelab-docs-mcp.target
+
+[Container]
+Image=ghcr.io/arabold/docs-mcp-server:3.0.1@sha256:a0af614ecb4ed4e4077d9213a38d7a46215fd4362a129eaa334fcb53ec546769
+Pull=missing
+ContainerName=docs-mcp-server
+EnvironmentFile=%t/homelab/rendered/site.env
+Network=docs-mcp.network
+Exec=mcp --protocol http --host 0.0.0.0 --port 6280 --server-url http://docs-mcp-worker:8080/api --no-logo
+Environment=DOCS_MCP_EMBEDDING_MODEL=openai:text-embedding-3-small
+Environment=DOCS_MCP_STORE_PATH=/database
+Environment=DOCS_MCP_EMBEDDING_BATCH_CHARS=50000
+Secret=docs-mcp-openai-api-key,type=env,target=OPENAI_API_KEY
+Secret=docs-mcp-posthog-api-key,type=env,target=POSTHOG_API_KEY
+Volume=docs-mcp-config.volume:/config
+Volume=docs-mcp-database.volume:/database
+Memory=512M
+LogDriver=journald
+NoNewPrivileges=true
+DropCapability=all
+ReadOnly=true
+ReadOnlyTmpfs=true
+PodmanArgs=--image-volume=ignore
+PidsLimit=1024
+RunInit=true
+
+[Service]
+Restart=always
+RestartSec=5s
+TimeoutStartSec=900

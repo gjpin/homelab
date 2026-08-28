@@ -1,0 +1,6 @@
+[Network]
+NetworkName=homelab-syncthing
+Subnet=10.200.9.0/24
+Gateway=10.200.9.1
+Options=isolate=true
+Label=io.containers.systemd.application=syncthing

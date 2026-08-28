@@ -1,0 +1,31 @@
+use_default_settings: true
+
+general:
+  debug: false
+  instance_name: SearXNG
+  privacypolicy_url: false
+  donation_url: false
+  contact_url: false
+  enable_metrics: false
+  open_metrics: ''
+
+server:
+  base_url: https://search.${BASE_DOMAIN}
+  port: 8080
+  bind_address: 0.0.0.0
+  secret_key: "${SEARXNG_SECRET_KEY}"
+  limiter: false
+  public_instance: true
+  image_proxy: false
+  method: POST
+  default_http_headers:
+    X-Content-Type-Options: nosniff
+    X-Download-Options: noopen
+    X-Robots-Tag: noindex, nofollow
+    Referrer-Policy: no-referrer
+
+valkey:
+  url: valkey://searxng-valkey:6379/0
+
+search:
+  formats: [html, csv, json, rss]

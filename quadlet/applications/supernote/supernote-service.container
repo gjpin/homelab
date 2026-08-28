@@ -1,0 +1,42 @@
+[Unit]
+Description=Supernote service
+After=supernote-mariadb.container supernote-redis.container
+Requires=supernote-mariadb.container supernote-redis.container
+PartOf=homelab-supernote.target
+
+[Container]
+Image=docker.io/supernote/supernote-service:26.06.04@sha256:7bb452e60c4f9196070a07716e609189c8ac910facf1f7976a0d528a502f5f05
+Pull=missing
+ContainerName=supernote-service
+Network=supernote.network
+Network=supernote-edge.network
+EnvironmentFile=%t/homelab/rendered/site.env
+Environment=MYSQL_DATABASE=supernotedb
+Environment=MYSQL_USER=supernote
+Environment=REDIS_HOST=supernote-redis
+Environment=REDIS_PORT=6379
+Environment=DB_HOSTNAME=supernote-mariadb
+Environment=HTTP_PORT=443
+Environment=HTTPS_PORT=443
+Secret=supernote-database-user-password,type=env,target=MYSQL_PASSWORD
+Secret=supernote-redis-password,type=env,target=REDIS_PASSWORD
+Volume=supernote-data.volume:/home/supernote/data
+Volume=supernote-recycle.volume:/home/supernote/recycle
+Volume=supernote-logs-cloud.volume:/home/supernote/cloud/logs
+Volume=supernote-logs-app.volume:/home/supernote/logs
+Volume=supernote-logs-web.volume:/var/log/nginx
+Volume=supernote-convert.volume:/home/supernote/convert
+LogDriver=journald
+NoNewPrivileges=true
+DropCapability=all
+AddCapability=NET_BIND_SERVICE
+ReadOnly=true
+ReadOnlyTmpfs=true
+PodmanArgs=--image-volume=ignore
+PidsLimit=1024
+RunInit=true
+
+[Service]
+Restart=always
+RestartSec=5s
+TimeoutStartSec=900

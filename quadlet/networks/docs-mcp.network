@@ -1,0 +1,6 @@
+[Network]
+NetworkName=homelab-docs-mcp
+Subnet=10.200.2.0/24
+Gateway=10.200.2.1
+Options=isolate=true
+Label=io.containers.systemd.application=docs-mcp

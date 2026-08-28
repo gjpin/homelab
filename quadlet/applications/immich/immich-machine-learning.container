@@ -1,0 +1,27 @@
+[Unit]
+Description=Immich machine learning
+After=homelab-secrets.service
+Requires=homelab-secrets.service
+PartOf=homelab-immich.target
+
+[Container]
+Image=ghcr.io/immich-app/immich-machine-learning:v3.1.0@sha256:5a0839dc5303cd7215bcd2180a26aed3af41675aefb3e75e5157e9f10ad16e6e
+Pull=missing
+ContainerName=immich-machine-learning
+EnvironmentFile=%t/homelab/rendered/site.env
+Network=immich.network
+Network=immich-ml-egress.network
+Volume=immich-machine-learning.volume:/cache
+LogDriver=journald
+NoNewPrivileges=true
+DropCapability=all
+ReadOnly=true
+ReadOnlyTmpfs=true
+PodmanArgs=--image-volume=ignore
+PidsLimit=1024
+RunInit=true
+
+[Service]
+Restart=always
+RestartSec=5s
+TimeoutStartSec=900

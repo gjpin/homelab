@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+root=$(repo_root)
+deployment=false
+[[ ${1:-} == --deployment ]] && deployment=true
+
+require_command jq
+jq -e 'type == "object" and length == 11' "$root/manifests/applications.json" >/dev/null
+
+sops_age_line=$(sed -n 's/^[[:space:]]*age:[[:space:]]*//p' "$root/.sops.yaml")
+[[ -n $sops_age_line && $sops_age_line != *$'\n'* ]] || die ".sops.yaml must contain exactly one age recipient rule"
+IFS=, read -r -a sops_age_recipients <<<"$sops_age_line"
+[[ ${#sops_age_recipients[@]} -eq 2 ]] || die ".sops.yaml must contain exactly two age recipients"
+for recipient in "${sops_age_recipients[@]}"; do
+  require_pq_age_recipient ".sops.yaml recipient" "$recipient"
+done
+
+if rg -n 'DATA_PATH|docker-compose|:latest([@[:space:]]|$)' "$root/quadlet" "$root/config" "$root/images" 2>/dev/null; then
+  die "legacy Compose references or floating latest tags found"
+fi
+
+if rg -n --glob '!secrets.example.yaml' --glob '!*.sops.yaml' '(API_KEY|PASSWORD|TOKEN|SECRET)[=:][^$[:space:]][^[:space:]]+' "$root"; then
+  die "possible plaintext secret found"
+fi
+
+for subnet in {1..17}; do
+  rg -q "Subnet=10\.200\.${subnet}\.0/24" "$root/quadlet/networks" || die "missing network subnet 10.200.$subnet.0/24"
+done
+
+if [[ -f "$root/secrets/secrets.sops.yaml" ]]; then
+  rg -q '^sops:' "$root/secrets/secrets.sops.yaml" || die "secrets file is not SOPS encrypted"
+  rg -q 'ENC\[' "$root/secrets/secrets.sops.yaml" || die "secrets file contains no encrypted values"
+  mapfile -t encrypted_recipients < <(
+    sed -n 's/^[[:space:]]*recipient:[[:space:]]*\(age[^[:space:]]*\)[[:space:]]*$/\1/p' \
+      "$root/secrets/secrets.sops.yaml"
+  )
+  [[ ${#encrypted_recipients[@]} -eq 2 ]] || die "encrypted secrets must contain exactly two age recipients"
+  for recipient in "${encrypted_recipients[@]}"; do
+    require_pq_age_recipient "encrypted secrets recipient" "$recipient"
+  done
+elif $deployment; then
+  die "secrets/secrets.sops.yaml has not been initialized"
+fi
+
+if $deployment; then
+  load_site_config "$root"
+fi
+
+if command -v shellcheck >/dev/null 2>&1; then
+  mapfile -t shell_scripts < <(rg -l '^#!/usr/bin/env bash$' "$root/bin" "$root/tests")
+  shellcheck "${shell_scripts[@]}"
+fi
+
+generator=/usr/lib/systemd/system-generators/podman-system-generator
+if [[ -x $generator ]]; then
+  QUADLET_UNIT_DIRS="$root/quadlet" "$generator" --user --dryrun >/dev/null
+elif $deployment; then
+  die "Podman Quadlet generator not found at $generator"
+else
+  info "Podman Quadlet generator unavailable; skipped generator validation"
+fi
+
+if command -v ip >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+  overlap=$(ip -o -4 route show | python3 -c '
+import ipaddress
+import sys
+
+target = ipaddress.ip_network("10.200.0.0/16")
+for line in sys.stdin:
+    if "podman" in line:
+        continue
+    destination = line.split()[0]
+    if destination == "default":
+        continue
+    try:
+        route = ipaddress.ip_network(destination, strict=False)
+    except ValueError:
+        continue
+    if target.overlaps(route):
+        print(destination)
+        break
+')
+  [[ -z $overlap ]] || die "10.200.0.0/16 overlaps host route $overlap"
+fi
+
+info "validation passed"

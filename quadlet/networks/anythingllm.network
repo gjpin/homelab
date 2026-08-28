@@ -1,0 +1,6 @@
+[Network]
+NetworkName=homelab-anythingllm
+Subnet=10.200.1.0/24
+Gateway=10.200.1.1
+Options=isolate=true
+Label=io.containers.systemd.application=anythingllm

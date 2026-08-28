@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+require_command getenforce
+require_command getsebool
+require_command selinuxenabled
+
+selinuxenabled || die "SELinux is disabled; refusing to start containers"
+[[ $(getenforce) == Enforcing ]] || die "SELinux is not enforcing; refusing to start containers"
+
+device_boolean=$(getsebool container_use_devices 2>/dev/null) || \
+  die "container_use_devices is unavailable; verify that container-selinux is installed"
+[[ $device_boolean == *' --> off' ]] || \
+  die "container_use_devices must be off; Zigbee2MQTT uses the scoped container_device_t domain"
+
+info "host container security prerequisites passed"

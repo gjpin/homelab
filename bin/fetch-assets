@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+root=$(repo_root)
+destination="$root/assets/supernote/supernotedb.sql"
+checksum_file="$root/assets/supernote/supernotedb.sql.sha256"
+url=https://supernote-private-cloud.supernote.com/cloud/supernotedb.sql
+
+require_command curl
+require_command sha256sum
+
+if [[ -f "$destination" ]] && (cd "$(dirname -- "$destination")" && sha256sum --check --status "$(basename -- "$checksum_file")"); then
+  exit 0
+fi
+
+tmp=$(mktemp "${destination}.XXXXXX")
+trap 'rm -f -- "$tmp"' EXIT
+curl --fail --location --proto '=https' --tlsv1.2 --output "$tmp" "$url"
+expected=$(awk '{print $1}' "$checksum_file")
+actual=$(sha256sum "$tmp" | awk '{print $1}')
+[[ "$actual" == "$expected" ]] || die "Supernote SQL checksum mismatch"
+chmod 0444 "$tmp"
+mv -f -- "$tmp" "$destination"
+trap - EXIT

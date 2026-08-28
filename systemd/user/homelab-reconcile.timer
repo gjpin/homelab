@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodically reconcile the homelab deployment
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+Persistent=true
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target

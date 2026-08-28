@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-searxng-valkey
+Label=io.containers.systemd.application=searxng

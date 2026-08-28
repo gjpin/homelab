@@ -1,0 +1,9 @@
+[Unit]
+Description=Reconcile the homelab deployment from Git
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/current/bin/reconcile
+UMask=0077

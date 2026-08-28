@@ -1,0 +1,4 @@
+[Unit]
+Description=vaultwarden application stack
+Wants=vaultwarden.service
+After=homelab-secrets.service

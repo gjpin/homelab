@@ -1,0 +1,7 @@
+[Network]
+NetworkName=homelab-searxng
+Subnet=10.200.7.0/24
+Gateway=10.200.7.1
+Internal=true
+Options=isolate=true
+Label=io.containers.systemd.application=searxng

@@ -1,0 +1,4 @@
+[Unit]
+Description=homeassistant application stack
+Wants=homeassistant-mosquitto.service homeassistant-zigbee2mqtt.service homeassistant.service
+After=homelab-secrets.service

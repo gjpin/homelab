@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-supernote-mariadb
+Label=io.containers.systemd.application=supernote

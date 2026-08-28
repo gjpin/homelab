@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+[[ ${EUID} -eq 0 ]] || { printf 'Run this command as root.\n' >&2; exit 1; }
+
+root=$(cd -- "$(dirname -- "$0")/.." && pwd)
+# shellcheck source=/dev/null
+source "$root/bin/lib.sh"
+runtime_user=homelab
+runtime_home=/home/homelab
+repo_url=
+branch=main
+firewalld_zone=public
+git_key=
+known_hosts=
+host_age_key=
+
+while (($#)); do
+  case "$1" in
+    --repo) repo_url=${2:?}; shift 2 ;;
+    --branch) branch=${2:?}; shift 2 ;;
+    --firewalld-zone) firewalld_zone=${2:?}; shift 2 ;;
+    --git-key) git_key=${2:?}; shift 2 ;;
+    --known-hosts) known_hosts=${2:?}; shift 2 ;;
+    --host-age-key) host_age_key=${2:?}; shift 2 ;;
+    *) printf 'Unknown argument: %s\n' "$1" >&2; exit 1 ;;
+  esac
+done
+[[ -n $repo_url ]] || { printf '%s\n' '--repo is required' >&2; exit 1; }
+[[ -z $host_age_key || ( -f $host_age_key && -r $host_age_key ) ]] || {
+  printf '%s\n' '--host-age-key must be a readable age identity backup' >&2
+  exit 1
+}
+case "$repo_url" in
+  git@*:*|ssh://*)
+    [[ -n $git_key ]] || { printf '%s\n' '--git-key is required for an SSH repository' >&2; exit 1; }
+    [[ -n $known_hosts ]] || { printf '%s\n' '--known-hosts is required for an SSH repository' >&2; exit 1; }
+    [[ -f $git_key && -r $git_key ]] || { printf '%s\n' '--git-key must be a readable private key file' >&2; exit 1; }
+    [[ -f $known_hosts && -r $known_hosts ]] || { printf '%s\n' '--known-hosts must be a readable file' >&2; exit 1; }
+    ;;
+esac
+
+dnf install -y bzip2 container-selinux curl firewalld gettext git iproute jq openssh-clients podman policycoreutils python3 ripgrep tar
+require_command getenforce
+require_command getsebool
+require_command selinuxenabled
+selinuxenabled || die "SELinux is disabled; enable it before bootstrapping this host"
+[[ $(getenforce) == Enforcing ]] || die "SELinux must be enforcing before bootstrapping this host"
+getsebool container_use_devices >/dev/null 2>&1 || \
+  die "container_use_devices is unavailable after installing container-selinux"
+setsebool -P container_use_devices off
+
+"$root/bin/install-age"
+"$root/bin/install-sops"
+"$root/bin/install-restic"
+systemctl enable --now firewalld
+
+if ss -H -ltn 'sport = :443' | grep -q .; then
+  printf 'TCP port 443 is already in use; stop the existing listener first.\n' >&2
+  exit 1
+fi
+
+if ! id "$runtime_user" >/dev/null 2>&1; then
+  useradd --create-home --home-dir "$runtime_home" --shell /bin/bash "$runtime_user"
+  passwd --lock "$runtime_user"
+fi
+loginctl enable-linger "$runtime_user"
+
+install -d -m 0700 -o "$runtime_user" -g "$runtime_user" "$runtime_home/.ssh" "$runtime_home/.config/sops/age" "$runtime_home/git"
+if [[ -n $git_key ]]; then
+  install -m 0600 -o "$runtime_user" -g "$runtime_user" "$git_key" "$runtime_home/.ssh/id_ed25519"
+fi
+if [[ -n $known_hosts ]]; then
+  install -m 0600 -o "$runtime_user" -g "$runtime_user" "$known_hosts" "$runtime_home/.ssh/known_hosts"
+fi
+if [[ -n $host_age_key ]]; then
+  if [[ -e $runtime_home/.config/sops/age/keys.txt ]]; then
+    cmp -s -- "$host_age_key" "$runtime_home/.config/sops/age/keys.txt" || {
+      printf '%s\n' '--host-age-key differs from the existing host age identity; refusing to overwrite it' >&2
+      exit 1
+    }
+  else
+    install -m 0600 -o "$runtime_user" -g "$runtime_user" \
+      "$host_age_key" "$runtime_home/.config/sops/age/keys.txt"
+  fi
+elif [[ ! -f $runtime_home/.config/sops/age/keys.txt ]]; then
+  runuser -u "$runtime_user" -- env HOME="$runtime_home" age-keygen -pq -o "$runtime_home/.config/sops/age/keys.txt"
+  chmod 0600 "$runtime_home/.config/sops/age/keys.txt"
+fi
+recipient=$(runuser -u "$runtime_user" -- env HOME="$runtime_home" \
+  age-keygen -y "$runtime_home/.config/sops/age/keys.txt")
+require_pq_age_recipient "host identity recipient" "$recipient"
+
+if [[ ! -d $runtime_home/git/repository/.git ]]; then
+  if [[ -n $git_key ]]; then
+    git_ssh="ssh -i $runtime_home/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$runtime_home/.ssh/known_hosts"
+    runuser -u "$runtime_user" -- env HOME="$runtime_home" GIT_SSH_COMMAND="$git_ssh" \
+      git clone --branch "$branch" "$repo_url" "$runtime_home/git/repository"
+  else
+    runuser -u "$runtime_user" -- env HOME="$runtime_home" \
+      git clone --branch "$branch" "$repo_url" "$runtime_home/git/repository"
+  fi
+fi
+
+load_site_config "$runtime_home/git/repository"
+timedatectl set-timezone "$TIMEZONE"
+device="/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID"
+[[ -e $device ]] || die "configured Zigbee coordinator does not exist: $device"
+device_group=$(stat -c %G "$device")
+usermod --append --groups "$device_group" "$runtime_user"
+loginctl terminate-user "$runtime_user" || true
+
+install -m 0644 "$root/systemd/system/caddy-https-proxy.socket" /etc/systemd/system/caddy-https-proxy.socket
+install -m 0644 "$root/systemd/system/caddy-https-proxy.service" /etc/systemd/system/caddy-https-proxy.service
+systemctl daemon-reload
+systemctl enable --now caddy-https-proxy.socket
+
+firewall-cmd --permanent --zone "$firewalld_zone" --add-service=https
+firewall-cmd --permanent --zone "$firewalld_zone" --add-port=22000/tcp
+firewall-cmd --permanent --zone "$firewalld_zone" --add-port=22000/udp
+firewall-cmd --reload
+
+printf 'Host post-quantum age recipient: %s\n' "$recipient"
+printf 'Add this recipient with the operator recipient using bin/init-secrets, commit, push, then run:\n'
+printf 'runuser -u %s -- env HOME=%s XDG_RUNTIME_DIR=/run/user/%s %s/git/repository/bin/reconcile\n' "$runtime_user" "$runtime_home" "$(id -u "$runtime_user")" "$runtime_home"

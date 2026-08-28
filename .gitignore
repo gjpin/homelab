@@ -1,0 +1,5 @@
+secrets/secrets.yaml
+secrets/*.dec.*
+.env
+.cache/
+assets/supernote/supernotedb.sql

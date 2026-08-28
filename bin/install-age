@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+[[ ${EUID} -eq 0 ]] || { printf 'Run this command as root.\n' >&2; exit 1; }
+[[ $(uname -m) == x86_64 ]] || { printf 'This deployment supports only x86_64 hosts.\n' >&2; exit 1; }
+
+version=1.3.1
+archive_sha256=bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377
+archive="age-v${version}-linux-amd64.tar.gz"
+url="https://github.com/FiloSottile/age/releases/download/v${version}/${archive}"
+tmp_dir=$(mktemp -d)
+trap 'rm -rf -- "$tmp_dir"' EXIT
+
+curl --fail --location --proto '=https' --tlsv1.2 --output "$tmp_dir/$archive" "$url"
+printf '%s  %s\n' "$archive_sha256" "$tmp_dir/$archive" | sha256sum --check --status
+tar --extract --gzip --file "$tmp_dir/$archive" --directory "$tmp_dir"
+install -m 0755 "$tmp_dir/age/age" "$tmp_dir/age/age-keygen" \
+  "$tmp_dir/age/age-inspect" /usr/local/bin/
+age-keygen --version

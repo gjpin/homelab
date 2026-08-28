@@ -1,0 +1,4 @@
+[Unit]
+Description=radicale application stack
+Wants=radicale.service
+After=homelab-secrets.service

@@ -1,0 +1,206 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+root=$(repo_root)
+load_site_config "$root"
+tag=manual
+leave_stopped=false
+while (($#)); do
+  case "$1" in
+    --tag) tag=${2:?}; shift 2 ;;
+    --leave-stopped-on-success) leave_stopped=true; shift ;;
+    *) die "unknown argument: $1" ;;
+  esac
+done
+[[ $tag =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || die "backup tag is invalid"
+
+require_command flock
+require_command jq
+require_command podman
+require_command systemctl
+runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}
+state_dir=${HOMELAB_STATE_DIR:-$HOME/.local/state/homelab}
+lock_file="$runtime_dir/homelab-operation.lock"
+metadata_dir="$state_dir/backup-metadata"
+work_dir=$(mktemp -d "$runtime_dir/homelab-backup.XXXXXX")
+exec 9>"$lock_file"
+flock --nonblock 9 || die "another homelab maintenance operation is running"
+
+apps=()
+active_apps=()
+master_was_active=false
+reconcile_timer_was_active=false
+backup_timer_was_active=false
+deployment_stopped=false
+snapshot_created=false
+
+unit_is_active() {
+  systemctl --user is-active --quiet "$1"
+}
+
+restart_deployment() {
+  local app rc=0
+  if $master_was_active; then
+    systemctl --user start homelab.target || rc=1
+  else
+    for app in "${active_apps[@]}"; do
+      systemctl --user start "homelab-$app.target" || rc=1
+    done
+  fi
+  if $reconcile_timer_was_active; then
+    systemctl --user start homelab-reconcile.timer || rc=1
+  fi
+  if $backup_timer_was_active; then
+    systemctl --user start homelab-backup.timer || rc=1
+  fi
+  if ((rc == 0)); then
+    deployment_stopped=false
+  fi
+  return "$rc"
+}
+
+# Invoked by the EXIT trap below.
+# shellcheck disable=SC2329
+cleanup() {
+  local rc=$? restart_rc
+  rm -rf -- "$work_dir"
+  if $deployment_stopped; then
+    if $leave_stopped && $snapshot_created; then
+      systemctl --user disable homelab-reconcile.timer homelab-backup.timer >/dev/null 2>&1 || true
+      info "backup succeeded; applications and timers remain stopped for migration"
+    else
+      set +e
+      restart_deployment
+      restart_rc=$?
+      set -e
+      if ((restart_rc != 0)); then
+        printf 'error: failed to restart the deployment after backup\n' >&2
+        ((rc == 0)) && rc=$restart_rc
+      fi
+    fi
+  fi
+  trap - EXIT
+  exit "$rc"
+}
+trap cleanup EXIT
+
+# All preflight checks happen before any service is stopped.
+"$root/bin/restic" cat config >/dev/null
+incomplete_marker="$state_dir/incomplete-backup-snapshot"
+if [[ -s $incomplete_marker ]]; then
+  read -r incomplete_snapshot <"$incomplete_marker"
+  [[ $incomplete_snapshot =~ ^[0-9a-f]{64}$ ]] || die "invalid incomplete snapshot marker"
+  info "removing previously recorded incomplete snapshot: $incomplete_snapshot"
+  "$root/bin/restic" forget "$incomplete_snapshot"
+  unlink "$incomplete_marker"
+fi
+mapfile -t apps < <(jq -r 'keys[]' "$root/manifests/applications.json")
+mapfile -t volume_files < <(find "$root/quadlet/volumes" -type f -name '*.volume' | sort)
+for volume_file in "${volume_files[@]}"; do
+  sed -n 's/^VolumeName=//p' "$volume_file"
+done | sort >"$work_dir/expected-volumes"
+podman volume ls --filter label=io.containers.systemd.application \
+  --format '{{.Name}}' | sort >"$work_dir/actual-volumes"
+diff -u "$work_dir/expected-volumes" "$work_dir/actual-volumes" || \
+  die "declared and labeled Podman volume inventories differ"
+
+: >"$work_dir/paths"
+: >"$work_dir/volume-map.tsv"
+while IFS= read -r volume; do
+  mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$volume")
+  [[ -d $mountpoint ]] || die "volume mountpoint is unavailable: $volume"
+  printf '%s\0' "$mountpoint" >>"$work_dir/paths"
+  printf '%s\t%s\n' "$volume" "$mountpoint" >>"$work_dir/volume-map.tsv"
+done <"$work_dir/expected-volumes"
+
+required_paths=(
+  "$HOME/.config/sops/age/keys.txt"
+  "$state_dir/deployed-commit"
+  "$state_dir/anythingllm/.env"
+)
+for path in "${required_paths[@]}"; do
+  [[ -f $path ]] || die "required backup input is missing: $path"
+done
+
+master_was_active=false
+unit_is_active homelab.target && master_was_active=true
+reconcile_timer_was_active=false
+unit_is_active homelab-reconcile.timer && reconcile_timer_was_active=true
+backup_timer_was_active=false
+unit_is_active homelab-backup.timer && backup_timer_was_active=true
+for app in "${apps[@]}"; do
+  if unit_is_active "homelab-$app.target"; then
+    active_apps+=("$app")
+  fi
+done
+
+deployment_stopped=true
+systemctl --user stop homelab-reconcile.timer homelab-backup.timer
+systemctl --user stop homelab.target
+for app in "${apps[@]}"; do
+  systemctl --user stop "homelab-$app.target"
+done
+[[ -z $(podman ps --quiet) ]] || die "a container is still running; cold backup refused"
+
+install -d -m 0700 "$metadata_dir"
+install -m 0600 "$work_dir/expected-volumes" "$metadata_dir/volume-list.txt"
+install -m 0600 "$work_dir/volume-map.tsv" "$metadata_dir/volume-map.tsv"
+printf '1\n' >"$metadata_dir/format-version"
+printf '%s\n' "$(date --utc +%Y-%m-%dT%H:%M:%SZ)" >"$metadata_dir/created-at"
+for path in "${required_paths[@]}" "$metadata_dir"; do
+  printf '%s\0' "$path" >>"$work_dir/paths"
+done
+
+info "creating incremental encrypted restic snapshot"
+set +e
+podman unshare "$root/bin/restic" backup \
+  --files-from-raw "$work_dir/paths" \
+  --tag homelab --tag "$tag" --json | tee "$work_dir/restic-backup.json"
+pipeline_status=("${PIPESTATUS[@]}")
+set -e
+snapshot_id=$(jq -r 'select(.message_type == "summary") | .snapshot_id // empty' \
+  "$work_dir/restic-backup.json" | tail -n 1)
+if ((pipeline_status[1] != 0)); then
+  die "failed to record restic backup output"
+fi
+if ((pipeline_status[0] != 0)); then
+  if [[ $snapshot_id =~ ^[0-9a-f]{64}$ ]]; then
+    printf '%s\n' "$snapshot_id" >"$incomplete_marker"
+    info "removing incomplete snapshot reported by restic: $snapshot_id"
+    if "$root/bin/restic" forget "$snapshot_id"; then
+      unlink "$incomplete_marker"
+    fi
+  fi
+  die "restic backup failed with exit status ${pipeline_status[0]}"
+fi
+[[ $snapshot_id =~ ^[0-9a-f]{64}$ ]] || die "restic did not report a snapshot ID"
+snapshot_created=true
+printf '%s\n' "$snapshot_id" >"$state_dir/last-backup-snapshot"
+
+if ! $leave_stopped; then
+  restart_deployment
+fi
+
+info "applying automatic snapshot retention"
+"$root/bin/restic" forget --host "homelab-${BASE_DOMAIN}" --tag automatic \
+  --keep-daily 2 --keep-weekly 4 --keep-monthly 2 --prune
+"$root/bin/restic" check
+{
+  printf 'timestamp=%s\n' "$(date --utc +%Y-%m-%dT%H:%M:%SZ)"
+  printf 'snapshot=%s\n' "$snapshot_id"
+  printf 'tag=%s\n' "$tag"
+} >"$state_dir/last-backup-success"
+info "backup completed: $snapshot_id"
+
+if $leave_stopped; then
+  systemctl --user disable homelab-reconcile.timer homelab-backup.timer >/dev/null
+  deployment_stopped=false
+  info "applications and timers remain stopped for migration"
+fi
+rm -rf -- "$work_dir"
+trap - EXIT
+exit 0

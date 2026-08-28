@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-radicale-collections
+Label=io.containers.systemd.application=radicale
