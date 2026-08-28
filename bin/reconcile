@@ -11,6 +11,7 @@ require_command flock
 require_command git
 require_command jq
 require_command podman
+require_command rg
 require_command systemctl
 require_command tar
 

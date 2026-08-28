@@ -7,7 +7,14 @@ source "$(dirname -- "$0")/lib.sh"
 require_command getenforce
 require_command getsebool
 require_command selinuxenabled
+require_command fuse-overlayfs
+require_command newgidmap
+require_command newuidmap
+require_command pasta
 arch=$(host_arch)
+runtime_user=$(id -un)
+require_subordinate_id_range /etc/subuid "$runtime_user"
+require_subordinate_id_range /etc/subgid "$runtime_user"
 
 selinuxenabled || die "SELinux is disabled; refusing to start containers"
 [[ $(getenforce) == Enforcing ]] || die "SELinux is not enforcing; refusing to start containers"

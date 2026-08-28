@@ -32,6 +32,15 @@ require_pq_age_recipient() {
   [[ $recipient == age1pq1* ]] || die "$label must be an age post-quantum recipient (age1pq1...)"
 }
 
+require_subordinate_id_range() {
+  local database=$1 user=$2
+  [[ -r $database ]] || die "subordinate ID database is unavailable: $database"
+  awk -F: -v user="$user" '
+    $1 == user && $2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $3 >= 65536 { found=1 }
+    END { exit(found ? 0 : 1) }
+  ' "$database" || die "$user has no valid subordinate ID range in $database"
+}
+
 load_site_config() {
   local root=${1:-$(repo_root)}
   local file="$root/config/site.env"

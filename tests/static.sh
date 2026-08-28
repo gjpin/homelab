@@ -7,42 +7,71 @@ containers="$root/quadlet/applications"
 "$root/tests/architecture.sh"
 
 rg -q 'age-keygen -pq -o' "$root/bin/bootstrap-host" || { printf 'host age identity is not post-quantum\n' >&2; exit 1; }
-rg -q '"\$root/bin/install-age"' "$root/bin/bootstrap-host" || { printf 'pinned age installer is not used\n' >&2; exit 1; }
-rg -q '"\$root/bin/install-restic"' "$root/bin/bootstrap-host" || { printf 'pinned restic installer is not used\n' >&2; exit 1; }
-rg -q '^version=0\.19\.1$' "$root/bin/install-restic" || { printf 'restic version is not pinned\n' >&2; exit 1; }
-rg -q '^[[:space:]]*archive_sha256=[0-9a-f]{64}$' "$root/bin/install-restic" || { printf 'restic checksum is not pinned\n' >&2; exit 1; }
-for installer in install-age install-sops install-restic; do
-  rg -q 'amd64' "$root/bin/$installer" || { printf '%s has no amd64 artifact mapping\n' "$installer" >&2; exit 1; }
-  rg -q 'arm64' "$root/bin/$installer" || { printf '%s has no arm64 artifact mapping\n' "$installer" >&2; exit 1; }
+for package in \
+  age ca-certificates container-selinux curl diffutils firewalld fuse-overlayfs \
+  gettext-envsubst gawk git iproute jq libselinux-utils openssh-clients passt \
+  podman policycoreutils python3 restic ripgrep shadow-utils systemd tar util-linux; do
+  rg -q "^[[:space:]]+$package$" "$root/bin/bootstrap-host" || {
+    printf 'Fedora package is missing from bootstrap: %s\n' "$package" >&2
+    exit 1
+  }
 done
+if rg -n '(^|/)(install-age|install-restic)$|install-age|install-restic' \
+  --glob '!tests/static.sh' "$root/bin" "$root/README.md" "$root/docs"; then
+  printf 'retired age/restic installers are still referenced\n' >&2
+  exit 1
+fi
+[[ ! -e "$root/bin/install-age" && ! -e "$root/bin/install-restic" ]] || {
+  printf 'retired age/restic installer files still exist\n' >&2
+  exit 1
+}
 for mapping in \
-  "bin/install-age|archive=\"age-v\${version}-linux-amd64.tar.gz\"" \
-  "bin/install-age|archive=\"age-v\${version}-linux-arm64.tar.gz\"" \
-  "bin/install-sops|binary=\"sops-v\${version}.linux.amd64\"" \
-  "bin/install-sops|binary=\"sops-v\${version}.linux.arm64\"" \
-  "bin/install-restic|archive=\"restic_\${version}_linux_amd64.bz2\"" \
-  "bin/install-restic|archive=\"restic_\${version}_linux_arm64.bz2\""; do
-  installer=${mapping%%|*}
-  artifact=${mapping#*|}
-  rg -Fq "$artifact" "$root/$installer" || {
-    printf 'missing architecture artifact mapping: %s\n' "$artifact" >&2
+  'rpm_arch=x86_64' \
+  'rpm_arch=aarch64' \
+  'sops-3.13.3-1.x86_64.rpm' \
+  'sops-3.13.3-1.aarch64.rpm'; do
+  rg -Fq "$mapping" "$root/bin/install-sops" || {
+    printf 'missing SOPS RPM architecture mapping: %s\n' "$mapping" >&2
     exit 1
   }
 done
 for checksum in \
-  'bin/install-age|bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377' \
-  'bin/install-age|c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a' \
-  'bin/install-sops|e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b' \
-  'bin/install-sops|53b0abacd38ef1b12a66d6c100956691b9cefce018d91f81e73ddf7438b94d77' \
-  'bin/install-restic|f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c' \
-  'bin/install-restic|a5f64aaab53d51e311fa3829124c5b703f2d14cf187d8640b6be3b2b49376465'; do
-  installer=${checksum%%|*}
-  digest=${checksum#*|}
-  rg -Fq "$digest" "$root/$installer" || {
-    printf 'missing architecture checksum: %s\n' "$digest" >&2
+  f362eabc5b17b84894952fc57737eccf26ef8a4321453c165f4b1205b5544123 \
+  0b3a519c93abaff3edfcaf8a16b19cd3b7cc935daf604999b3b52aac96e5770e; do
+  rg -Fq "$checksum" "$root/bin/install-sops" || {
+    printf 'missing SOPS RPM checksum: %s\n' "$checksum" >&2
     exit 1
   }
 done
+rg -q 'rpm -qip' "$root/bin/install-sops" || { printf 'SOPS RPM metadata is not validated\n' >&2; exit 1; }
+rg -q 'dnf install -y "\$tmp_rpm"' "$root/bin/install-sops" || { printf 'SOPS RPM is not installed through DNF\n' >&2; exit 1; }
+rg -q 'installed_version=.*%\{VERSION\}' "$root/bin/install-sops" || { printf 'installed SOPS version is not checked\n' >&2; exit 1; }
+rg -q 'require_rpm_version age 1\.3\.0' "$root/bin/bootstrap-host" || { printf 'Fedora age minimum is not checked\n' >&2; exit 1; }
+rg -q 'require_rpm_version restic 0\.19\.1' "$root/bin/bootstrap-host" || { printf 'Fedora restic minimum is not checked\n' >&2; exit 1; }
+rg -q 'rm -f --' "$root/bin/bootstrap-host" || { printf 'legacy host binaries are not cleaned up\n' >&2; exit 1; }
+rg -q 'require_command pasta' "$root/bin/bootstrap-host" || { printf 'rootless pasta preflight is missing\n' >&2; exit 1; }
+rg -q 'require_command fuse-overlayfs' "$root/bin/bootstrap-host" || { printf 'rootless overlay preflight is missing\n' >&2; exit 1; }
+rg -q 'require_command newuidmap' "$root/bin/bootstrap-host" || { printf 'newuidmap preflight is missing\n' >&2; exit 1; }
+rg -q 'require_command newgidmap' "$root/bin/bootstrap-host" || { printf 'newgidmap preflight is missing\n' >&2; exit 1; }
+rg -q -- '--add-subuids' "$root/bin/bootstrap-host" || { printf 'subuid provisioning is missing\n' >&2; exit 1; }
+rg -q -- '--add-subgids' "$root/bin/bootstrap-host" || { printf 'subgid provisioning is missing\n' >&2; exit 1; }
+rg -q '/etc/subuid' "$root/bin/bootstrap-host" || { printf 'subuid validation is missing\n' >&2; exit 1; }
+rg -q '/etc/subgid' "$root/bin/bootstrap-host" || { printf 'subgid validation is missing\n' >&2; exit 1; }
+rg -q 'require_command rg' "$root/bin/reconcile" || { printf 'reconciliation rg preflight is missing\n' >&2; exit 1; }
+for command in fuse-overlayfs newgidmap newuidmap pasta; do
+  rg -q "require_command $command" "$root/bin/verify-host-security" || {
+    printf 'runtime rootless preflight is missing: %s\n' "$command" >&2
+    exit 1
+  }
+done
+rg -q 'require_subordinate_id_range /etc/subuid' "$root/bin/verify-host-security" || {
+  printf 'runtime subuid validation is missing\n' >&2
+  exit 1
+}
+rg -q 'require_subordinate_id_range /etc/subgid' "$root/bin/verify-host-security" || {
+  printf 'runtime subgid validation is missing\n' >&2
+  exit 1
+}
 rg -q '\-\-host-age-key' "$root/bin/bootstrap-host" || { printf 'host age identity cannot be restored during bootstrap\n' >&2; exit 1; }
 rg -q 'qemu-user-binfmt.*qemu-user-static-x86' "$root/bin/bootstrap-host" || {
   printf 'ARM64 bootstrap does not install the required QEMU packages\n' >&2
@@ -181,8 +210,12 @@ rg -q 'bin/security-audit' "$root/bin/reconcile" || {
   exit 1
 }
 
-[[ -x "$root/bin/backup" && -x "$root/bin/restic" && -x "$root/bin/install-restic" ]] || {
+[[ -x "$root/bin/backup" && -x "$root/bin/restic" && -x "$root/bin/install-sops" ]] || {
   printf 'backup executables are not executable\n' >&2
+  exit 1
+}
+rg -q '^restic_binary=\$\{HOMELAB_RESTIC_BIN:-/usr/bin/restic\}$' "$root/bin/restic" || {
+  printf 'restic wrapper does not default to the Fedora package path\n' >&2
   exit 1
 }
 for setting in BACKUP_S3_ENDPOINT BACKUP_S3_REGION BACKUP_S3_BUCKET BACKUP_S3_PREFIX; do

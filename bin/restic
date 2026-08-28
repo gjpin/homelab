@@ -11,7 +11,7 @@ load_site_config "$root"
 require_command jq
 require_command realpath
 require_command sops
-restic_binary=${HOMELAB_RESTIC_BIN:-/usr/local/bin/restic}
+restic_binary=${HOMELAB_RESTIC_BIN:-/usr/bin/restic}
 [[ -x $restic_binary ]] || die "restic is not installed at $restic_binary"
 [[ $(realpath "$restic_binary") != "$(realpath "$0")" ]] || die "HOMELAB_RESTIC_BIN resolves to the wrapper itself"
 

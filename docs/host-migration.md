@@ -1,7 +1,7 @@
 # Restore onto a replacement host
 
-This procedure migrates the complete deployment to a fresh Fedora/RHEL Linux
-host on amd64 or arm64. Do not reconcile the replacement host before its
+This procedure migrates the complete deployment to a fresh Fedora 44 or Fedora
+45 host on amd64 or arm64. Do not reconcile the replacement host before its
 volumes have been restored.
 
 On arm64, `bootstrap-host` installs `qemu-user-binfmt` and
@@ -31,8 +31,8 @@ repeat it. After success, do not start the source applications again; doing so
 would create two divergent copies of the state.
 
 On the operator workstation, check that the snapshot is readable using the
-offline operator identity. Install restic 0.19.1, then point the wrapper at its
-absolute path if it is not `/usr/local/bin/restic`:
+offline operator identity. Install restic 0.19.1 separately on the workstation,
+then point the wrapper at that executable:
 
 ```bash
 export SOPS_AGE_KEY_FILE=~/.config/sops/age/operator.txt
