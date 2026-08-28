@@ -6,6 +6,8 @@ set -Eeuo pipefail
 root=$(cd -- "$(dirname -- "$0")/.." && pwd)
 # shellcheck source=/dev/null
 source "$root/bin/lib.sh"
+[[ $(uname -s) == Linux ]] || die "unsupported operating system: $(uname -s); this deployment requires Linux"
+arch=$(host_arch)
 runtime_user=homelab
 runtime_home=/home/homelab
 repo_url=
@@ -40,7 +42,16 @@ case "$repo_url" in
     ;;
 esac
 
-dnf install -y bzip2 container-selinux curl firewalld gettext git iproute jq openssh-clients podman policycoreutils python3 ripgrep tar
+packages=(bzip2 container-selinux curl firewalld gettext git iproute jq openssh-clients podman policycoreutils python3 ripgrep tar)
+if [[ $arch == arm64 ]]; then
+  packages+=(qemu-user-binfmt qemu-user-static-x86)
+fi
+if ! dnf install -y "${packages[@]}"; then
+  if [[ $arch == arm64 ]]; then
+    die "ARM64 bootstrap requires qemu-user-binfmt and qemu-user-static-x86; the required emulation packages could not be installed"
+  fi
+  exit 1
+fi
 require_command getenforce
 require_command getsebool
 require_command selinuxenabled
@@ -49,6 +60,15 @@ selinuxenabled || die "SELinux is disabled; enable it before bootstrapping this 
 getsebool container_use_devices >/dev/null 2>&1 || \
   die "container_use_devices is unavailable after installing container-selinux"
 setsebool -P container_use_devices off
+
+if [[ $arch == arm64 ]]; then
+  systemctl enable --now systemd-binfmt
+  require_command qemu-x86_64-static
+  binfmt_registration=/proc/sys/fs/binfmt_misc/qemu-x86_64
+  [[ -r $binfmt_registration ]] || die "ARM64 bootstrap could not find the qemu-x86_64 binfmt registration"
+  grep -q '^enabled$' "$binfmt_registration" || \
+    die "ARM64 bootstrap found a disabled qemu-x86_64 binfmt registration"
+fi
 
 "$root/bin/install-age"
 "$root/bin/install-sops"

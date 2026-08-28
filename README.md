@@ -37,7 +37,13 @@ access is enabled.
 
 ## Prerequisites
 
-- Fedora/RHEL-compatible amd64 host with cgroup v2 and SELinux enforcing.
+- Fedora/RHEL-compatible Linux host on amd64 or arm64 with cgroup v2 and
+  SELinux enforcing.
+- On arm64, bootstrap installs Fedora's `qemu-user-binfmt` and
+  `qemu-user-static-x86` packages and enables `systemd-binfmt`. The native
+  multi-architecture images follow the host; Supernote's amd64-only `notelib`
+  and `supernote-service` images run under QEMU. Bootstrap fails if the
+  distribution cannot provide the required emulation packages or registration.
 - Operator workstation with Bash 4 or later, Git, OpenSSH client tools,
   `rsync`, `jq`, `ripgrep`, GNU `sha256sum`, age 1.3.0 or later, a SOPS release
   with built-in age 1.3 support (3.12.0 or later), `openssl`, `argon2`, Python
@@ -442,6 +448,13 @@ The canonical procedures are:
 The automated snapshots are encrypted locally, incremental, and deduplicated.
 The first run uploads all selected data; later runs upload only new chunks
 while remaining complete point-in-time snapshots.
+
+When migrating between hosts, amd64 hosts remain native. An arm64 replacement
+host must complete the QEMU setup during `bootstrap-host` before the first
+reconciliation; the reconciliation and security checks refuse to start the
+Supernote stack unless `qemu-x86_64-static` and its enabled x86_64 binfmt
+registration are available. The two Supernote units explicitly select amd64;
+all other images use the host's native architecture.
 
 ## Backup inventory
 

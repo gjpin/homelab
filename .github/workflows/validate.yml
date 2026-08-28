@@ -14,6 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+
       - name: Validate repository and Quadlets
         run: |
           docker run --rm \
@@ -24,5 +27,7 @@ jobs:
 
       - name: Build custom images
         run: |
-          docker build --pull --file images/caddy/Containerfile --tag localhost/homelab/caddy:test images/caddy
-          docker build --pull --file images/radicale/Containerfile --tag localhost/homelab/radicale:test images/radicale
+          docker buildx build --pull --platform linux/amd64 --file images/caddy/Containerfile --tag localhost/homelab/caddy:test-amd64 --load images/caddy
+          docker buildx build --pull --platform linux/arm64 --file images/caddy/Containerfile --tag localhost/homelab/caddy:test-arm64 --load images/caddy
+          docker buildx build --pull --platform linux/amd64 --file images/radicale/Containerfile --tag localhost/homelab/radicale:test-amd64 --load images/radicale
+          docker buildx build --pull --platform linux/arm64 --file images/radicale/Containerfile --tag localhost/homelab/radicale:test-arm64 --load images/radicale

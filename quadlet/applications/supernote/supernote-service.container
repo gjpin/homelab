@@ -32,7 +32,7 @@ DropCapability=all
 AddCapability=NET_BIND_SERVICE
 ReadOnly=true
 ReadOnlyTmpfs=true
-PodmanArgs=--image-volume=ignore
+PodmanArgs=--arch=amd64 --image-volume=ignore
 PidsLimit=1024
 RunInit=true
 

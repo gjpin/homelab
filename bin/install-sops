@@ -2,11 +2,24 @@
 set -Eeuo pipefail
 
 [[ ${EUID} -eq 0 ]] || { printf 'Run this command as root.\n' >&2; exit 1; }
-[[ $(uname -m) == x86_64 ]] || { printf 'This deployment supports only x86_64 hosts.\n' >&2; exit 1; }
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+arch=$(host_arch)
 
 version=3.13.3
-binary_sha256=e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b
-url="https://github.com/getsops/sops/releases/download/v${version}/sops-v${version}.linux.amd64"
+case "$arch" in
+  amd64)
+    binary_sha256=e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b
+    binary="sops-v${version}.linux.amd64"
+    ;;
+  arm64)
+    binary_sha256=53b0abacd38ef1b12a66d6c100956691b9cefce018d91f81e73ddf7438b94d77
+    binary="sops-v${version}.linux.arm64"
+    ;;
+esac
+url="https://github.com/getsops/sops/releases/download/v${version}/${binary}"
 tmp_binary=$(mktemp)
 trap 'rm -f -- "$tmp_binary"' EXIT
 
