@@ -5,6 +5,8 @@ umask 077
 # shellcheck source=/dev/null
 source "$(dirname -- "$0")/lib.sh"
 
+host_arch_name=$(host_arch)
+
 require_command flock
 require_command git
 require_command jq
@@ -43,6 +45,7 @@ if [[ -n $deployed_commit ]] && ! git -C "$repo_dir" merge-base --is-ancestor "$
 fi
 if [[ $target_commit == "$deployed_commit" && -e $current_link ]]; then
   info "already at $target_commit"
+  "$current_link/bin/verify-host-security"
   systemctl --user start homelab-secrets.service
   while IFS= read -r app; do
     needs_restart=false
@@ -71,6 +74,7 @@ fi
 
 "$release/bin/validate" --deployment
 "$release/bin/fetch-assets"
+"$release/bin/verify-host-security"
 
 if $dry_run; then
   info "validated $target_commit; dry-run requested"
@@ -81,7 +85,12 @@ mapfile -t images < <(rg --no-filename '^Image=' "$release/quadlet/applications"
 for image in "${images[@]}"; do
   if ! podman image exists "$image"; then
     info "pulling $image"
-    podman pull "$image" >/dev/null
+    if [[ $host_arch_name == arm64 && $image == docker.io/supernote/notelib:* ||
+      $host_arch_name == arm64 && $image == docker.io/supernote/supernote-service:* ]]; then
+      podman pull --arch=amd64 "$image" >/dev/null
+    else
+      podman pull "$image" >/dev/null
+    fi
   fi
 done
 

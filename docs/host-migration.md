@@ -1,7 +1,15 @@
 # Restore onto a replacement host
 
-This procedure migrates the complete deployment to a fresh Fedora/RHEL host.
-Do not reconcile the replacement host before its volumes have been restored.
+This procedure migrates the complete deployment to a fresh Fedora/RHEL Linux
+host on amd64 or arm64. Do not reconcile the replacement host before its
+volumes have been restored.
+
+On arm64, `bootstrap-host` installs `qemu-user-binfmt` and
+`qemu-user-static-x86`, enables `systemd-binfmt`, and verifies the enabled
+`qemu-x86_64` binfmt registration. Supernote's amd64-only `notelib` and
+`supernote-service` images run through that emulation; all other images use
+the native host architecture. If the distribution cannot provide the required
+packages or registration, bootstrap and reconciliation stop before activation.
 
 ## Freeze and verify the source
 

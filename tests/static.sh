@@ -4,12 +4,77 @@ set -Eeuo pipefail
 root=$(cd -- "$(dirname -- "$0")/.." && pwd)
 containers="$root/quadlet/applications"
 
+"$root/tests/architecture.sh"
+
 rg -q 'age-keygen -pq -o' "$root/bin/bootstrap-host" || { printf 'host age identity is not post-quantum\n' >&2; exit 1; }
 rg -q '"\$root/bin/install-age"' "$root/bin/bootstrap-host" || { printf 'pinned age installer is not used\n' >&2; exit 1; }
 rg -q '"\$root/bin/install-restic"' "$root/bin/bootstrap-host" || { printf 'pinned restic installer is not used\n' >&2; exit 1; }
 rg -q '^version=0\.19\.1$' "$root/bin/install-restic" || { printf 'restic version is not pinned\n' >&2; exit 1; }
-rg -q '^archive_sha256=[0-9a-f]{64}$' "$root/bin/install-restic" || { printf 'restic checksum is not pinned\n' >&2; exit 1; }
+rg -q '^[[:space:]]*archive_sha256=[0-9a-f]{64}$' "$root/bin/install-restic" || { printf 'restic checksum is not pinned\n' >&2; exit 1; }
+for installer in install-age install-sops install-restic; do
+  rg -q 'amd64' "$root/bin/$installer" || { printf '%s has no amd64 artifact mapping\n' "$installer" >&2; exit 1; }
+  rg -q 'arm64' "$root/bin/$installer" || { printf '%s has no arm64 artifact mapping\n' "$installer" >&2; exit 1; }
+done
+for mapping in \
+  "bin/install-age|archive=\"age-v\${version}-linux-amd64.tar.gz\"" \
+  "bin/install-age|archive=\"age-v\${version}-linux-arm64.tar.gz\"" \
+  "bin/install-sops|binary=\"sops-v\${version}.linux.amd64\"" \
+  "bin/install-sops|binary=\"sops-v\${version}.linux.arm64\"" \
+  "bin/install-restic|archive=\"restic_\${version}_linux_amd64.bz2\"" \
+  "bin/install-restic|archive=\"restic_\${version}_linux_arm64.bz2\""; do
+  installer=${mapping%%|*}
+  artifact=${mapping#*|}
+  rg -Fq "$artifact" "$root/$installer" || {
+    printf 'missing architecture artifact mapping: %s\n' "$artifact" >&2
+    exit 1
+  }
+done
+for checksum in \
+  'bin/install-age|bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377' \
+  'bin/install-age|c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a' \
+  'bin/install-sops|e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b' \
+  'bin/install-sops|53b0abacd38ef1b12a66d6c100956691b9cefce018d91f81e73ddf7438b94d77' \
+  'bin/install-restic|f415415624dcc452f2a02b8c33641791a8c6d6d3b65bbb3543fcf9a25151585c' \
+  'bin/install-restic|a5f64aaab53d51e311fa3829124c5b703f2d14cf187d8640b6be3b2b49376465'; do
+  installer=${checksum%%|*}
+  digest=${checksum#*|}
+  rg -Fq "$digest" "$root/$installer" || {
+    printf 'missing architecture checksum: %s\n' "$digest" >&2
+    exit 1
+  }
+done
 rg -q '\-\-host-age-key' "$root/bin/bootstrap-host" || { printf 'host age identity cannot be restored during bootstrap\n' >&2; exit 1; }
+rg -q 'qemu-user-binfmt.*qemu-user-static-x86' "$root/bin/bootstrap-host" || {
+  printf 'ARM64 bootstrap does not install the required QEMU packages\n' >&2
+  exit 1
+}
+rg -q 'systemctl enable --now systemd-binfmt' "$root/bin/bootstrap-host" || {
+  printf 'ARM64 bootstrap does not enable systemd-binfmt\n' >&2
+  exit 1
+}
+rg -q 'qemu-x86_64-static' "$root/bin/bootstrap-host" || {
+  printf 'ARM64 bootstrap does not validate qemu-x86_64-static\n' >&2
+  exit 1
+}
+rg -q '/proc/sys/fs/binfmt_misc/qemu-x86_64' "$root/bin/bootstrap-host" || {
+  printf 'ARM64 bootstrap does not validate the x86_64 binfmt registration\n' >&2
+  exit 1
+}
+rg -q 'qemu-x86_64-static' "$root/bin/verify-host-security" || {
+  printf 'host security verification does not validate QEMU on ARM64\n' >&2
+  exit 1
+}
+for unit in supernote-notelib supernote-service; do
+  rg -q '^PodmanArgs=--arch=amd64 --image-volume=ignore$' \
+    "$containers/supernote/$unit.container" || {
+    printf 'Supernote unit does not force amd64: %s\n' "$unit" >&2
+    exit 1
+  }
+done
+rg -q 'podman pull --arch=amd64' "$root/bin/reconcile" || {
+  printf 'reconciliation has no ARM64 Supernote pull override\n' >&2
+  exit 1
+}
 rg -q 'require_pq_age_recipient "--host-recipient"' "$root/bin/init-secrets" || { printf 'host recipient is not checked as post-quantum\n' >&2; exit 1; }
 rg -q 'require_pq_age_recipient "--operator-recipient"' "$root/bin/init-secrets" || { printf 'operator recipient is not checked as post-quantum\n' >&2; exit 1; }
 rg -q 'fedora:44@sha256:[0-9a-f]{64}' "$root/.github/workflows/validate.yml" || {
@@ -36,7 +101,7 @@ done < <(rg --no-filename '^Secret=' "$containers" | cut -d= -f2 | cut -d, -f1 |
 [[ $(rg -l '^DropCapability=all$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must drop the default capability set\n' >&2; exit 1; }
 [[ $(rg -l '^ReadOnly=true$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must use a read-only root filesystem\n' >&2; exit 1; }
 [[ $(rg -l '^ReadOnlyTmpfs=true$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must explicitly enable read-only tmpfs support\n' >&2; exit 1; }
-[[ $(rg -l '^PodmanArgs=--image-volume=ignore$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must reject implicit anonymous image volumes\n' >&2; exit 1; }
+[[ $(rg -l '^PodmanArgs=.*--image-volume=ignore$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must reject implicit anonymous image volumes\n' >&2; exit 1; }
 [[ $(rg -l '^PidsLimit=1024$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must set the approved PID limit\n' >&2; exit 1; }
 [[ $(rg -l '^PartOf=homelab-.*\.target$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must belong to an application target\n' >&2; exit 1; }
 

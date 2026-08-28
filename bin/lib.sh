@@ -18,6 +18,15 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
 }
 
+host_arch() {
+  local arch=${1:-$(uname -m)}
+  case "$arch" in
+    x86_64|amd64) printf '%s\n' amd64 ;;
+    aarch64|arm64) printf '%s\n' arm64 ;;
+    *) die "unsupported host architecture: $arch (supported architectures: amd64 and arm64)" ;;
+  esac
+}
+
 require_pq_age_recipient() {
   local label=$1 recipient=$2
   [[ $recipient == age1pq1* ]] || die "$label must be an age post-quantum recipient (age1pq1...)"

@@ -16,7 +16,7 @@ NoNewPrivileges=true
 DropCapability=all
 ReadOnly=true
 ReadOnlyTmpfs=true
-PodmanArgs=--image-volume=ignore
+PodmanArgs=--arch=amd64 --image-volume=ignore
 PidsLimit=1024
 RunInit=true
 
