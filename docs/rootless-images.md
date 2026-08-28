@@ -12,17 +12,11 @@ aligns their ownership with the selected container UID. This may change the
 ownership metadata of an existing volume on the first activation after this
 change; take a backup before deploying to a host with existing data.
 
-AnythingLLM’s writable `.env` is the one file bind-mounted from the host. Its
-mode is widened to `0666` for the mapped rootless user, but its parent state
-directory remains mode `0700`, so it is still private to the `homelab` account.
-
 ## Explicit non-root services
 
 | Service | Container user | Image or upstream basis |
 | --- | ---: | --- |
-| AnythingLLM | `anythingllm:anythingllm` | Upstream image ships the `anythingllm` user. |
 | Caddy | `caddy:caddy` | Final custom image creates a fixed UID/GID 1000 user; the build stage still needs build tooling as root. |
-| Docs MCP | `node:node` | Upstream image ships the `node` user. |
 | Forgejo | `1000:1000` | Forgejo’s documented `16.0.3-rootless` image; its data mount is `/var/lib/gitea` and its embedded SSH port is 2222. This deployment does not publish Forgejo SSH. |
 | Forgejo PostgreSQL | `postgres:postgres` | The official PostgreSQL image supports a baked-in non-root `postgres` user; the volume is aligned before the entrypoint initializes it. |
 | Mosquitto | `1883:1883` | Eclipse Mosquitto documents this UID/GID for the broker. |

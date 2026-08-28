@@ -1,0 +1,6 @@
+{
+  "anythingllm": {
+    "units": ["anythingllm.service"],
+    "secrets": []
+  }
+}

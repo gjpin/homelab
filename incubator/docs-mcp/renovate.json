@@ -1,0 +1,9 @@
+{
+  "packageRules": [
+    {
+      "description": "Keep all Docs MCP services on one release",
+      "matchPackageNames": ["ghcr.io/arabold/docs-mcp-server"],
+      "groupName": "docs-mcp"
+    }
+  ]
+}

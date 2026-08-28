@@ -84,7 +84,7 @@ rg -q 'fedora:44@sha256:[0-9a-f]{64}' "$root/.github/workflows/validate.yml" || 
 }
 
 count=$(find "$containers" -name '*.container' -type f | wc -l | tr -d ' ')
-[[ $count == 23 ]] || { printf 'expected 23 containers, found %s\n' "$count" >&2; exit 1; }
+[[ $count == 19 ]] || { printf 'expected 19 containers, found %s\n' "$count" >&2; exit 1; }
 
 while IFS= read -r reference; do
   [[ -f "$root/quadlet/networks/$reference" ]] || { printf 'missing network unit: %s\n' "$reference" >&2; exit 1; }
@@ -98,20 +98,16 @@ while IFS= read -r reference; do
   rg -q "replace_secret ${reference} " "$root/bin/render-config" || { printf 'secret is not provisioned: %s\n' "$reference" >&2; exit 1; }
 done < <(rg --no-filename '^Secret=' "$containers" | cut -d= -f2 | cut -d, -f1 | sort -u)
 
-[[ $(rg -l '^NoNewPrivileges=true$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must set NoNewPrivileges=true\n' >&2; exit 1; }
-[[ $(rg -l '^DropCapability=all$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must drop the default capability set\n' >&2; exit 1; }
-[[ $(rg -l '^ReadOnly=true$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must use a read-only root filesystem\n' >&2; exit 1; }
-[[ $(rg -l '^ReadOnlyTmpfs=true$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must explicitly enable read-only tmpfs support\n' >&2; exit 1; }
-[[ $(rg -l '^PodmanArgs=.*--image-volume=ignore$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must reject implicit anonymous image volumes\n' >&2; exit 1; }
-[[ $(rg -l '^PidsLimit=1024$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must set the approved PID limit\n' >&2; exit 1; }
-[[ $(rg -l '^PartOf=homelab-.*\.target$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must belong to an application target\n' >&2; exit 1; }
+[[ $(rg -l '^NoNewPrivileges=true$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must set NoNewPrivileges=true\n' >&2; exit 1; }
+[[ $(rg -l '^DropCapability=all$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must drop the default capability set\n' >&2; exit 1; }
+[[ $(rg -l '^ReadOnly=true$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must use a read-only root filesystem\n' >&2; exit 1; }
+[[ $(rg -l '^ReadOnlyTmpfs=true$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must explicitly enable read-only tmpfs support\n' >&2; exit 1; }
+[[ $(rg -l '^PodmanArgs=.*--image-volume=ignore$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must reject implicit anonymous image volumes\n' >&2; exit 1; }
+[[ $(rg -l '^PidsLimit=1024$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must set the approved PID limit\n' >&2; exit 1; }
+[[ $(rg -l '^PartOf=homelab-.*\.target$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must belong to an application target\n' >&2; exit 1; }
 
 rootless_units=(
-  anythingllm/anythingllm.container
   caddy/caddy.container
-  docs-mcp/docs-mcp-server.container
-  docs-mcp/docs-mcp-web.container
-  docs-mcp/docs-mcp-worker.container
   forgejo/forgejo.container
   forgejo/forgejo-postgres.container
   homeassistant/homeassistant-mosquitto.container
@@ -225,8 +221,8 @@ rg -q '/home/homelab/current/bin/restic init' "$root/README.md" || {
 }
 
 network_count=$(find "$root/quadlet/networks" -name '*.network' -type f | wc -l | tr -d ' ')
-[[ $network_count == 17 ]] || { printf 'expected 17 networks, found %s\n' "$network_count" >&2; exit 1; }
-[[ $(rg -l '^Options=isolate=true$' "$root/quadlet/networks" | wc -l | tr -d ' ') == 17 ]] || {
+[[ $network_count == 15 ]] || { printf 'expected 15 networks, found %s\n' "$network_count" >&2; exit 1; }
+[[ $(rg -l '^Options=isolate=true$' "$root/quadlet/networks" | wc -l | tr -d ' ') == 15 ]] || {
   printf 'every network must explicitly use bridge isolation\n' >&2
   exit 1
 }

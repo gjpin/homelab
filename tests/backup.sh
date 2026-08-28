@@ -13,7 +13,7 @@ log="$test_root/commands.log"
 
 install -d "$fixture/bin" "$fixture/config" "$fixture/manifests" \
   "$fixture/quadlet" "$fake_bin" "$runtime_dir" \
-  "$test_home/.config/sops/age" "$state_dir/anythingllm"
+  "$test_home/.config/sops/age" "$state_dir"
 cp "$source_root/bin/backup" "$source_root/bin/lib.sh" "$fixture/bin/"
 cp "$source_root/manifests/applications.json" "$fixture/manifests/"
 cp -R "$source_root/quadlet/volumes" "$fixture/quadlet/"
@@ -29,8 +29,6 @@ BACKUP_S3_PREFIX=homelab
 EOF
 printf 'AGE-SECRET-KEY-TEST\n' >"$test_home/.config/sops/age/keys.txt"
 printf '0123456789abcdef0123456789abcdef01234567\n' >"$state_dir/deployed-commit"
-: >"$state_dir/anythingllm/.env"
-
 cat >"$fixture/bin/restic" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
@@ -67,6 +65,9 @@ case "${1:-} ${2:-}" in
   'volume ls')
     sed -n 's/^VolumeName=//p' "$TEST_FIXTURE"/quadlet/volumes/*.volume | sort |
       if [[ ${TEST_VOLUME_MISMATCH:-0} == 1 ]]; then sed '$d'; else cat; fi
+    if [[ ${TEST_INCUBATOR_VOLUME:-0} == 1 && "$*" != *'label=io.containers.systemd.application='* ]]; then
+      printf 'homelab-incubator-preserved-volume\n'
+    fi
     ;;
   'volume inspect')
     volume=${!#}
@@ -103,11 +104,12 @@ run_backup() {
     TEST_BACKUP_INCOMPLETE="${TEST_BACKUP_INCOMPLETE:-0}" \
     TEST_VOLUME_MISMATCH="${TEST_VOLUME_MISMATCH:-0}" \
     TEST_LOCK_FAIL="${TEST_LOCK_FAIL:-0}" \
+    TEST_INCUBATOR_VOLUME="${TEST_INCUBATOR_VOLUME:-0}" \
     "$fixture/bin/backup" "$@"
 }
 
 : >"$log"
-run_backup --tag automatic >/dev/null
+TEST_INCUBATOR_VOLUME=1 run_backup --tag automatic >/dev/null
 rg -q '^restic backup .*--tag homelab --tag automatic --json$' "$log"
 rg -q '^restic forget .*--keep-daily 2 --keep-weekly 4 --keep-monthly 2 --prune$' "$log"
 rg -q '^restic check$' "$log"

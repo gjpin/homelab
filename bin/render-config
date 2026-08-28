@@ -43,8 +43,6 @@ replace_secret() {
 
 replace_secret caddy-cloudflare-api-token '.caddy.cloudflare_api_token'
 replace_secret caddy-bookmarks-password-hash '.caddy.bookmarks_password_hash'
-replace_secret docs-mcp-openai-api-key '.docs_mcp.openai_api_key'
-replace_secret docs-mcp-posthog-api-key '.docs_mcp.posthog_api_key'
 replace_secret forgejo-database-password '.forgejo.database_password'
 replace_secret immich-database-password '.immich.database_password'
 replace_secret supernote-database-root-password '.supernote.database_root_password'

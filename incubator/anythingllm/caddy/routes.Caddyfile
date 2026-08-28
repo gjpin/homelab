@@ -1,0 +1,5 @@
+chat.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy anythingllm:3001
+}

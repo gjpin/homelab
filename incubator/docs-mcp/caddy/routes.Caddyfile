@@ -1,0 +1,17 @@
+docs.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy docs-mcp-web:6281
+}
+
+docs-worker.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy docs-mcp-worker:8080
+}
+
+docs-mcp.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy docs-mcp-server:6280
+}
