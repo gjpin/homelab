@@ -51,8 +51,8 @@ access is enabled.
   `rsync`, `jq`, `ripgrep`, GNU `sha256sum`, age 1.3.0 or later, a SOPS release
   with built-in age 1.3 support (3.12.0 or later), `openssl`, `argon2`, Python
   3, and its `bcrypt` module. ShellCheck is optional locally and required by
-  the validation workflow. Restic 0.19.1 is also required on the workstation
-  when performing repository recovery there.
+  the validation workflow. The pinned Restic release is also required on the
+  workstation when performing repository recovery there.
 - Administrator SSH access with sudo on the target host.
 - A Cloudflare-managed DNS zone for `BASE_DOMAIN` and permission to create a
   zone-scoped API token and DNS records.
@@ -161,8 +161,8 @@ Perform these steps in order. Replace every uppercase placeholder.
    `homelab` account, installs the pinned age, SOPS, and restic binaries,
    clones the private repository, generates
    `/home/homelab/.config/sops/age/keys.txt`, installs the TCP 443 proxy, and
-   configures firewalld. The version command must report restic 0.19.1. The
-   generated `keys.txt` private identity is required
+   configures firewalld. The version command must report the pinned Restic
+   release. The generated `keys.txt` private identity is required
    to decrypt the existing secrets on a replacement host. Back it up in step
    15. Never commit it.
 
@@ -357,10 +357,13 @@ workflow. It fails with a setup message when `RENOVATE_TOKEN` is absent. The
 workflow is restricted to scheduled and manual events, so the secret is never
 exposed to pull-request code.
 
-The included `renovate.json` understands Quadlet `Image=` entries. Its Docker
-digest pinning and `currentDigest` capture mean Renovate changes the SHA-256
-digest together with a tag, and also proposes digest-only updates when a tag
-is republished. Container updates are never automerged; after review and
+The included `renovate.json` understands Quadlet `Image=` entries and the
+custom image build inputs. Its Docker digest pinning and `currentDigest`
+capture mean Renovate changes the SHA-256 digest together with a tag, and also
+proposes digest-only updates when a tag is republished. Custom managers cover
+the Caddy `xcaddy` modules, Radicale's pinned Alpine packages, and the
+architecture-specific release assets and checksums used by the age, SOPS, and
+Restic installers. Container updates are never automerged; after review and
 merge, deployment remains the responsibility of the GitOps reconciler. The
 workflow action and Renovate container version are pinned and are themselves
 managed by Renovate.

@@ -31,8 +31,8 @@ repeat it. After success, do not start the source applications again; doing so
 would create two divergent copies of the state.
 
 On the operator workstation, check that the snapshot is readable using the
-offline operator identity. Install restic 0.19.1, then point the wrapper at its
-absolute path if it is not `/usr/local/bin/restic`:
+offline operator identity. Install the pinned Restic release, then point the
+wrapper at its absolute path if it is not `/usr/local/bin/restic`:
 
 ```bash
 export SOPS_AGE_KEY_FILE=~/.config/sops/age/operator.txt

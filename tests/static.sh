@@ -9,7 +9,8 @@ containers="$root/quadlet/applications"
 rg -q 'age-keygen -pq -o' "$root/bin/bootstrap-host" || { printf 'host age identity is not post-quantum\n' >&2; exit 1; }
 rg -q '"\$root/bin/install-age"' "$root/bin/bootstrap-host" || { printf 'pinned age installer is not used\n' >&2; exit 1; }
 rg -q '"\$root/bin/install-restic"' "$root/bin/bootstrap-host" || { printf 'pinned restic installer is not used\n' >&2; exit 1; }
-rg -q '^version=0\.19\.1$' "$root/bin/install-restic" || { printf 'restic version is not pinned\n' >&2; exit 1; }
+restic_release_tags=$(rg -o '^    release_tag=v[0-9]+\.[0-9]+\.[0-9]+$' "$root/bin/install-restic" | sed 's/.*=//' | sort -u)
+[[ $restic_release_tags =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { printf 'restic version is not pinned consistently\n' >&2; exit 1; }
 rg -q '^[[:space:]]*archive_sha256=[0-9a-f]{64}$' "$root/bin/install-restic" || { printf 'restic checksum is not pinned\n' >&2; exit 1; }
 for installer in install-age install-sops install-restic; do
   rg -q 'amd64' "$root/bin/$installer" || { printf '%s has no amd64 artifact mapping\n' "$installer" >&2; exit 1; }

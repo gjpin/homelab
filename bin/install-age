@@ -8,13 +8,16 @@ source "$(dirname -- "$0")/lib.sh"
 
 arch=$(host_arch)
 
-version=1.3.1
 case "$arch" in
   amd64)
+    release_tag=v1.3.1
+    version=${release_tag#v}
     archive_sha256=bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377
     archive="age-v${version}-linux-amd64.tar.gz"
     ;;
   arm64)
+    release_tag=v1.3.1
+    version=${release_tag#v}
     archive_sha256=c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a
     archive="age-v${version}-linux-arm64.tar.gz"
     ;;

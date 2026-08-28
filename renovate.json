@@ -33,6 +33,77 @@
       "datasourceTemplate": "docker",
       "depNameTemplate": "docker.io/library/fedora",
       "versioningTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the Caddy Cloudflare Go module",
+      "managerFilePatterns": ["/^images\\/caddy\\/Containerfile$/"],
+      "matchStrings": [
+        "--with (?<depName>github\\.com/caddy-dns/cloudflare)@(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
+      ],
+      "autoReplaceStringTemplate": "--with {{{depName}}}@{{{newValue}}}",
+      "datasourceTemplate": "go",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Track the Caddy WebDAV module master commit",
+      "managerFilePatterns": ["/^images\\/caddy\\/Containerfile$/"],
+      "matchStrings": [
+        "--with github\\.com/mholt/caddy-webdav@(?<currentDigest>[0-9a-f]{40})"
+      ],
+      "autoReplaceStringTemplate": "--with github.com/mholt/caddy-webdav@{{{newDigest}}}",
+      "currentValueTemplate": "master",
+      "depNameTemplate": "github.com/mholt/caddy-webdav",
+      "packageNameTemplate": "https://github.com/mholt/caddy-webdav",
+      "datasourceTemplate": "git-refs"
+    },
+    {
+      "customType": "regex",
+      "description": "Update pinned Alpine packages in the Radicale image",
+      "managerFilePatterns": ["/^images\\/radicale\\/Containerfile$/"],
+      "matchStrings": [
+        "(?<depName>py3-bcrypt|radicale)=(?<currentValue>[^\\s\\\\]+)"
+      ],
+      "datasourceTemplate": "repology",
+      "packageNameTemplate": "alpine_3_24/{{{depName}}}",
+      "versioningTemplate": "loose"
+    },
+    {
+      "customType": "regex",
+      "description": "Update age release assets and architecture-specific checksums",
+      "managerFilePatterns": ["/^bin\\/install-age$/"],
+      "matchStrings": [
+        "(?<architecture>amd64|arm64)\\)\\n[ \\t]+release_tag=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)\\n[ \\t]+version=\\$\\{release_tag#v\\}\\n[ \\t]+archive_sha256=(?<currentDigest>[0-9a-f]{64})"
+      ],
+      "autoReplaceStringTemplate": "{{{architecture}}})\n    release_tag={{{newValue}}}\n    version=${release_tag#v}\n    archive_sha256={{{newDigest}}}",
+      "depNameTemplate": "FiloSottile/age",
+      "datasourceTemplate": "github-release-attachments",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Update SOPS release assets and architecture-specific checksums",
+      "managerFilePatterns": ["/^bin\\/install-sops$/"],
+      "matchStrings": [
+        "(?<architecture>amd64|arm64)\\)\\n[ \\t]+release_tag=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)\\n[ \\t]+version=\\$\\{release_tag#v\\}\\n[ \\t]+binary_sha256=(?<currentDigest>[0-9a-f]{64})"
+      ],
+      "autoReplaceStringTemplate": "{{{architecture}}})\n    release_tag={{{newValue}}}\n    version=${release_tag#v}\n    binary_sha256={{{newDigest}}}",
+      "depNameTemplate": "getsops/sops",
+      "datasourceTemplate": "github-release-attachments",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Update Restic release assets and architecture-specific checksums",
+      "managerFilePatterns": ["/^bin\\/install-restic$/"],
+      "matchStrings": [
+        "(?<architecture>amd64|arm64)\\)\\n[ \\t]+release_tag=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)\\n[ \\t]+version=\\$\\{release_tag#v\\}\\n[ \\t]+archive_sha256=(?<currentDigest>[0-9a-f]{64})"
+      ],
+      "autoReplaceStringTemplate": "{{{architecture}}})\n    release_tag={{{newValue}}}\n    version=${release_tag#v}\n    archive_sha256={{{newDigest}}}",
+      "depNameTemplate": "restic/restic",
+      "datasourceTemplate": "github-release-attachments",
+      "versioningTemplate": "semver"
     }
   ],
   "packageRules": [
@@ -62,8 +133,36 @@
     },
     {
       "description": "Keep Caddy build stages on one release",
-      "matchPackageNames": ["docker.io/caddy"],
+      "matchPackageNames": [
+        "docker.io/caddy",
+        "github.com/caddy-dns/cloudflare",
+        "github.com/mholt/caddy-webdav"
+      ],
       "groupName": "caddy"
+    },
+    {
+      "description": "Keep the Radicale base image and packages together",
+      "matchPackageNames": [
+        "docker.io/alpine",
+        "alpine_3_24/py3-bcrypt",
+        "alpine_3_24/radicale"
+      ],
+      "groupName": "radicale"
+    },
+    {
+      "description": "Keep age architecture assets together",
+      "matchPackageNames": ["FiloSottile/age"],
+      "groupName": "age"
+    },
+    {
+      "description": "Keep SOPS architecture assets together",
+      "matchPackageNames": ["getsops/sops"],
+      "groupName": "sops"
+    },
+    {
+      "description": "Keep Restic architecture assets together",
+      "matchPackageNames": ["restic/restic"],
+      "groupName": "restic"
     }
   ]
 }
