@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-anythingllm-node-modules
+Label=io.containers.systemd.application=anythingllm

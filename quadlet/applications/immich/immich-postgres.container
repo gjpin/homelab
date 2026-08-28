@@ -13,9 +13,11 @@ EnvironmentFile=%t/homelab/rendered/site.env
 Network=immich.network
 Environment=POSTGRES_USER=immich
 Environment=POSTGRES_DB=immich
+Environment=PGDATA=/var/lib/postgresql/data
 Environment=POSTGRES_INITDB_ARGS=--data-checksums
 Secret=immich-database-password,type=env,target=POSTGRES_PASSWORD
 Volume=immich-postgres.volume:/var/lib/postgresql/data:U
+Volume=immich-postgres-config.volume:/etc/postgresql:U
 HealthCmd=pg_isready -U immich -d immich
 HealthInterval=10s
 HealthTimeout=5s

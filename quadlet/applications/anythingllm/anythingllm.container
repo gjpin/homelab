@@ -13,6 +13,7 @@ EnvironmentFile=%t/homelab/rendered/site.env
 Network=anythingllm.network
 Environment=STORAGE_DIR=/app/server/storage
 Volume=anythingllm-data.volume:/app/server/storage:U
+Volume=anythingllm-node-modules.volume:/app/server/node_modules:U
 Volume=%h/.local/state/homelab/anythingllm/.env:/app/server/.env:Z
 LogDriver=journald
 NoNewPrivileges=true
