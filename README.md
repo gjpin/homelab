@@ -204,9 +204,9 @@ Perform these steps in order. Replace every uppercase placeholder.
     [Caddy Cloudflare module](https://github.com/caddy-dns/cloudflare#configuration).
     The token is shown once and will be encrypted by step 12.
 
-11. Configure name resolution for every Caddy hostname: `bookmarks`, `chat`,
-    `docs`, `docs-worker`, `docs-mcp`, `git`, `home`, `home-zigbee`, `photos`,
-    `contacts`, `search`, `supernote`, `syncthing`, and `vault`, all below
+11. Configure name resolution for every Caddy hostname: `bookmarks`, `git`,
+    `home`, `home-zigbee`, `photos`, `contacts`, `search`, `supernote`,
+    `syncthing`, and `vault`, all below
     `BASE_DOMAIN`.
 
     For public access, create a DNS-only wildcard `A` record named `*` pointing
@@ -217,13 +217,10 @@ Perform these steps in order. Replace every uppercase placeholder.
     create inbound router forwards. The Cloudflare zone and token are still
     required for ACME DNS-01 certificate issuance.
 
-12. Open the [OpenAI API key dashboard](https://platform.openai.com/api-keys),
-    select the project used for Docs MCP, create a secret key named
-    `homelab-docs-mcp`, and copy it. Before running secret initialization, have
-    these values ready: the S3 key ID and secret, a unique restic repository
-    password of at least 20 characters, that OpenAI API key, the Cloudflare
-    token from step 10, a bookmarks password, an optional Docs MCP PostHog key,
-    a Radicale username and password, and a Vaultwarden admin password. Save
+12. Before running secret initialization, have these values ready: the S3 key
+    ID and secret, a unique restic repository password of at least 20
+    characters, the Cloudflare token from step 10, a bookmarks password, a
+    Radicale username and password, and a Vaultwarden admin password. Save
     the chosen application passwords and the restic password in the operator
     password manager; application password hashes cannot be reversed. From the
     repository root on the operator workstation, initialize and push encrypted
@@ -290,7 +287,7 @@ Perform these steps in order. Replace every uppercase placeholder.
     Follow the complete [encrypted S3 backup procedure](docs/backups.md) for
     provider-specific settings and checks. Do not treat the installation as
     recoverable until the host age identity, operator age identity, named
-    volumes, and AnythingLLM state have verified backups.
+    volumes have verified backups.
 
 16. Remove the target host's temporary bootstrap copy after the backup has
     been verified. Keep or destroy the operator-side deploy-key copy according
@@ -436,9 +433,8 @@ SOPS metadata, preventing a later downgrade to classical age keys. An age
 private identity cannot be recreated from its recipient. Restore the exact
 `keys.txt` from backup on a replacement host.
 
-Home Assistant `.storage`, AnythingLLM's writable `.env`, Forgejo state, and
-credentials created through application UIs are application-managed state, not
-deployment secrets.
+Home Assistant `.storage`, Forgejo state, and credentials created through
+application UIs are application-managed state, not deployment secrets.
 
 ## Backup and recovery
 
@@ -470,18 +466,17 @@ all other images use the host's native architecture.
 | Operator age identity: `~/.config/sops/age/operator.txt` | Required; store encrypted/offline, separately from the host identity. | Keep it on the operator workstation. It is the recovery identity if the host copy is lost. |
 | GitHub deploy private key | Optional. It is an unencrypted secret. | Prefer a new key and a new read-only GitHub deploy-key entry. Restore the old key only if intentionally retaining it. |
 | Verified `github-known-hosts` | No. | Recreate it and verify it against GitHub's published fingerprint. |
-| Cloudflare, OpenAI, PostHog, and generated deployment credentials | Required in encrypted form; keep `secrets/secrets.sops.yaml` pushed. | No separate host copy is required. SOPS decrypts them from Git. |
+| Cloudflare and generated deployment credentials | Required in encrypted form; keep `secrets/secrets.sops.yaml` pushed. | No separate host copy is required. SOPS decrypts them from Git. |
 | Chosen bookmarks, Radicale, and Vaultwarden plaintext passwords | Keep in the operator password manager. | They are not host bootstrap inputs. Their hashes come from Git and application accounts come from volume backups. |
 | `RENOVATE_TOKEN` | Keep it as a GitHub Actions repository secret. | It is not copied to or required by the container host. |
 | S3 access key and restic repository password | Required in SOPS and the operator password manager. | Decrypt them with the offline operator identity to access backups after host loss. |
 | Deployed Git commit | Included in every restic snapshot. | Verify that it exists in Git and is an ancestor of the revision being deployed. |
-| All `homelab-*` Podman named volumes | Included in every restic snapshot. | Create empty named volumes and restore their snapshot subtrees before first reconciliation. |
-| `/home/homelab/.local/state/homelab/anythingllm/.env` | Required after AnythingLLM has been configured. | Restore it before first reconciliation. |
+| Active `homelab-*` Podman named volumes | Included in every restic snapshot. | Create empty named volumes and restore their snapshot subtrees before first reconciliation. Inactive incubator volumes are outside this inventory. |
 | Releases, rendered configs, installed binaries, systemd links, firewall rules, and the `zigbee-router` symlink | No. | `bootstrap-host` and `reconcile` recreate them. |
 
-Application accounts and settings created through a UI are stored in the
-named volumes or the AnythingLLM `.env`; encrypted deployment credentials are
-stored in Git. Git reconciliation never deletes named volumes.
+Application accounts and settings created through a UI are stored in the named
+volumes; encrypted deployment credentials are stored in Git. Git reconciliation
+never deletes named volumes.
 
 ## Legacy offline archive fallback
 
@@ -527,16 +522,19 @@ so PostgreSQL, MariaDB, SQLite, Valkey, Redis, and file data are consistent.
    dedicated to this deployment, so any running container means the backup is
    not cold.
 
-4. Archive every labeled named volume, the AnythingLLM state file, and the
-   host age identity:
+4. Archive every active named volume and the host age identity:
 
    ```bash
    backup_root=/MOUNTED/ENCRYPTED/BACKUP/HOSTNAME-YYYYMMDDTHHMMSSZ
    umask 077
    install -d -m 0700 "$backup_root/volumes"
-   podman volume ls \
-     --filter label=io.containers.systemd.application \
-     --format '{{.Name}}' | sort > "$backup_root/volume-list.txt"
+   : > "$backup_root/volume-list.txt"
+   while IFS= read -r app; do
+     podman volume ls \
+       --filter "label=io.containers.systemd.application=$app" \
+       --format '{{.Name}}' >> "$backup_root/volume-list.txt"
+   done < <(jq -r 'keys[]' manifests/applications.json)
+   sort -u -o "$backup_root/volume-list.txt" "$backup_root/volume-list.txt"
    sed -n 's/^VolumeName=//p' quadlet/volumes/*.volume \
      | sort > "$backup_root/expected-volume-list.txt"
    diff -u "$backup_root/expected-volume-list.txt" \
@@ -551,8 +549,6 @@ so PostgreSQL, MariaDB, SQLite, Valkey, Redis, and file data are consistent.
    install -m 0600 ~/.config/sops/age/keys.txt "$backup_root/host-age-keys.txt"
    install -m 0600 ~/.local/state/homelab/deployed-commit \
      "$backup_root/deployed-commit.txt"
-   install -m 0600 ~/.local/state/homelab/anythingllm/.env \
-     "$backup_root/anythingllm.env"
    (
      cd "$backup_root"
      find . -type f ! -name SHA256SUMS -print0 \
@@ -645,11 +641,11 @@ Do not run an initial reconciliation before restoring the volumes.
    Copy the verified backup files from the backup directory:
 
    ```bash
-   scp host-age-keys.txt deployed-commit.txt anythingllm.env volume-list.txt \
+   scp host-age-keys.txt deployed-commit.txt volume-list.txt \
      expected-volume-list.txt SHA256SUMS \
      ADMIN@NEW_HOST:podman-bootstrap/
    rsync -a volumes/ ADMIN@NEW_HOST:podman-bootstrap/volumes/
-   ssh ADMIN@NEW_HOST 'chmod 0600 ~/podman-bootstrap/github-* ~/podman-bootstrap/host-age-keys.txt ~/podman-bootstrap/anythingllm.env ~/podman-bootstrap/volumes/*'
+   ssh ADMIN@NEW_HOST 'chmod 0600 ~/podman-bootstrap/github-* ~/podman-bootstrap/host-age-keys.txt ~/podman-bootstrap/volumes/*'
    ssh ADMIN@NEW_HOST \
      'cd ~/podman-bootstrap && sha256sum --check SHA256SUMS'
    ```
@@ -673,8 +669,6 @@ Do not run an initial reconciliation before restoring the volumes.
 
    ```bash
    sudo install -d -m 0700 -o homelab -g homelab /home/homelab/restore/volumes
-   sudo install -m 0600 -o homelab -g homelab \
-     ~/podman-bootstrap/anythingllm.env /home/homelab/restore/anythingllm.env
    sudo install -m 0600 -o homelab -g homelab \
      ~/podman-bootstrap/volume-list.txt /home/homelab/restore/volume-list.txt
    sudo install -m 0600 -o homelab -g homelab \
@@ -710,9 +704,6 @@ Do not run an initial reconciliation before restoring the volumes.
        -C "$volume_path" -xzf "$archive"
    done < <(find quadlet/volumes -type f -name '*.volume' | sort)
 
-   install -d -m 0700 ~/.local/state/homelab/anythingllm
-   install -m 0600 ~/restore/anythingllm.env \
-     ~/.local/state/homelab/anythingllm/.env
    sops --decrypt secrets/secrets.sops.yaml >/dev/null
    ```
 

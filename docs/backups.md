@@ -127,11 +127,14 @@ forgets it immediately; a failed cleanup is recorded locally, shown by
 ## What is backed up
 
 - Every named volume declared by `quadlet/volumes`, after verifying it exactly
-  matches the labeled rootless Podman volume inventory.
-- The AnythingLLM writable `.env`, deployed Git commit, host age identity, and
-  a volume-to-mountpoint manifest.
+  matches the labeled inventory for active applications.
+- The deployed Git commit, host age identity, and a volume-to-mountpoint
+  manifest.
 
 The private Git repository, operator age identity, and plaintext repository
 password remain independent recovery prerequisites. Releases, images,
 rendered configuration, caches outside named volumes, and host firewall units
 are recreated rather than backed up.
+
+Volumes belonging to inactive incubator bundles are intentionally outside this
+backup inventory.

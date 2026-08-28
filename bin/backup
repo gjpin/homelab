@@ -103,8 +103,13 @@ mapfile -t volume_files < <(find "$root/quadlet/volumes" -type f -name '*.volume
 for volume_file in "${volume_files[@]}"; do
   sed -n 's/^VolumeName=//p' "$volume_file"
 done | sort >"$work_dir/expected-volumes"
-podman volume ls --filter label=io.containers.systemd.application \
-  --format '{{.Name}}' | sort >"$work_dir/actual-volumes"
+: >"$work_dir/actual-volumes"
+while IFS= read -r app; do
+  podman volume ls \
+    --filter "label=io.containers.systemd.application=$app" \
+    --format '{{.Name}}' >>"$work_dir/actual-volumes"
+done < <(printf '%s\n' "${apps[@]}")
+sort -u -o "$work_dir/actual-volumes" "$work_dir/actual-volumes"
 diff -u "$work_dir/expected-volumes" "$work_dir/actual-volumes" || \
   die "declared and labeled Podman volume inventories differ"
 
@@ -120,7 +125,6 @@ done <"$work_dir/expected-volumes"
 required_paths=(
   "$HOME/.config/sops/age/keys.txt"
   "$state_dir/deployed-commit"
-  "$state_dir/anythingllm/.env"
 )
 for path in "${required_paths[@]}"; do
   [[ -f $path ]] || die "required backup input is missing: $path"

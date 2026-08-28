@@ -1,15 +1,7 @@
 {
-  "anythingllm": {
-    "units": ["anythingllm.service"],
-    "secrets": []
-  },
   "caddy": {
     "units": ["caddy-build.service", "caddy.service"],
     "secrets": ["caddy-cloudflare-api-token", "caddy-bookmarks-password-hash"]
-  },
-  "docs-mcp": {
-    "units": ["docs-mcp-worker.service", "docs-mcp-server.service", "docs-mcp-web.service"],
-    "secrets": ["docs-mcp-openai-api-key", "docs-mcp-posthog-api-key"]
   },
   "forgejo": {
     "units": ["forgejo-postgres.service", "forgejo.service"],

@@ -27,12 +27,7 @@ dry_run=false
 exec 9>"$lock_file"
 flock --nonblock 9 || die "another reconciliation is running"
 [[ -d $repo_dir/.git ]] || die "Git checkout not found: $repo_dir"
-install -d -m 0700 "$releases_dir" "$state_dir" "$state_dir/anythingllm"
-touch "$state_dir/anythingllm/.env"
-# AnythingLLM runs as a non-root image user. The file remains protected by
-# the 0700 parent directory, while this mode lets the mapped rootless user
-# read and update it through the bind mount.
-chmod 0666 "$state_dir/anythingllm/.env"
+install -d -m 0700 "$releases_dir" "$state_dir"
 
 info "fetching origin/$branch"
 git -C "$repo_dir" fetch --prune origin "$branch"
@@ -128,6 +123,23 @@ else
 fi
 mapfile -t apps < <(printf '%s\n' "${apps[@]}" | sed '/^$/d' | sort -u)
 
+previous_apps=()
+if [[ -L $current_link && -r "$current_link/manifests/applications.json" ]]; then
+  mapfile -t previous_apps < <(jq -r 'keys[]' "$current_link/manifests/applications.json")
+fi
+retired_apps=()
+retired_active_apps=()
+for previous_app in "${previous_apps[@]}"; do
+  if ! jq -e --arg app "$previous_app" 'has($app)' "$release/manifests/applications.json" >/dev/null; then
+    retired_apps+=("$previous_app")
+    if systemctl --user is-active --quiet "homelab-$previous_app.target"; then
+      retired_active_apps+=("$previous_app")
+    fi
+    info "retiring $previous_app"
+    systemctl --user stop "homelab-$previous_app.target"
+  fi
+done
+
 previous_target=
 [[ -L $current_link ]] && previous_target=$(readlink "$current_link")
 ln -sfn "$release" "$current_link.next"
@@ -142,8 +154,20 @@ done
 if ! systemctl --user daemon-reload; then
   [[ -n $previous_target ]] && ln -sfn "$previous_target" "$current_link"
   systemctl --user daemon-reload || true
+  for retired_app in "${retired_active_apps[@]}"; do
+    systemctl --user start "homelab-$retired_app.target" || true
+  done
   die "systemd reload failed; restored prior release"
 fi
+
+for retired_app in "${retired_apps[@]}"; do
+  systemctl --user disable "homelab-$retired_app.target" >/dev/null 2>&1 || true
+done
+for link in "$runtime_home/.config/systemd/user"/homelab-*; do
+  [[ -L $link ]] || continue
+  unit=$(basename -- "$link")
+  [[ -e "$current_link/systemd/user/$unit" ]] || unlink "$link"
+done
 
 systemctl --user restart homelab-secrets.service
 for app in "${apps[@]}"; do

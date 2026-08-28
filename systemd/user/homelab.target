@@ -1,6 +1,6 @@
 [Unit]
 Description=Rootless Podman homelab
-Wants=homelab-anythingllm.target homelab-caddy.target homelab-docs-mcp.target homelab-forgejo.target homelab-homeassistant.target homelab-immich.target homelab-radicale.target homelab-searxng.target homelab-supernote.target homelab-syncthing.target homelab-vaultwarden.target
+Wants=homelab-caddy.target homelab-forgejo.target homelab-homeassistant.target homelab-immich.target homelab-radicale.target homelab-searxng.target homelab-supernote.target homelab-syncthing.target homelab-vaultwarden.target
 After=homelab-secrets.service
 Requires=homelab-secrets.service
 

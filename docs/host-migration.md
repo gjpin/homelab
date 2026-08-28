@@ -102,11 +102,6 @@ while IFS= read -r volume_file; do
     --target "$mountpoint"
 done < <(find quadlet/volumes -type f -name '*.volume' | sort)
 
-install -d -m 0700 ~/.local/state/homelab/anythingllm
-./bin/restic dump "$snapshot" \
-  /home/homelab/.local/state/homelab/anythingllm/.env \
-  > ~/.local/state/homelab/anythingllm/.env
-chmod 0600 ~/.local/state/homelab/anythingllm/.env
 ./bin/restic dump "$snapshot" \
   /home/homelab/.local/state/homelab/deployed-commit \
   > ~/.local/state/homelab/deployed-commit

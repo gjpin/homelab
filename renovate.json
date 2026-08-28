@@ -56,11 +56,6 @@
       "groupName": "immich"
     },
     {
-      "description": "Keep all Docs MCP services on one release",
-      "matchPackageNames": ["ghcr.io/arabold/docs-mcp-server"],
-      "groupName": "docs-mcp"
-    },
-    {
       "description": "Keep Caddy build stages on one release",
       "matchPackageNames": ["docker.io/caddy"],
       "groupName": "caddy"
