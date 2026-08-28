@@ -8,10 +8,11 @@ PartOf=homelab-anythingllm.target
 Image=docker.io/mintplexlabs/anythingllm:1.16.1@sha256:05617e7bece7fd6eddc4f5b4176cd87fff74d7da88d988a6109b95481cce122c
 Pull=missing
 ContainerName=anythingllm
+User=anythingllm:anythingllm
 EnvironmentFile=%t/homelab/rendered/site.env
 Network=anythingllm.network
 Environment=STORAGE_DIR=/app/server/storage
-Volume=anythingllm-data.volume:/app/server/storage
+Volume=anythingllm-data.volume:/app/server/storage:U
 Volume=%h/.local/state/homelab/anythingllm/.env:/app/server/.env:Z
 LogDriver=journald
 NoNewPrivileges=true

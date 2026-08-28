@@ -7,6 +7,7 @@ PartOf=homelab-radicale.target
 [Container]
 Image=radicale.build
 ContainerName=radicale
+User=radicale:radicale
 EnvironmentFile=%t/homelab/rendered/site.env
 Network=radicale.network
 Volume=%t/homelab/rendered/radicale/config:/etc/radicale/config:ro,Z

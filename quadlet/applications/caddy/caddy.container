@@ -7,6 +7,7 @@ PartOf=homelab-caddy.target
 [Container]
 Image=caddy.build
 ContainerName=caddy
+User=caddy:caddy
 Network=anythingllm.network
 Network=docs-mcp.network
 Network=forgejo-edge.network
@@ -22,9 +23,9 @@ EnvironmentFile=%t/homelab/rendered/site.env
 Secret=caddy-cloudflare-api-token,type=env,target=CADDY_CLOUDFLARE_TOKEN
 Secret=caddy-bookmarks-password-hash,type=env,target=CADDY_HASHED_PASSWORD
 Volume=%h/current/config/templates/caddy/Caddyfile:/etc/caddy/Caddyfile:ro,Z
-Volume=caddy-data.volume:/data/caddy
-Volume=caddy-config.volume:/config/caddy
-Volume=caddy-bookmarks.volume:/data/bookmarks
+Volume=caddy-data.volume:/data/caddy:U
+Volume=caddy-config.volume:/config/caddy:U
+Volume=caddy-bookmarks.volume:/data/bookmarks:U
 LogDriver=journald
 NoNewPrivileges=true
 DropCapability=all

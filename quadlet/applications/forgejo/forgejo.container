@@ -5,9 +5,10 @@ Requires=forgejo-postgres.container
 PartOf=homelab-forgejo.target
 
 [Container]
-Image=codeberg.org/forgejo/forgejo:16.0.3@sha256:7c4e1db440be7b2ca685b49d0d7864cdd78e92431f531bf7893659def8200fc5
+Image=codeberg.org/forgejo/forgejo:16.0.3-rootless@sha256:214f4ae63ee78be1e445e58573c88dc7215e72091210852e0df94eaac1a25685
 Pull=missing
 ContainerName=forgejo
+User=1000:1000
 EnvironmentFile=%t/homelab/rendered/site.env
 Network=forgejo.network
 Network=forgejo-edge.network
@@ -18,11 +19,10 @@ Environment=FORGEJO__database__HOST=forgejo-postgres:5432
 Environment=FORGEJO__database__NAME=forgejo
 Environment=FORGEJO__database__USER=forgejo
 Secret=forgejo-database-password,type=env,target=FORGEJO__database__PASSWD
-Volume=forgejo-data.volume:/data
+Volume=forgejo-data.volume:/var/lib/gitea:U
 LogDriver=journald
 NoNewPrivileges=true
 DropCapability=all
-AddCapability=CHOWN DAC_OVERRIDE FOWNER SETGID SETUID
 ReadOnly=true
 ReadOnlyTmpfs=true
 PodmanArgs=--image-volume=ignore

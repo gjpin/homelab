@@ -8,13 +8,14 @@ PartOf=homelab-immich.target
 Image=ghcr.io/immich-app/postgres:18-vectorchord1.1.1-pgvector0.8.5@sha256:4303394b926b7b7af5d4d15a6372c3cfff4ee994a4cf32c5479aa5ef73972077
 Pull=missing
 ContainerName=immich-postgres
+User=1000:1000
 EnvironmentFile=%t/homelab/rendered/site.env
 Network=immich.network
 Environment=POSTGRES_USER=immich
 Environment=POSTGRES_DB=immich
 Environment=POSTGRES_INITDB_ARGS=--data-checksums
 Secret=immich-database-password,type=env,target=POSTGRES_PASSWORD
-Volume=immich-postgres.volume:/var/lib/postgresql/data
+Volume=immich-postgres.volume:/var/lib/postgresql/data:U
 HealthCmd=pg_isready -U immich -d immich
 HealthInterval=10s
 HealthTimeout=5s
@@ -24,7 +25,6 @@ Notify=healthy
 LogDriver=journald
 NoNewPrivileges=true
 DropCapability=all
-AddCapability=CHOWN DAC_OVERRIDE FOWNER SETGID SETUID
 ReadOnly=true
 ReadOnlyTmpfs=true
 PodmanArgs=--image-volume=ignore

@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-immich-valkey
+Label=io.containers.systemd.application=immich

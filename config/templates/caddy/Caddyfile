@@ -112,7 +112,7 @@ syncthing.{$BASE_DOMAIN} {
 vault.{$BASE_DOMAIN} {
 	import default-header
 	encode gzip
-	reverse_proxy vaultwarden:80
+	reverse_proxy vaultwarden:8080
 	reverse_proxy /notifications/hub vaultwarden:3012
 	reverse_proxy /notifications/hub/negotiate vaultwarden:8080
 }

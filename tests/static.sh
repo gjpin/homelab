@@ -40,6 +40,39 @@ done < <(rg --no-filename '^Secret=' "$containers" | cut -d= -f2 | cut -d, -f1 |
 [[ $(rg -l '^PidsLimit=1024$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must set the approved PID limit\n' >&2; exit 1; }
 [[ $(rg -l '^PartOf=homelab-.*\.target$' "$containers" | wc -l | tr -d ' ') == 23 ]] || { printf 'every container must belong to an application target\n' >&2; exit 1; }
 
+rootless_units=(
+  anythingllm/anythingllm.container
+  caddy/caddy.container
+  docs-mcp/docs-mcp-server.container
+  docs-mcp/docs-mcp-web.container
+  docs-mcp/docs-mcp-worker.container
+  forgejo/forgejo.container
+  forgejo/forgejo-postgres.container
+  homeassistant/homeassistant-mosquitto.container
+  homeassistant/homeassistant-zigbee2mqtt.container
+  immich/immich-machine-learning.container
+  immich/immich-postgres.container
+  immich/immich-valkey.container
+  immich/immich-server.container
+  radicale/radicale.container
+  searxng/searxng-core.container
+  searxng/searxng-valkey.container
+  supernote/supernote-redis.container
+  supernote/supernote-mariadb.container
+  syncthing/syncthing.container
+  vaultwarden/vaultwarden.container
+)
+for unit in "${rootless_units[@]}"; do
+  rg -q '^User=' "$containers/$unit" || {
+    printf 'rootless-capable container is missing an explicit User: %s\n' "$unit" >&2
+    exit 1
+  }
+done
+[[ $(rg -l '^User=' "$containers" | wc -l | tr -d ' ') == "${#rootless_units[@]}" ]] || {
+  printf 'a container has an undocumented root user exception\n' >&2
+  exit 1
+}
+
 if rg --no-filename '^AddCapability=' "$containers" | cut -d= -f2- | tr ' ' '\n' | \
   rg -v '^(NET_BIND_SERVICE|CHOWN|DAC_OVERRIDE|FOWNER|SETGID|SETUID)$'; then
   printf 'forbidden capability exception found\n' >&2

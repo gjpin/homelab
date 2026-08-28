@@ -27,7 +27,10 @@ flock --nonblock 9 || die "another reconciliation is running"
 [[ -d $repo_dir/.git ]] || die "Git checkout not found: $repo_dir"
 install -d -m 0700 "$releases_dir" "$state_dir" "$state_dir/anythingllm"
 touch "$state_dir/anythingllm/.env"
-chmod 0600 "$state_dir/anythingllm/.env"
+# AnythingLLM runs as a non-root image user. The file remains protected by
+# the 0700 parent directory, while this mode lets the mapped rootless user
+# read and update it through the bind mount.
+chmod 0666 "$state_dir/anythingllm/.env"
 
 info "fetching origin/$branch"
 git -C "$repo_dir" fetch --prune origin "$branch"

@@ -20,6 +20,9 @@ and a root-owned socket proxy that forwards TCP 443 to rootless Caddy on
 - Every image root filesystem is read-only, every container drops Podman's
   default capability set, and narrowly reviewed startup exceptions are
   allowlisted. PID cgroups limit each container to 1024 processes.
+- Rootless/non-root image users are selected explicitly wherever the upstream
+  image supports them; documented exceptions and the required data-volume
+  considerations are listed in [the rootless image policy](docs/rootless-images.md).
 - SELinux must remain enforcing. Normal containers use `container_t` with
   per-container MCS separation. Only Zigbee2MQTT uses `container_device_t`, and
   the global `container_use_devices` boolean remains off.
@@ -473,7 +476,7 @@ The following removable-media workflow is retained only as an independent
 offline fallback. Use the automated restic procedure above for routine backups.
 
 This is a cold backup of every application volume. It stops all applications
-so PostgreSQL, MariaDB, SQLite, Redis, and file data are consistent.
+so PostgreSQL, MariaDB, SQLite, Valkey, Redis, and file data are consistent.
 
 1. Mount an encrypted backup destination. Create a host-specific directory
    writable only by `homelab`:

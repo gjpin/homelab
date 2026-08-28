@@ -20,7 +20,7 @@
     "secrets": ["homeassistant-mosquitto-password"]
   },
   "immich": {
-    "units": ["immich-redis.service", "immich-postgres.service", "immich-machine-learning.service", "immich-server.service"],
+    "units": ["immich-valkey.service", "immich-postgres.service", "immich-machine-learning.service", "immich-server.service"],
     "secrets": ["immich-database-password"]
   },
   "radicale": {

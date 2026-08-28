@@ -1,24 +1,26 @@
 [Unit]
 Description=Immich server
-After=immich-redis.container immich-postgres.container
-Requires=immich-redis.container immich-postgres.container
+After=immich-valkey.container immich-postgres.container
+Requires=immich-valkey.container immich-postgres.container
 PartOf=homelab-immich.target
 
 [Container]
 Image=ghcr.io/immich-app/immich-server:v3.1.0@sha256:b434cb9287eea1471c9974845914d4dd328c9c2d652e446ed4930f99944f0ceb
 Pull=missing
 ContainerName=immich-server
+User=1000:1000
 EnvironmentFile=%t/homelab/rendered/site.env
 Network=immich.network
 Network=immich-edge.network
 Environment=DB_HOSTNAME=immich-postgres
 Environment=DB_USERNAME=immich
 Environment=DB_DATABASE_NAME=immich
-Environment=REDIS_HOSTNAME=immich-redis
+# Immich retains REDIS_HOSTNAME as its configuration key; the backend service is Valkey.
+Environment=REDIS_HOSTNAME=immich-valkey
 Environment=UPLOAD_LOCATION=/data
 Environment=DB_DATA_LOCATION=/var/lib/postgresql/data
 Secret=immich-database-password,type=env,target=DB_PASSWORD
-Volume=immich-data.volume:/data
+Volume=immich-data.volume:/data:U
 LogDriver=journald
 NoNewPrivileges=true
 DropCapability=all

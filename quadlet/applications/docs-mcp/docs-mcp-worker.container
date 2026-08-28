@@ -8,6 +8,7 @@ PartOf=homelab-docs-mcp.target
 Image=ghcr.io/arabold/docs-mcp-server:3.0.1@sha256:a0af614ecb4ed4e4077d9213a38d7a46215fd4362a129eaa334fcb53ec546769
 Pull=missing
 ContainerName=docs-mcp-worker
+User=node:node
 EnvironmentFile=%t/homelab/rendered/site.env
 Network=docs-mcp.network
 Exec=worker --host 0.0.0.0 --port 8080
@@ -16,9 +17,9 @@ Environment=DOCS_MCP_STORE_PATH=/database
 Environment=DOCS_MCP_EMBEDDING_BATCH_CHARS=50000
 Secret=docs-mcp-openai-api-key,type=env,target=OPENAI_API_KEY
 Secret=docs-mcp-posthog-api-key,type=env,target=POSTHOG_API_KEY
-Volume=docs-mcp-data.volume:/data
-Volume=docs-mcp-config.volume:/config
-Volume=docs-mcp-database.volume:/database
+Volume=docs-mcp-data.volume:/data:U
+Volume=docs-mcp-config.volume:/config:U
+Volume=docs-mcp-database.volume:/database:U
 HealthCmd=node -e "require('net').connect(8080,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"
 HealthInterval=5s
 HealthTimeout=3s

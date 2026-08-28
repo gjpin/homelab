@@ -1,16 +1,18 @@
 [Unit]
-Description=Immich Redis
+Description=Immich Valkey
 After=homelab-secrets.service
 Requires=homelab-secrets.service
 PartOf=homelab-immich.target
 
 [Container]
-Image=docker.io/redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
+Image=docker.io/valkey/valkey:9.1.1@sha256:70739f85ad2ee01a726a965584a0f94895f01b0c60b3cc8b0aeef11eaa6888cf
 Pull=missing
-ContainerName=immich-redis
+ContainerName=immich-valkey
+User=1000:1000
 EnvironmentFile=%t/homelab/rendered/site.env
 Network=immich.network
-HealthCmd=redis-cli ping
+Volume=immich-valkey.volume:/data:U
+HealthCmd=valkey-cli ping
 HealthInterval=10s
 HealthTimeout=3s
 HealthRetries=10
@@ -18,7 +20,6 @@ Notify=healthy
 LogDriver=journald
 NoNewPrivileges=true
 DropCapability=all
-AddCapability=CHOWN DAC_OVERRIDE FOWNER SETGID SETUID
 ReadOnly=true
 ReadOnlyTmpfs=true
 PodmanArgs=--image-volume=ignore

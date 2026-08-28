@@ -8,6 +8,7 @@ PartOf=homelab-syncthing.target
 Image=docker.io/syncthing/syncthing:2.1.3@sha256:8c8ff37ab6aa8be23b700648a90fa9412e214852e9fd6ea8477c8334792daec0
 Pull=missing
 ContainerName=syncthing
+User=1000:1000
 EnvironmentFile=%t/homelab/rendered/site.env
 HostName=homelab
 Network=syncthing.network
@@ -15,11 +16,10 @@ Environment=PUID=1000
 Environment=PGID=1000
 PublishPort=22000:22000/tcp
 PublishPort=22000:22000/udp
-Volume=syncthing-data.volume:/var/syncthing
+Volume=syncthing-data.volume:/var/syncthing:U
 LogDriver=journald
 NoNewPrivileges=true
 DropCapability=all
-AddCapability=CHOWN DAC_OVERRIDE FOWNER SETGID SETUID
 ReadOnly=true
 ReadOnlyTmpfs=true
 PodmanArgs=--image-volume=ignore

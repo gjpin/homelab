@@ -8,12 +8,13 @@ PartOf=homelab-supernote.target
 Image=docker.io/redis:8.10.1-alpine@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576
 Pull=missing
 ContainerName=supernote-redis
+User=1000:1000
 EnvironmentFile=%t/homelab/rendered/site.env
 Network=supernote.network
 Exec=redis-server /usr/local/etc/redis/redis.conf
 Secret=supernote-redis-password,type=env,target=REDIS_PASSWORD
 Volume=%t/homelab/rendered/supernote/redis.conf:/usr/local/etc/redis/redis.conf:ro,Z
-Volume=supernote-redis.volume:/data
+Volume=supernote-redis.volume:/data:U
 HealthCmd=redis-cli --no-auth-warning -a "$REDIS_PASSWORD" ping
 HealthInterval=10s
 HealthTimeout=3s
@@ -23,7 +24,6 @@ Notify=healthy
 LogDriver=journald
 NoNewPrivileges=true
 DropCapability=all
-AddCapability=CHOWN DAC_OVERRIDE FOWNER SETGID SETUID
 ReadOnly=true
 ReadOnlyTmpfs=true
 PodmanArgs=--image-volume=ignore

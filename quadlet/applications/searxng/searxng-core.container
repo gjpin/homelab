@@ -8,15 +8,16 @@ PartOf=homelab-searxng.target
 Image=docker.io/searxng/searxng:2026.8.28-a30b2d474@sha256:addd2cf36efb4b9815a2820a522aef7cce4da0d1c0e4527f6675f5663332fc9b
 Pull=missing
 ContainerName=searxng-core
+User=977:977
 EnvironmentFile=%t/homelab/rendered/site.env
 Network=searxng.network
 Network=searxng-edge.network
 Volume=%t/homelab/rendered/searxng/settings.yml:/etc/searxng/settings.yml:ro,Z
-Volume=searxng-cache.volume:/var/cache/searxng
+Volume=searxng-cache.volume:/var/cache/searxng:U
+Environment=FORCE_OWNERSHIP=false
 LogDriver=journald
 NoNewPrivileges=true
 DropCapability=all
-AddCapability=CHOWN DAC_OVERRIDE FOWNER SETGID SETUID
 ReadOnly=true
 ReadOnlyTmpfs=true
 PodmanArgs=--image-volume=ignore
