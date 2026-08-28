@@ -1,7 +1,7 @@
 [Unit]
 Description=Supernote service
-After=supernote-mariadb.container supernote-redis.container
-Requires=supernote-mariadb.container supernote-redis.container
+After=supernote-mariadb.container supernote-valkey.container
+Requires=supernote-mariadb.container supernote-valkey.container
 PartOf=homelab-supernote.target
 
 [Container]
@@ -13,13 +13,13 @@ Network=supernote-edge.network
 EnvironmentFile=%t/homelab/rendered/site.env
 Environment=MYSQL_DATABASE=supernotedb
 Environment=MYSQL_USER=supernote
-Environment=REDIS_HOST=supernote-redis
+Environment=REDIS_HOST=supernote-valkey
 Environment=REDIS_PORT=6379
 Environment=DB_HOSTNAME=supernote-mariadb
 Environment=HTTP_PORT=443
 Environment=HTTPS_PORT=443
 Secret=supernote-database-user-password,type=env,target=MYSQL_PASSWORD
-Secret=supernote-redis-password,type=env,target=REDIS_PASSWORD
+Secret=supernote-valkey-password,type=env,target=REDIS_PASSWORD
 Volume=supernote-data.volume:/home/supernote/data
 Volume=supernote-recycle.volume:/home/supernote/recycle
 Volume=supernote-logs-cloud.volume:/home/supernote/cloud/logs

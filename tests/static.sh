@@ -122,7 +122,7 @@ rootless_units=(
   radicale/radicale.container
   searxng/searxng-core.container
   searxng/searxng-valkey.container
-  supernote/supernote-redis.container
+  supernote/supernote-valkey.container
   supernote/supernote-mariadb.container
   syncthing/syncthing.container
   vaultwarden/vaultwarden.container
@@ -245,9 +245,14 @@ for backend in forgejo homeassistant immich searxng supernote; do
 done
 
 if rg -l --glob '*postgres.container' --glob '*mariadb.container' \
-  --glob '*redis.container' --glob '*valkey.container' --glob '*mosquitto.container' \
+  --glob '*valkey.container' --glob '*mosquitto.container' \
   '^Network=.*-edge\.network$' "$containers"; then
   printf 'a database, cache, or MQTT container is attached to an edge network\n' >&2
+  exit 1
+fi
+
+if rg -n -i -g '!tests/static.sh' '\bredis\b' "$root"; then
+  printf 'stale Redis project reference found; only vendor REDIS_* environment keys may remain\n' >&2
   exit 1
 fi
 rg -q '^Network=immich-ml-egress.network$' \

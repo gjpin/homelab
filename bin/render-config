@@ -49,7 +49,7 @@ replace_secret forgejo-database-password '.forgejo.database_password'
 replace_secret immich-database-password '.immich.database_password'
 replace_secret supernote-database-root-password '.supernote.database_root_password'
 replace_secret supernote-database-user-password '.supernote.database_user_password'
-replace_secret supernote-redis-password '.supernote.redis_password'
+replace_secret supernote-valkey-password '.supernote.valkey_password'
 replace_secret vaultwarden-admin-token '.vaultwarden.admin_token_hash'
 
 HOMEASSISTANT_TRUSTED_PROXY_SUBNET=10.200.12.0/24
@@ -79,12 +79,12 @@ export SEARXNG_SECRET_KEY
 # shellcheck disable=SC2016
 envsubst '${BASE_DOMAIN} ${SEARXNG_SECRET_KEY}' <"$root/config/templates/searxng/settings.yml" >"$rendered/searxng/settings.yml"
 
-SUPERNOTE_REDIS_PASSWORD=$(secret_value '.supernote.redis_password')
-export SUPERNOTE_REDIS_PASSWORD
+SUPERNOTE_VALKEY_PASSWORD=$(secret_value '.supernote.valkey_password')
+export SUPERNOTE_VALKEY_PASSWORD
 # shellcheck disable=SC2016
-envsubst '${SUPERNOTE_REDIS_PASSWORD}' <"$root/config/templates/supernote/redis.conf" >"$rendered/supernote/redis.conf"
+envsubst '${SUPERNOTE_VALKEY_PASSWORD}' <"$root/config/templates/supernote/valkey.conf" >"$rendered/supernote/valkey.conf"
 
 # The parent runtime directory is 0700. Files are read-only but world-readable
 # inside their explicitly selected container so non-root image users can open them.
 find "$rendered" -type f -exec chmod 0444 {} +
-unset secrets_json HOMEASSISTANT_MOSQUITTO_PASSWORD SEARXNG_SECRET_KEY SUPERNOTE_REDIS_PASSWORD
+unset secrets_json HOMEASSISTANT_MOSQUITTO_PASSWORD SEARXNG_SECRET_KEY SUPERNOTE_VALKEY_PASSWORD

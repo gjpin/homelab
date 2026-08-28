@@ -1,4 +1,4 @@
 [Unit]
 Description=supernote application stack
-Wants=supernote-redis.service supernote-mariadb.service supernote-notelib.service supernote-service.service
+Wants=supernote-valkey.service supernote-mariadb.service supernote-notelib.service supernote-service.service
 After=homelab-secrets.service
