@@ -40,8 +40,17 @@ access is enabled.
 
 ## Prerequisites
 
-- Fedora/RHEL-compatible Linux host on amd64 or arm64 with cgroup v2 and
-  SELinux enforcing.
+- Fedora 44 or Fedora 45 Linux host on amd64 or arm64 with cgroup v2 and
+  SELinux enforcing. `bin/bootstrap-host` installs this host package baseline:
+  `age` (at least 1.3.0), `restic` (at least 0.19.1), `ca-certificates`,
+  `container-selinux`, `curl`, `diffutils`, `firewalld`, `fuse-overlayfs`,
+  `gettext-envsubst`, `gawk`, `git`, `iproute`, `jq`, `libselinux-utils`,
+  `openssh-clients`, `passt`, `podman`, `policycoreutils`, `python3`,
+  `ripgrep`, `shadow-utils`, `systemd`, `tar`, and `util-linux`. The script
+  also provisions valid `homelab` subordinate-ID ranges and installs the
+  official SOPS v3.13.3 RPM (`sops-3.13.3-1.x86_64.rpm` or
+  `sops-3.13.3-1.aarch64.rpm`) after verifying its pinned SHA-256 checksum and
+  RPM metadata.
 - On arm64, bootstrap installs Fedora's `qemu-user-binfmt` and
   `qemu-user-static-x86` packages and enables `systemd-binfmt`. The native
   multi-architecture images follow the host; Supernote's amd64-only `notelib`
@@ -154,15 +163,17 @@ Perform these steps in order. Replace every uppercase placeholder.
      --git-key ../github-deploy-key \
      --known-hosts ../github-known-hosts \
      --firewalld-zone public
-   /usr/local/bin/restic version
+     /usr/bin/restic version
+     /usr/bin/age --version
+     /usr/bin/sops --version
    ```
 
    Record the printed `age1pq1...` host recipient. Bootstrap creates the locked
-   `homelab` account, installs the pinned age, SOPS, and restic binaries,
-   clones the private repository, generates
+   `homelab` account, installs Fedora's age and restic RPMs plus the
+   checksum-verified SOPS v3.13.3 RPM, clones the private repository, generates
    `/home/homelab/.config/sops/age/keys.txt`, installs the TCP 443 proxy, and
-   configures firewalld. The version command must report the pinned Restic
-   release. The generated `keys.txt` private identity is required
+   configures firewalld. The version command must report restic 0.19.1 or
+   later. The generated `keys.txt` private identity is required
    to decrypt the existing secrets on a replacement host. Back it up in step
    15. Never commit it.
 

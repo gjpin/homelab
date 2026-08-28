@@ -52,12 +52,12 @@ encrypted in Git for unattended operation, but losing both age identities and
 the separately recorded password makes the repository unrecoverable.
 
 Commit and push the configuration and encrypted secret changes, reconcile the
-host, then install the pinned restic binary on a host upgraded from an older
-revision:
+host, then ensure the Fedora restic package is installed on a host upgraded
+from an older revision:
 
 ```bash
-sudo dnf install -y bzip2
-sudo /home/homelab/current/bin/install-restic
+sudo dnf install -y restic
+sudo dnf upgrade -y restic
 ```
 
 Fresh hosts install restic during `bootstrap-host`.

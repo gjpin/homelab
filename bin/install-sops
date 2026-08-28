@@ -7,26 +7,43 @@ set -Eeuo pipefail
 source "$(dirname -- "$0")/lib.sh"
 
 arch=$(host_arch)
+require_command curl
+require_command dnf
+require_command rpm
+require_command sha256sum
 
+version=3.13.3
 case "$arch" in
   amd64)
-    release_tag=v3.13.3
-    version=${release_tag#v}
-    binary_sha256=e5bec3346a873ae91d871550f3e698c1aad962aff462a080e40f25fde17fef6b
-    binary="sops-v${version}.linux.amd64"
+    rpm_arch=x86_64
+    rpm_file=sops-3.13.3-1.x86_64.rpm
+    rpm_sha256=f362eabc5b17b84894952fc57737eccf26ef8a4321453c165f4b1205b5544123
     ;;
   arm64)
-    release_tag=v3.13.3
-    version=${release_tag#v}
-    binary_sha256=53b0abacd38ef1b12a66d6c100956691b9cefce018d91f81e73ddf7438b94d77
-    binary="sops-v${version}.linux.arm64"
+    rpm_arch=aarch64
+    rpm_file=sops-3.13.3-1.aarch64.rpm
+    rpm_sha256=0b3a519c93abaff3edfcaf8a16b19cd3b7cc935daf604999b3b52aac96e5770e
     ;;
 esac
-url="https://github.com/getsops/sops/releases/download/v${version}/${binary}"
-tmp_binary=$(mktemp)
-trap 'rm -f -- "$tmp_binary"' EXIT
+url="https://github.com/getsops/sops/releases/download/v${version}/${rpm_file}"
+tmp_rpm=$(mktemp --suffix=.rpm)
+trap 'rm -f -- "$tmp_rpm"' EXIT
 
-curl --fail --location --proto '=https' --tlsv1.2 --output "$tmp_binary" "$url"
-printf '%s  %s\n' "$binary_sha256" "$tmp_binary" | sha256sum --check --status
-install -m 0755 "$tmp_binary" /usr/local/bin/sops
-sops --version
+curl --fail --location --proto '=https' --tlsv1.2 --output "$tmp_rpm" "$url"
+printf '%s  %s\n' "$rpm_sha256" "$tmp_rpm" | sha256sum --check --status
+
+rpm_name=$(rpm -qp --queryformat '%{NAME}' "$tmp_rpm") || die "downloaded SOPS RPM metadata is invalid"
+rpm_version=$(rpm -qp --queryformat '%{VERSION}' "$tmp_rpm") || die "downloaded SOPS RPM metadata is invalid"
+rpm_release=$(rpm -qp --queryformat '%{RELEASE}' "$tmp_rpm") || die "downloaded SOPS RPM metadata is invalid"
+rpm_package_arch=$(rpm -qp --queryformat '%{ARCH}' "$tmp_rpm") || die "downloaded SOPS RPM metadata is invalid"
+[[ $rpm_name == sops && $rpm_version == "$version" && $rpm_release == 1 &&
+  $rpm_package_arch == "$rpm_arch" ]] || {
+  die "downloaded SOPS RPM metadata does not match $rpm_file"
+}
+rpm -qip "$tmp_rpm" >/dev/null || die "downloaded SOPS RPM metadata could not be read"
+dnf install -y "$tmp_rpm"
+rm -f -- /usr/local/bin/sops
+installed_version=$(rpm -q --queryformat '%{VERSION}\n' sops) || die "SOPS RPM did not install"
+[[ $installed_version == "$version" ]] || \
+  die "installed SOPS version is $installed_version, expected $version"
+/usr/bin/sops --version >/dev/null
