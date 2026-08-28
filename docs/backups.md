@@ -6,7 +6,7 @@ same paths but upload only new chunks; every snapshot is still independently
 restorable as a complete point in time.
 
 Backups are cold: all application targets are stopped for the scan and upload
-so PostgreSQL, MariaDB, SQLite, Valkey, Redis, and ordinary files share one consistent
+so PostgreSQL, MariaDB, SQLite, Valkey, and ordinary files share one consistent
 point in time. The initial upload can therefore cause substantial downtime.
 
 ## Configure the repository

@@ -31,7 +31,7 @@ directory remains mode `0700`, so it is still private to the `homelab` account.
 | Radicale | `radicale:radicale` | Local image declares this user. |
 | SearXNG | `977:977` | The image’s `searxng` account is UID 977; matching it avoids the image’s cache ownership mismatch. `FORCE_OWNERSHIP=false` is safe here because the volume is aligned with `:U`. |
 | Supernote MariaDB | `mysql:mysql` | The official MariaDB image contains the `mysql` user and its non-root entrypoint path; the data volume is aligned with `:U`. |
-| Supernote Redis | `1000:1000` | Redis is run directly as a non-root service user; its writable volume is aligned with `:U`. |
+| Supernote Valkey | `1000:1000` | Valkey is run directly as a non-root service user; its writable volume is aligned with `:U`. |
 | Syncthing | `1000:1000` | Syncthing documents UID/GID 1000 as its container default. |
 | Vaultwarden | `1000:1000` | Vaultwarden documents non-root operation with an explicit UID/GID; its Rocket listener is moved to 8080. |
 

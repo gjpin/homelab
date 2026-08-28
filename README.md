@@ -492,7 +492,7 @@ The following removable-media workflow is retained only as an independent
 offline fallback. Use the automated restic procedure above for routine backups.
 
 This is a cold backup of every application volume. It stops all applications
-so PostgreSQL, MariaDB, SQLite, Valkey, Redis, and file data are consistent.
+so PostgreSQL, MariaDB, SQLite, Valkey, and file data are consistent.
 
 1. Mount an encrypted backup destination. Create a host-specific directory
    writable only by `homelab`:
