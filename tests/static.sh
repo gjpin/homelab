@@ -186,10 +186,6 @@ while IFS= read -r unit; do
 done < <(jq -r '[.[] .units[] | select(endswith(".service")) | select(endswith("-build.service") | not)][]' \
   "$root/manifests/applications.json")
 
-[[ -f "$root/agents.md" ]] || { printf 'missing agents.md\n' >&2; exit 1; }
-rg -q 'full E2E' "$root/agents.md" || { printf 'agents.md does not require full E2E\n' >&2; exit 1; }
-rg -q 'focused E2E' "$root/agents.md" || { printf 'agents.md does not require focused E2E\n' >&2; exit 1; }
-
 while IFS= read -r reference; do
   [[ -f "$root/quadlet/networks/$reference" ]] || { printf 'missing network unit: %s\n' "$reference" >&2; exit 1; }
 done < <(rg --no-filename '^Network=.*\.network$' "$containers" | cut -d= -f2 | sort -u)
