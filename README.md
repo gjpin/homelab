@@ -1,9 +1,5 @@
 # Rootless Podman homelab
 
-This is a standalone, fresh-install deployment of the applications previously
-defined under `homelab/applications`. It has no runtime or data dependency on
-that directory.
-
 The deployment uses rootless Podman Quadlets, systemd user services, SOPS with
 hybrid post-quantum age keys, separated edge and internal backend networks,
 and a root-owned socket proxy that forwards TCP 443 to rootless Caddy on
