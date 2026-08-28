@@ -22,7 +22,6 @@ ReadOnly=true
 ReadOnlyTmpfs=true
 PodmanArgs=--image-volume=ignore
 PidsLimit=1024
-RunInit=true
 
 [Service]
 Restart=always

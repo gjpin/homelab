@@ -31,3 +31,18 @@ jobs:
           docker buildx build --pull --platform linux/arm64 --file images/caddy/Containerfile --tag localhost/homelab/caddy:test-arm64 --load images/caddy
           docker buildx build --pull --platform linux/amd64 --file images/radicale/Containerfile --tag localhost/homelab/radicale:test-amd64 --load images/radicale
           docker buildx build --pull --platform linux/arm64 --file images/radicale/Containerfile --tag localhost/homelab/radicale:test-arm64 --load images/radicale
+
+  e2e:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Install Podman machine prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes jq podman qemu-system-x86 qemu-utils
+
+      - name: Run full Podman E2E
+        run: ./bin/e2e

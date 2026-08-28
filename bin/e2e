@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: bin/e2e [--workload NAME | --container NAME]
+
+Run the real Podman E2E suite in a disposable Fedora Podman machine.
+With no selector, every workload and container is checked.
+EOF
+}
+
+args=()
+selector_count=0
+while (($#)); do
+  case "$1" in
+    --workload|--container)
+      [[ $# -ge 2 ]] || die "$1 requires a name"
+      [[ $2 =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "invalid selector: $2"
+      args+=("$1" "$2")
+      selector_count=$((selector_count + 1))
+      shift 2
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      die "unknown argument: $1"
+      ;;
+  esac
+done
+[[ $selector_count -le 1 ]] || die "--workload and --container cannot be combined"
+
+require_command jq
+require_command podman
+root=$(repo_root)
+
+mapfile -t active_machines < <(
+  podman machine list --format json | jq -r '.[] | select(.Running == true) | .Name'
+)
+if ((${#active_machines[@]} > 0)); then
+  die "an existing Podman machine is running (${active_machines[*]}); stop it before starting an isolated E2E machine"
+fi
+
+machine="homelab-e2e-$(date +%s)-$$"
+machine_created=false
+cleanup() {
+  local status=$?
+  if [[ $machine_created == true ]]; then
+    podman machine stop "$machine" >/dev/null 2>&1 || true
+    podman machine rm --force "$machine" >/dev/null 2>&1 || true
+  fi
+  trap - EXIT
+  exit "$status"
+}
+trap cleanup EXIT
+
+podman machine init \
+  --cpus 4 \
+  --memory 8192 \
+  --disk-size 60 \
+  --rootful=false \
+  --volume "$root:/src:ro" \
+  --now \
+  "$machine"
+machine_created=true
+
+podman machine ssh "$machine" /src/tests/install-e2e-tools.sh
+podman machine ssh "$machine" /src/tests/e2e.sh "${args[@]}"

@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "containers": {
+    "caddy": {
+      "mode": "tcp",
+      "network": "homelab-forgejo-edge",
+      "port": 443
+    },
+    "forgejo": {
+      "mode": "tcp",
+      "network": "homelab-forgejo",
+      "port": 3000
+    },
+    "forgejo-postgres": {
+      "mode": "health"
+    },
+    "homeassistant": {
+      "mode": "tcp",
+      "network": "homelab-homeassistant",
+      "port": 8123
+    },
+    "homeassistant-mosquitto": {
+      "mode": "tcp",
+      "network": "homelab-homeassistant",
+      "port": 1883
+    },
+    "homeassistant-zigbee2mqtt": {
+      "mode": "running"
+    },
+    "immich-machine-learning": {
+      "mode": "tcp",
+      "network": "homelab-immich",
+      "port": 3003
+    },
+    "immich-postgres": {
+      "mode": "health"
+    },
+    "immich-server": {
+      "mode": "tcp",
+      "network": "homelab-immich",
+      "port": 2283
+    },
+    "immich-valkey": {
+      "mode": "health"
+    },
+    "radicale": {
+      "mode": "tcp",
+      "network": "homelab-radicale",
+      "port": 5232
+    },
+    "searxng-core": {
+      "mode": "tcp",
+      "network": "homelab-searxng",
+      "port": 8080
+    },
+    "searxng-valkey": {
+      "mode": "health"
+    },
+    "supernote-mariadb": {
+      "mode": "health"
+    },
+    "notelib": {
+      "mode": "running"
+    },
+    "supernote-valkey": {
+      "mode": "health"
+    },
+    "supernote-service": {
+      "mode": "tcp",
+      "network": "homelab-supernote",
+      "port": 8080
+    },
+    "syncthing": {
+      "mode": "tcp",
+      "network": "homelab-syncthing",
+      "port": 8384
+    },
+    "vaultwarden": {
+      "mode": "tcp",
+      "network": "homelab-vaultwarden",
+      "port": 8080
+    }
+  }
+}

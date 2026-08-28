@@ -3,6 +3,10 @@ set -Eeuo pipefail
 
 root=$(cd -- "$(dirname -- "$0")/.." && pwd)
 containers="$root/quadlet/applications"
+# shellcheck source=/dev/null
+source "$root/bin/lib.sh"
+
+require_command jq
 
 "$root/tests/architecture.sh"
 
@@ -112,7 +116,79 @@ rg -q 'fedora:44@sha256:[0-9a-f]{64}' "$root/.github/workflows/validate.yml" || 
 }
 
 count=$(find "$containers" -name '*.container' -type f | wc -l | tr -d ' ')
-[[ $count == 19 ]] || { printf 'expected 19 containers, found %s\n' "$count" >&2; exit 1; }
+manifest_container_count=$(jq '[.[] .units[] | select(endswith(".service")) | select(endswith("-build.service") | not)] | length' \
+  "$root/manifests/applications.json")
+[[ $count == "$manifest_container_count" ]] || {
+  printf 'manifest declares %s containers, found %s\n' "$manifest_container_count" "$count" >&2
+  exit 1
+}
+
+while IFS= read -r unit; do
+  app=$(basename -- "$(dirname -- "$unit")")
+  service="$(basename -- "$unit" .container).service"
+  jq -e --arg app "$app" --arg service "$service" \
+    '.[$app].units | index($service) != null' "$root/manifests/applications.json" >/dev/null || {
+    printf 'container is missing from the workload manifest: %s\n' "$unit" >&2
+    exit 1
+  }
+done < <(find "$containers" -name '*.container' -type f | sort)
+
+while IFS= read -r app; do
+  [[ -f "$root/systemd/user/homelab-$app.target" ]] || {
+    printf 'workload is missing its systemd target: %s\n' "$app" >&2
+    exit 1
+  }
+done < <(jq -r 'keys[]' "$root/manifests/applications.json")
+
+readiness="$root/tests/e2e-readiness.json"
+jq -e '.version == 1 and (.containers | type == "object")' "$readiness" >/dev/null || {
+  printf 'E2E readiness metadata is invalid\n' >&2
+  exit 1
+}
+readiness_count=$(jq '.containers | length' "$readiness")
+[[ $readiness_count == "$count" ]] || {
+  printf 'E2E readiness metadata covers %s containers, expected %s\n' "$readiness_count" "$count" >&2
+  exit 1
+}
+while IFS= read -r unit; do
+  file=$(find "$containers" -name "${unit%.service}.container" -type f -print -quit)
+  name=$(sed -n 's/^ContainerName=//p' "$file")
+  jq -e --arg name "$name" '.containers | has($name)' "$readiness" >/dev/null || {
+    printf 'container has no E2E readiness entry: %s\n' "$name" >&2
+    exit 1
+  }
+  mode=$(jq -r --arg name "$name" '.containers[$name].mode' "$readiness")
+  case "$mode" in
+    health)
+      rg -q '^HealthCmd=' "$file" || {
+        printf 'health readiness requires HealthCmd: %s\n' "$file" >&2
+        exit 1
+      }
+      ;;
+    tcp)
+      jq -e --arg name "$name" \
+        '.containers[$name].network | type == "string" and length > 0' "$readiness" >/dev/null || {
+        printf 'TCP readiness is missing a network: %s\n' "$name" >&2
+        exit 1
+      }
+      jq -e --arg name "$name" \
+        '.containers[$name].port | type == "number" and . >= 1 and . <= 65535' "$readiness" >/dev/null || {
+        printf 'TCP readiness has an invalid port: %s\n' "$name" >&2
+        exit 1
+      }
+      ;;
+    running) ;;
+    *)
+      printf 'unknown E2E readiness mode for %s: %s\n' "$name" "$mode" >&2
+      exit 1
+      ;;
+  esac
+done < <(jq -r '[.[] .units[] | select(endswith(".service")) | select(endswith("-build.service") | not)][]' \
+  "$root/manifests/applications.json")
+
+[[ -f "$root/agents.md" ]] || { printf 'missing agents.md\n' >&2; exit 1; }
+rg -q 'full E2E' "$root/agents.md" || { printf 'agents.md does not require full E2E\n' >&2; exit 1; }
+rg -q 'focused E2E' "$root/agents.md" || { printf 'agents.md does not require focused E2E\n' >&2; exit 1; }
 
 while IFS= read -r reference; do
   [[ -f "$root/quadlet/networks/$reference" ]] || { printf 'missing network unit: %s\n' "$reference" >&2; exit 1; }

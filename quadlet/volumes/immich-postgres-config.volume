@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-immich-postgres-config
+Label=io.containers.systemd.application=immich

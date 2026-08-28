@@ -13,6 +13,7 @@ EnvironmentFile=%t/homelab/rendered/site.env
 Network=forgejo.network
 Environment=POSTGRES_USER=forgejo
 Environment=POSTGRES_DB=forgejo
+Environment=PGDATA=/var/lib/postgresql/data
 Secret=forgejo-database-password,type=env,target=POSTGRES_PASSWORD
 Volume=forgejo-postgres.volume:/var/lib/postgresql/data:U
 HealthCmd=pg_isready -U forgejo -d forgejo
