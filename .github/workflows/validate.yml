@@ -99,9 +99,12 @@ jobs:
         if: steps.scope.outputs.mode != 'none'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes gvproxy jq podman qemu-system-x86 qemu-utils
+          sudo apt-get install --yes gvproxy jq podman qemu-system-x86 qemu-utils virtiofsd
           sudo mkdir -p /usr/libexec/podman
           sudo ln -sf /usr/bin/gvproxy /usr/libexec/podman/gvproxy
+          sudo ln -sf /usr/libexec/virtiofsd /usr/libexec/podman/virtiofsd
+          sudo ln -sf /usr/libexec/virtiofsd /usr/bin/virtiofsd
+          [[ -e /dev/kvm ]] && sudo chmod 666 /dev/kvm || true
 
       - name: Run selected Podman E2E
         if: steps.scope.outputs.mode != 'none'
