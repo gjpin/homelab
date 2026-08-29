@@ -11,24 +11,34 @@ export PATH="$HOME/.local/bin:$PATH"
 
 usage() {
   cat <<'EOF'
-Usage: tests/e2e.sh [--workload NAME | --container NAME]
+Usage: tests/e2e.sh [--workload NAME ... | --container NAME]
 
 Run the real rootless Podman E2E suite. With no selector, every workload and
 container is started and checked. A workload selector checks all containers in
-that application. A container selector checks that container and its declared
-container dependencies.
+that application and may be repeated. A container selector checks that
+container and its declared container dependencies.
 EOF
 }
 
 selector_mode=all
 selector=
+selected_workloads=()
 while (($#)); do
   case "$1" in
-    --workload|--container)
+    --workload)
+      [[ $selector_mode == all || $selector_mode == workload ]] || \
+        die "--workload and --container cannot be combined"
+      [[ $# -ge 2 ]] || die "$1 requires a name"
+      [[ $2 =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "invalid selector: $2"
+      selector_mode=workload
+      selected_workloads+=("$2")
+      shift 2
+      ;;
+    --container)
       [[ $selector_mode == all ]] || die "--workload and --container cannot be combined"
       [[ $# -ge 2 ]] || die "$1 requires a name"
       [[ $2 =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "invalid selector: $2"
-      selector_mode=${1#--}
+      selector_mode=container
       selector=$2
       shift 2
       ;;
@@ -240,6 +250,20 @@ sed -i '/^RunInit=true$/d' \
 podman build --pull=missing --tag localhost/homelab/e2e-zigbee2mqtt \
   "$test_root/tests/fixtures/zigbee2mqtt"
 
+declare -A seen_units=()
+add_required_units() {
+  local unit=$1 file requirement
+  [[ ${seen_units[$unit]:-false} == true ]] && return
+  seen_units[$unit]=true
+  expected_units+=("$unit")
+  file=$(find "$test_root/quadlet/applications" -type f -name "${unit%.service}.container" -print -quit)
+  [[ -n $file ]] || return
+  while IFS= read -r requirement; do
+    [[ $requirement == *.container ]] || continue
+    add_required_units "${requirement%.container}.service"
+  done < <(sed -n 's/^Requires=//p' "$file" | tr ' ' '\n')
+}
+
 case "$selector_mode" in
   all)
     start_units=(homelab.target)
@@ -248,12 +272,18 @@ case "$selector_mode" in
     )
     ;;
   workload)
-    jq -e --arg workload "$selector" 'has($workload)' "$manifest" >/dev/null || \
-      die "unknown workload: $selector"
-    start_units=("homelab-$selector.target")
-    mapfile -t expected_units < <(
-      jq -r --arg workload "$selector" '.[$workload].units[] | select(endswith(".service")) | select(endswith("-build.service") | not)' "$manifest"
-    )
+    for workload in "${selected_workloads[@]}"; do
+      jq -e --arg workload "$workload" 'has($workload)' "$manifest" >/dev/null || \
+        die "unknown workload: $workload"
+      start_units+=("homelab-$workload.target")
+      while IFS= read -r unit; do
+        add_required_units "$unit"
+      done < <(
+        jq -r --arg workload "$workload" \
+          '.[$workload].units[] | select(endswith(".service")) | select(endswith("-build.service") | not)' \
+          "$manifest"
+      )
+    done
     ;;
   container)
     selected_file=$(find "$test_root/quadlet/applications" -type f -name '*.container' \
@@ -262,24 +292,12 @@ case "$selector_mode" in
     [[ -n $selected_file ]] || die "unknown container: $selector"
     selected_unit="$(basename -- "$selected_file" .container).service"
     start_units=("$selected_unit")
-    declare -A seen_units=()
-    add_required_units() {
-      local unit=$1 file requirement
-      [[ ${seen_units[$unit]:-false} == true ]] && return
-      seen_units[$unit]=true
-      expected_units+=("$unit")
-      file=$(find "$test_root/quadlet/applications" -type f -name "${unit%.service}.container" -print -quit)
-      [[ -n $file ]] || return
-      while IFS= read -r requirement; do
-        [[ $requirement == *.container ]] || continue
-        add_required_units "${requirement%.container}.service"
-      done < <(sed -n 's/^Requires=//p' "$file" | tr ' ' '\n')
-    }
     add_required_units "$selected_unit"
     ;;
 esac
 
 mapfile -t expected_units < <(printf '%s\n' "${expected_units[@]}" | sort -u)
+mapfile -t start_units < <(printf '%s\n' "${start_units[@]}" | sed '/^$/d' | sort -u)
 while IFS= read -r unit; do
   file=$(find "$test_root/quadlet/applications" -type f -name "${unit%.service}.container" -print -quit)
   [[ -n $file ]] || die "manifest unit has no Quadlet: $unit"
@@ -358,6 +376,20 @@ until check_runtime; do
 done
 
 check_no_egress
+
+assert_container_scope() {
+  local actual expected
+  actual=$(podman ps --format '{{.Names}}' | sort)
+  expected=$(printf '%s\n' "${expected_names[@]}" | sort)
+  [[ $actual == "$expected" ]] || {
+    printf 'unexpected containers started by selected E2E scope\n' >&2
+    printf '%s\n' 'expected:' "$expected" >&2
+    printf '%s\n' 'actual:' "$actual" >&2
+    return 1
+  }
+}
+
+assert_container_scope
 
 stable_ids=()
 for name in "${expected_names[@]}"; do

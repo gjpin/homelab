@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# Print the E2E scope for a Git change. The output is one of:
+#   all       a global change requires the complete suite
+#   none      no deployed workload is affected
+#   <name>    one affected workload per line
+#
+# The caller must check out HEAD at the requested head ref. This keeps the
+# resolver independent of GitHub's event payload while still allowing it to be
+# used locally and in CI.
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: bin/e2e-targets BASE_REF HEAD_REF
+
+Print the affected workload E2E scope for the Git diff between two refs.
+EOF
+}
+
+[[ $# -eq 2 ]] || {
+  usage >&2
+  exit 2
+}
+
+require_command git
+require_command jq
+root=$(repo_root)
+base_ref=$1
+head_ref=$2
+
+print_all() {
+  printf 'all\n'
+  exit 0
+}
+
+git -C "$root" rev-parse --verify "$base_ref^{commit}" >/dev/null 2>&1 || print_all
+git -C "$root" rev-parse --verify "$head_ref^{commit}" >/dev/null 2>&1 || print_all
+
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/homelab-e2e-targets.XXXXXX")
+cleanup() {
+  rm -rf -- "$work_dir"
+}
+trap cleanup EXIT
+
+git -C "$root" show "$base_ref:manifests/applications.json" >"$work_dir/base-manifest.json" || print_all
+git -C "$root" show "$head_ref:manifests/applications.json" >"$work_dir/head-manifest.json" || print_all
+git -C "$root" show "$base_ref:tests/e2e-readiness.json" >"$work_dir/base-readiness.json" || print_all
+git -C "$root" show "$head_ref:tests/e2e-readiness.json" >"$work_dir/head-readiness.json" || print_all
+
+for manifest in "$work_dir"/*-manifest.json; do
+  jq -e '
+    type == "object" and
+    all(.[]; type == "object" and (.units | type == "array"))
+  ' "$manifest" >/dev/null || print_all
+done
+for metadata in "$work_dir"/*-readiness.json; do
+  jq -e '.version == 1 and (.containers | type == "object")' "$metadata" >/dev/null || print_all
+done
+base_readiness_header=$(jq -c 'del(.containers)' "$work_dir/base-readiness.json")
+head_readiness_header=$(jq -c 'del(.containers)' "$work_dir/head-readiness.json")
+[[ $base_readiness_header == "$head_readiness_header" ]] || print_all
+
+mapfile -t head_workloads < <(jq -r 'keys[]' "$work_dir/head-manifest.json")
+declare -A head_workload_set=()
+for workload in "${head_workloads[@]}"; do
+  head_workload_set[$workload]=true
+done
+
+declare -A selected=()
+global_change=false
+
+add_workload() {
+  local workload=$1
+  [[ ${head_workload_set[$workload]:-false} == true ]] && selected[$workload]=true
+}
+
+workload_for_build() {
+  local build=$1 workload
+  for workload in "${head_workloads[@]}"; do
+    if jq -e --arg unit "${build}-build.service" \
+      --arg workload "$workload" \
+      '.[$workload].units | index($unit) != null' \
+      "$work_dir/head-manifest.json" >/dev/null; then
+      printf '%s\n' "$workload"
+      return 0
+    fi
+  done
+  return 1
+}
+
+container_owner() {
+  local ref=$1 manifest=$2 container=$3 workload unit file name
+  mapfile -t workloads < <(jq -r 'keys[]' "$manifest")
+  for workload in "${workloads[@]}"; do
+    while IFS= read -r unit; do
+      [[ $unit == *.service && $unit != *-build.service ]] || continue
+      file="quadlet/applications/$workload/${unit%.service}.container"
+      name=$(git -C "$root" show "$ref:$file" 2>/dev/null | sed -n 's/^ContainerName=//p' | head -n 1)
+      if [[ $name == "$container" ]]; then
+        printf '%s\n' "$workload"
+        return 0
+      fi
+    done < <(jq -r --arg workload "$workload" '.[$workload].units[]' "$manifest")
+  done
+  return 1
+}
+
+mapfile -t changed_paths < <(git -C "$root" diff --name-only "$base_ref" "$head_ref") || print_all
+for path in "${changed_paths[@]}"; do
+  case "$path" in
+    quadlet/applications/*/*)
+      workload=${path#quadlet/applications/}
+      add_workload "${workload%%/*}"
+      ;;
+    config/templates/*/*)
+      workload=${path#config/templates/}
+      add_workload "${workload%%/*}"
+      ;;
+    systemd/user/homelab-*.target)
+      workload=${path##*/homelab-}
+      add_workload "${workload%.target}"
+      ;;
+    quadlet/builds/*.build)
+      build=${path##*/}
+      build=${build%.build}
+      if workload=$(workload_for_build "$build"); then
+        add_workload "$workload"
+      else
+        global_change=true
+      fi
+      ;;
+    images/*/*)
+      image=${path#images/}
+      image=${image%%/*}
+      if workload=$(workload_for_build "$image"); then
+        add_workload "$workload"
+      else
+        global_change=true
+      fi
+      ;;
+    tests/fixtures/*/*)
+      fixture=${path#tests/fixtures/}
+      fixture=${fixture%%/*}
+      if [[ ${head_workload_set[$fixture]:-false} == true ]]; then
+        add_workload "$fixture"
+      elif [[ $fixture == zigbee2mqtt ]]; then
+        add_workload homeassistant
+      else
+        global_change=true
+      fi
+      ;;
+    manifests/applications.json|tests/e2e-readiness.json)
+      # These files are handled structurally below so that adding a workload
+      # does not broaden the E2E run to unrelated workloads.
+      ;;
+    quadlet/networks/*|quadlet/volumes/*|config/site.env|.sops.yaml|\
+      secrets/*|bin/*|tests/e2e.sh|tests/e2e-selection.sh|tests/install-e2e-tools.sh|tests/static.sh|\
+      tests/backup.sh|tests/architecture.sh|tests/host-tools.sh|\
+      systemd/user/*)
+      global_change=true
+      ;;
+    .github/*|README.md|docs/*|incubator/*|AGENTS.md)
+      ;;
+    *)
+      global_change=true
+      ;;
+  esac
+done
+
+mapfile -t manifest_workloads < <(
+  jq -r -s 'map(keys[]) | unique[]' "$work_dir/base-manifest.json" "$work_dir/head-manifest.json"
+)
+for workload in "${manifest_workloads[@]}"; do
+  base_value=$(jq -c --arg workload "$workload" '.[$workload] // null' "$work_dir/base-manifest.json")
+  head_value=$(jq -c --arg workload "$workload" '.[$workload] // null' "$work_dir/head-manifest.json")
+  [[ $base_value == "$head_value" ]] || add_workload "$workload"
+done
+
+mapfile -t readiness_containers < <(
+  jq -r -s 'map(.containers | keys[]) | unique[]' "$work_dir/base-readiness.json" "$work_dir/head-readiness.json"
+)
+for container in "${readiness_containers[@]}"; do
+  base_value=$(jq -c --arg container "$container" '.containers[$container] // null' "$work_dir/base-readiness.json")
+  head_value=$(jq -c --arg container "$container" '.containers[$container] // null' "$work_dir/head-readiness.json")
+  [[ $base_value == "$head_value" ]] && continue
+  if workload=$(container_owner "$head_ref" "$work_dir/head-manifest.json" "$container"); then
+    add_workload "$workload"
+  elif workload=$(container_owner "$base_ref" "$work_dir/base-manifest.json" "$container"); then
+    add_workload "$workload"
+  else
+    global_change=true
+  fi
+done
+
+if $global_change; then
+  print_all
+elif ((${#selected[@]} == 0)); then
+  printf 'none\n'
+else
+  printf '%s\n' "${!selected[@]}" | sort
+fi

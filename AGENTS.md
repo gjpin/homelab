@@ -21,9 +21,10 @@ changes.
 - Pin manually fetched host-tool releases and every architecture-specific
   artifact checksum in `config/host-tools.env`. Renovate must check these
   releases daily and open a reviewed PR; required architecture tests and the
-  full E2E suite must pass before merge. A host-root updater may consume only
-  validated data from the deployed release and must never execute scripts from
-  the mutable Git checkout. Fedora repository packages remain Fedora-managed.
+  affected-workload E2E suite must pass before merge. Global changes run the
+  full E2E suite. A host-root updater may consume only validated data from the
+  deployed release and must never execute scripts from the mutable Git
+  checkout. Fedora repository packages remain Fedora-managed.
 - Onboard new applications and services from the latest stable upstream
   release available at the time of onboarding. Do not deliberately select an
   older, prerelease, nightly, or end-of-life release; any unavoidable
@@ -205,17 +206,21 @@ run through Podman. Adapt `tests/e2e.sh` to build or inject the fixture and to
 remove its resources during cleanup. Do not mock `podman` or `systemctl`, skip
 the new container, or replace E2E with a shell-only check.
 
-Run the focused checks first, then the complete suite:
+Run the focused checks first. Repeat `--workload` when a change affects more
+than one workload:
 
 ```bash
 ./bin/e2e --container CONTAINER_NAME
 ./bin/e2e --workload WORKLOAD_NAME
-./bin/e2e
+./bin/e2e --workload WORKLOAD_NAME --workload OTHER_WORKLOAD_NAME
 ```
 
-The full run must start every declared container, verify readiness, keep every
-container running through the stability check, and pass the runtime security
-audit.
+The selected run must start every declared container in the selected workload
+and its declared dependencies, verify readiness, and keep those containers
+running through the stability check. A global change must use `./bin/e2e`
+which starts every declared container and passes the runtime security audit.
+The CI workflow uses `bin/e2e-targets` to select this scope from the Git diff;
+documentation-only changes do not start a Podman machine.
 
 ### 6. Finish validation and operational documentation
 
@@ -226,8 +231,10 @@ Before merging an onboarding change, run:
 ./tests/static.sh
 ./tests/backup.sh
 ./bin/e2e --workload WORKLOAD_NAME
-./bin/e2e
 ```
+
+Run `./bin/e2e` as well when the change is global or when a complete local
+deployment check is desired.
 
 Also run ShellCheck when available, inspect `systemctl --user`/Quadlet
 generator output, and check recent SELinux AVC denials after activation. Update

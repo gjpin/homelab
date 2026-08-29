@@ -6,7 +6,7 @@ source "$(dirname -- "$0")/lib.sh"
 
 usage() {
   cat <<'EOF'
-Usage: bin/e2e [--workload NAME | --container NAME]
+Usage: bin/e2e [--workload NAME ... | --container NAME]
 
 Run the real Podman E2E suite in a disposable Fedora Podman machine.
 With no selector, every workload and container is checked.
@@ -14,14 +14,24 @@ EOF
 }
 
 args=()
-selector_count=0
+selector_kind=
 while (($#)); do
   case "$1" in
-    --workload|--container)
+    --workload)
+      [[ -z $selector_kind || $selector_kind == workload ]] || \
+        die "--workload and --container cannot be combined"
       [[ $# -ge 2 ]] || die "$1 requires a name"
       [[ $2 =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "invalid selector: $2"
       args+=("$1" "$2")
-      selector_count=$((selector_count + 1))
+      selector_kind=workload
+      shift 2
+      ;;
+    --container)
+      [[ -z $selector_kind ]] || die "--workload and --container cannot be combined"
+      [[ $# -ge 2 ]] || die "$1 requires a name"
+      [[ $2 =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "invalid selector: $2"
+      args+=("$1" "$2")
+      selector_kind=container
       shift 2
       ;;
     --help|-h)
@@ -33,7 +43,6 @@ while (($#)); do
       ;;
   esac
 done
-[[ $selector_count -le 1 ]] || die "--workload and --container cannot be combined"
 
 require_command jq
 require_command podman

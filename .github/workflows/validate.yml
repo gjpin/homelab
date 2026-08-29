@@ -23,7 +23,7 @@ jobs:
             --volume "$GITHUB_WORKSPACE:/src:ro" \
             --workdir /src \
             fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
-            bash -lc 'dnf install -y jq podman ripgrep ShellCheck >/dev/null && ./bin/validate && ./tests/static.sh && ./tests/backup.sh && ln -s /src /root/current && systemd-analyze verify systemd/user/homelab-backup.service systemd/user/homelab-backup.timer'
+            bash -lc 'dnf install -y git jq podman ripgrep ShellCheck >/dev/null && ./bin/validate && ./tests/static.sh && ./tests/e2e-selection.sh && ./tests/backup.sh && ln -s /src /root/current && systemd-analyze verify systemd/user/homelab-backup.service systemd/user/homelab-backup.timer'
 
       - name: Build custom images
         run: |
@@ -60,11 +60,61 @@ jobs:
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Select affected E2E workloads
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [[ $EVENT_NAME == pull_request ]]; then
+            base_ref=$PR_BASE_SHA
+            scope=$(./bin/e2e-targets "$base_ref" HEAD)
+          elif [[ -z $BEFORE_SHA || $BEFORE_SHA =~ ^0+$ ]]; then
+            scope=all
+          else
+            scope=$(./bin/e2e-targets "$BEFORE_SHA" HEAD)
+          fi
+
+          case "$scope" in
+            all)
+              printf 'mode=all\n' >>"$GITHUB_OUTPUT"
+              printf 'E2E scope: all workloads\n'
+              ;;
+            none)
+              printf 'mode=none\n' >>"$GITHUB_OUTPUT"
+              printf 'E2E scope: no affected workloads\n'
+              ;;
+            *)
+              printf 'mode=workloads\n' >>"$GITHUB_OUTPUT"
+              printf 'workloads=%s\n' "$(paste -sd, <<<"$scope")" >>"$GITHUB_OUTPUT"
+              printf 'E2E scope: %s\n' "$(tr '\n' ' ' <<<"$scope")"
+              ;;
+          esac
 
       - name: Install Podman machine prerequisites
+        if: steps.scope.outputs.mode != 'none'
         run: |
           sudo apt-get update
           sudo apt-get install --yes jq podman qemu-system-x86 qemu-utils
 
-      - name: Run full Podman E2E
-        run: ./bin/e2e
+      - name: Run selected Podman E2E
+        if: steps.scope.outputs.mode != 'none'
+        env:
+          E2E_MODE: ${{ steps.scope.outputs.mode }}
+          E2E_WORKLOADS: ${{ steps.scope.outputs.workloads }}
+        run: |
+          if [[ $E2E_MODE == all ]]; then
+            ./bin/e2e
+            exit 0
+          fi
+
+          IFS=, read -r -a workloads <<<"$E2E_WORKLOADS"
+          args=()
+          for workload in "${workloads[@]}"; do
+            args+=(--workload "$workload")
+          done
+          ./bin/e2e "${args[@]}"

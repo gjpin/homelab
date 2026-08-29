@@ -396,10 +396,11 @@ workflow is restricted to scheduled and manual events, so the secret is never
 exposed to pull-request code.
 
 Require the `validate`, `host-tools (amd64)`, `host-tools (arm64)`, and `e2e`
-checks in the `main` branch protection rule. Renovate's SOPS pull request must
-pass both host-tool architecture tests and the full real Podman E2E run before
-it can be merged. Keep approval and merge manual; passing checks do not
-automatically merge an update.
+checks in the `main` branch protection rule. The E2E check derives its scope
+from the Git diff: workload changes run only the affected workloads, while
+global deployment changes run the complete real Podman E2E suite. Keep
+approval and merge manual; passing checks do not automatically merge an
+update.
 
 The included `renovate.json` understands Quadlet `Image=` entries and the
 custom image build inputs. Its Docker digest pinning and `currentDigest`
@@ -811,7 +812,8 @@ secrets cannot be recovered and must be replaced.
 SOPS is a manually fetched host tool, so its release tag and amd64/arm64
 checksums are committed in `config/host-tools.env`. Renovate checks the
 upstream stable release daily and opens a pull request. After the pull request
-passes the required host-tool tests and the full E2E suite and is merged,
+passes the required host-tool tests and the affected-workload E2E suite (or the
+full suite for global changes) and is merged,
 `homelab-reconcile.timer` publishes the new metadata through `current`.
 
 `homelab-host-tools-update.timer` then runs daily at 02:00 in the host timezone
