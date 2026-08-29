@@ -1,5 +1,11 @@
 # Restore onto a replacement host
 
+This procedure applies to snapshots made by the Quadlet `bin/backup` script.
+Snapshots made by the old Docker deployment contain `/data/containers` instead;
+use [the legacy-main-to-quadlets migration guide](legacy-main-to-quadlets.md)
+for those snapshots. Do not pass a legacy snapshot to the volume-by-mountpoint
+restore loop below.
+
 This procedure migrates the complete deployment to a fresh Fedora 44 or Fedora
 45 host on amd64 or arm64. Do not reconcile the replacement host before its
 volumes have been restored.

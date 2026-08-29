@@ -6,4 +6,5 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 ExecStart=%h/current/bin/reconcile
+Environment=HOMELAB_GIT_BRANCH=quadlets
 UMask=0077

@@ -1,0 +1,327 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+set +x
+umask 077
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: bin/restore-legacy-postgres \
+  --staging-dir DIRECTORY \
+  [--only forgejo|immich] \
+  [--migration-env FILE] [--dry-run]
+
+Run the legacy PostgreSQL 17 data directories in temporary rootless
+containers, dump them logically, and restore those dumps into the empty
+PostgreSQL 18 Quadlet volumes. No application target is started.
+EOF
+}
+
+root=$(repo_root)
+staging_dir=
+migration_env="$root/config/legacy-migration.env"
+only=
+dry_run=false
+
+while (($#)); do
+  case "$1" in
+    --staging-dir) staging_dir=${2:?}; shift 2 ;;
+    --migration-env) migration_env=${2:?}; shift 2 ;;
+    --only) only=${2:?}; shift 2 ;;
+    --dry-run) dry_run=true; shift ;;
+    --help|-h) usage; exit 0 ;;
+    *) die "unknown argument: $1" ;;
+  esac
+done
+
+[[ -n $staging_dir ]] || die "--staging-dir is required"
+[[ -z $only || $only == forgejo || $only == immich ]] || die "--only must be forgejo or immich"
+[[ -f $migration_env && -r $migration_env ]] || die "migration metadata is not readable: $migration_env"
+
+require_command find
+require_command podman
+require_command realpath
+require_command sed
+
+staging_dir=$(realpath -m -- "$staging_dir")
+[[ -d $staging_dir ]] || die "staging directory is not a directory: $staging_dir"
+[[ $staging_dir != / && $staging_dir != "$HOME" ]] || die "refusing unsafe staging directory: $staging_dir"
+[[ -d $staging_dir/data/containers ]] || die "legacy data root is missing: $staging_dir/data/containers"
+
+load_migration_env() {
+  local file=$1 line key value
+  local -A seen=()
+  [[ -f $file && ! -L $file && -r $file ]] || die "migration metadata is not readable: $file"
+  LEGACY_FORGEJO_POSTGRES_IMAGE=
+  LEGACY_IMMICH_POSTGRES_IMAGE=
+  while IFS= read -r line || [[ -n $line ]]; do
+    [[ $line =~ ^[[:space:]]*$ || $line =~ ^[[:space:]]*# ]] && continue
+    [[ $line =~ ^[[:space:]]*(LEGACY_FORGEJO_POSTGRES_IMAGE|LEGACY_IMMICH_POSTGRES_IMAGE)[[:space:]]*=(.*)$ ]] || {
+      die "migration metadata contains an unsupported line"
+    }
+    key=${BASH_REMATCH[1]}
+    value=${BASH_REMATCH[2]}
+    [[ -z ${seen[$key]+x} ]] || die "migration metadata contains duplicate key: $key"
+    seen[$key]=1
+    value=${value#"${value%%[![:space:]]*}"}
+    value=${value%"${value##*[![:space:]]}"}
+    case "$value" in
+      "\"*\"") value=${value:1:${#value}-2} ;;
+      "'*'") value=${value:1:${#value}-2} ;;
+    esac
+    [[ $value =~ ^[^[:space:]]+@sha256:[0-9a-f]{64}$ ]] || {
+      die "migration image is not pinned by an immutable digest: $key"
+    }
+    printf -v "$key" '%s' "$value"
+  done <"$file"
+  [[ -n $LEGACY_FORGEJO_POSTGRES_IMAGE ]] || die "migration metadata is missing LEGACY_FORGEJO_POSTGRES_IMAGE"
+  [[ -n $LEGACY_IMMICH_POSTGRES_IMAGE ]] || die "migration metadata is missing LEGACY_IMMICH_POSTGRES_IMAGE"
+}
+
+load_migration_env "$migration_env"
+
+declare -A db_users=(
+  [forgejo]=forgejo
+  [immich]=immich
+)
+declare -A db_names=(
+  [forgejo]=forgejo
+  [immich]=immich
+)
+declare -A old_data_paths=(
+  [forgejo]=forgejo/volumes/postgres
+  [immich]=immich/volumes/postgres
+)
+declare -A config_paths=(
+  [forgejo]=forgejo/docker/config.env
+  [immich]=immich/docker/config.env
+)
+declare -A target_volumes=(
+  [forgejo]=homelab-forgejo-postgres
+  [immich]=homelab-immich-postgres
+)
+declare -A current_units=(
+  [forgejo]="$root/quadlet/applications/forgejo/forgejo-postgres.container"
+  [immich]="$root/quadlet/applications/immich/immich-postgres.container"
+)
+declare -A legacy_images=(
+  [forgejo]="$LEGACY_FORGEJO_POSTGRES_IMAGE"
+  [immich]="$LEGACY_IMMICH_POSTGRES_IMAGE"
+)
+
+read_config_value() {
+  local file=$1 requested_key=$2 line key value found=
+  while IFS= read -r line || [[ -n $line ]]; do
+    [[ $line =~ ^[[:space:]]*$ || $line =~ ^[[:space:]]*# ]] && continue
+    [[ $line =~ ^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=(.*)$ ]] || {
+      die "legacy PostgreSQL config contains an unsupported line: $file"
+    }
+    key=${BASH_REMATCH[1]}
+    [[ $key == "$requested_key" ]] || continue
+    [[ -z $found ]] || die "legacy PostgreSQL config contains duplicate key $requested_key: $file"
+    found=1
+    value=${BASH_REMATCH[2]}
+    value=${value#"${value%%[![:space:]]*}"}
+    value=${value%"${value##*[![:space:]]}"}
+    case "$value" in
+      "\"*\"") value=${value:1:${#value}-2} ;;
+      "'*'") value=${value:1:${#value}-2} ;;
+    esac
+    [[ -n $value ]] || die "legacy PostgreSQL config value is empty: $requested_key"
+    unresolved_parameter="\${"
+    unresolved_command="\$("
+    [[ $value != *"$unresolved_parameter"* && $value != *"$unresolved_command"* ]] || {
+      die "legacy PostgreSQL config still contains an unresolved secret reference: $file"
+    }
+    printf '%s\n' "$value"
+    return 0
+  done <"$file"
+  die "legacy PostgreSQL config is missing $requested_key: $file"
+}
+
+image_from_unit() {
+  local unit=$1 image
+  [[ -f $unit ]] || die "current PostgreSQL Quadlet is missing: $unit"
+  image=$(sed -n 's/^Image=//p' "$unit")
+  [[ $image =~ ^[^[:space:]]+@sha256:[0-9a-f]{64}$ ]] || die "current image is not digest-pinned: $unit"
+  printf '%s\n' "$image"
+}
+
+user_from_unit() {
+  local unit=$1 user
+  user=$(sed -n 's/^User=//p' "$unit")
+  [[ $user =~ ^[0-9A-Za-z_-]+(:[0-9A-Za-z_-]+)?$ ]] || die "current PostgreSQL Quadlet has no valid User: $unit"
+  printf '%s\n' "$user"
+}
+
+if [[ -n $only ]]; then
+  workloads=("$only")
+else
+  workloads=(forgejo immich)
+fi
+declare -A old_passwords=()
+declare -A current_images=()
+declare -A current_users=()
+for workload in "${workloads[@]}"; do
+  old_root="$staging_dir/data/containers"
+  old_data="$old_root/${old_data_paths[$workload]}"
+  old_config="$old_root/${config_paths[$workload]}"
+  [[ -d $old_data && ! -L $old_data ]] || die "legacy PostgreSQL data directory is missing or symlinked: $old_data"
+  [[ -f $old_config && ! -L $old_config ]] || die "legacy PostgreSQL config is missing or symlinked: $old_config"
+  chmod 0600 "$old_config"
+  old_passwords[$workload]=$(read_config_value "$old_config" POSTGRES_PASSWORD)
+  current_images[$workload]=$(image_from_unit "${current_units[$workload]}")
+  current_users[$workload]=$(user_from_unit "${current_units[$workload]}")
+  [[ ${current_images[$workload]} != "${legacy_images[$workload]}" ]] || {
+    die "current and legacy image unexpectedly match; migration metadata must describe PostgreSQL 17 to 18"
+  }
+done
+
+if [[ -n $(podman ps --quiet) ]]; then
+  die "running containers exist; stop the deployment before migrating PostgreSQL"
+fi
+
+for workload in "${workloads[@]}"; do
+  volume=${target_volumes[$workload]}
+  podman volume exists "$volume" || die "target PostgreSQL volume does not exist: $volume"
+  mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$volume")
+  [[ -d $mountpoint && $mountpoint != / && $mountpoint != "$HOME" ]] || die "unsafe target volume mountpoint: $volume"
+  [[ -z $(find "$mountpoint" -mindepth 1 -print -quit) ]] || die "target PostgreSQL volume is not empty: $volume"
+done
+
+printf 'Legacy PostgreSQL migration\n'
+printf 'Staging directory: %s\n' "$staging_dir"
+printf 'Workloads: %s\n' "${workloads[*]}"
+printf 'The legacy directories will be dumped before the current PostgreSQL 18 images are started.\n'
+
+if $dry_run; then
+  info "dry-run complete; no containers, volumes, dumps, or target data were changed"
+  exit 0
+fi
+
+runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}
+[[ -d $runtime_dir && -w $runtime_dir ]] || die "XDG_RUNTIME_DIR is not a writable directory"
+work_dir=$(mktemp -d "$runtime_dir/homelab-legacy-postgres.XXXXXX")
+dump_dir="$staging_dir/quadlet-postgres-dumps"
+[[ ! -e $dump_dir ]] || die "PostgreSQL dump directory already exists: $dump_dir"
+install -d -m 0700 "$dump_dir"
+
+declare -A old_containers=()
+declare -A new_containers=()
+declare -A temp_volumes=()
+
+cleanup() {
+  local rc=$? workload
+  set +e
+  for workload in "${workloads[@]}"; do
+    [[ -n ${old_containers[$workload]+x} ]] && podman rm --force "${old_containers[$workload]}" >/dev/null 2>&1
+    [[ -n ${new_containers[$workload]+x} ]] && podman rm --force "${new_containers[$workload]}" >/dev/null 2>&1
+    [[ -n ${temp_volumes[$workload]+x} ]] && podman volume rm --force "${temp_volumes[$workload]}" >/dev/null 2>&1
+  done
+  rm -rf -- "$work_dir"
+  trap - EXIT
+  exit "$rc"
+}
+trap cleanup EXIT
+
+wait_ready() {
+  local container=$1 user=$2 db=$3
+  for ((attempt = 1; attempt <= 90; attempt++)); do
+    if podman exec "$container" pg_isready -h 127.0.0.1 -U "$user" -d "$db" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  die "PostgreSQL did not become ready: $container"
+}
+
+run_legacy_dump() {
+  local workload=$1 container volume env_file dump_path mountpoint
+  container="homelab-legacy-${workload}-postgres-$$"
+  volume="homelab-legacy-${workload}-data-$$"
+  env_file="$work_dir/${workload}.env"
+  dump_path="$dump_dir/${workload}.dump"
+  old_containers[$workload]=$container
+  temp_volumes[$workload]=$volume
+  podman container exists "$container" && die "temporary migration container already exists: $container"
+  podman volume exists "$volume" && die "temporary migration volume already exists: $volume"
+  podman volume create "$volume" >/dev/null
+  mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$volume")
+  podman unshare tar --acls --xattrs --selinux --numeric-owner \
+    --directory "$staging_dir/data/containers/${old_data_paths[$workload]}" --create --file - . |
+    podman unshare tar --acls --xattrs --selinux --numeric-owner \
+      --directory "$mountpoint" --extract --file -
+  printf '%s=%s\n%s=%s\n%s=%s\nPGDATA=/var/lib/postgresql/data\n' \
+    POSTGRES_PASSWORD "${old_passwords[$workload]}" \
+    POSTGRES_USER "${db_users[$workload]}" \
+    POSTGRES_DB "${db_names[$workload]}" >"$env_file"
+  chmod 0600 "$env_file"
+  podman run --detach --name "$container" \
+    --network none \
+    --read-only --read-only-tmpfs \
+    --cap-drop all --security-opt=no-new-privileges --pids-limit 1024 \
+    --tmpfs /tmp:rw,noexec,nosuid,nodev \
+    --tmpfs /run/postgresql:rw,noexec,nosuid,nodev \
+    --tmpfs /var/run/postgresql:rw,noexec,nosuid,nodev \
+    --env-file "$env_file" \
+    --volume "$volume:/var/lib/postgresql/data:U" \
+    "${legacy_images[$workload]}" >/dev/null
+  wait_ready "$container" "${db_users[$workload]}" "${db_names[$workload]}"
+  info "dumping legacy PostgreSQL database: $workload"
+  podman exec "$container" pg_dump -h 127.0.0.1 -U "${db_users[$workload]}" \
+    -d "${db_names[$workload]}" --format=custom --no-owner >"$dump_path"
+  [[ -s $dump_path ]] || die "legacy PostgreSQL dump is empty: $dump_path"
+}
+
+run_current_restore() {
+  local workload=$1 container env_file dump_path volume config_volume=
+  local -a run_args=()
+  container="homelab-migration-${workload}-postgres-$$"
+  env_file="$work_dir/${workload}-current.env"
+  dump_path="$dump_dir/${workload}.dump"
+  volume=${target_volumes[$workload]}
+  new_containers[$workload]=$container
+  podman container exists "$container" && die "temporary migration container already exists: $container"
+  printf '%s=%s\n%s=%s\n%s=%s\nPGDATA=/var/lib/postgresql/data\n' \
+    POSTGRES_PASSWORD "${old_passwords[$workload]}" \
+    POSTGRES_USER "${db_users[$workload]}" \
+    POSTGRES_DB "${db_names[$workload]}" >"$env_file"
+  if [[ $workload == immich ]]; then
+    printf 'POSTGRES_INITDB_ARGS=--data-checksums\n' >>"$env_file"
+    config_volume=homelab-immich-postgres-config
+    podman volume exists "$config_volume" || die "target PostgreSQL config volume does not exist: $config_volume"
+  fi
+  chmod 0600 "$env_file"
+  run_args=(podman run --detach --name "$container" --network none)
+  run_args+=(--user "${current_users[$workload]}")
+  run_args+=(--read-only --read-only-tmpfs)
+  run_args+=(--cap-drop all --security-opt=no-new-privileges --pids-limit 1024)
+  run_args+=(--tmpfs "/tmp:rw,noexec,nosuid,nodev")
+  run_args+=(--tmpfs "/run/postgresql:rw,noexec,nosuid,nodev")
+  run_args+=(--tmpfs "/var/run/postgresql:rw,noexec,nosuid,nodev")
+  run_args+=(--env-file "$env_file")
+  run_args+=(--volume "$volume:/var/lib/postgresql/data:U")
+  if [[ -n $config_volume ]]; then
+    run_args+=(--volume "$config_volume:/etc/postgresql:U")
+  fi
+  run_args+=("${current_images[$workload]}")
+  "${run_args[@]}" >/dev/null
+  wait_ready "$container" "${db_users[$workload]}" "${db_names[$workload]}"
+  info "restoring PostgreSQL dump into Quadlet volume: $workload"
+  podman cp "$dump_path" "$container:/tmp/legacy.dump"
+  podman exec "$container" pg_restore -h 127.0.0.1 -U "${db_users[$workload]}" \
+    -d "${db_names[$workload]}" --clean --if-exists --no-owner --exit-on-error /tmp/legacy.dump
+  result=$(podman exec "$container" psql -h 127.0.0.1 -U "${db_users[$workload]}" \
+    -d "${db_names[$workload]}" --tuples-only --no-align --command='SELECT current_database()')
+  [[ $result == "${db_names[$workload]}" ]] || die "PostgreSQL verification failed: $workload"
+}
+
+for workload in "${workloads[@]}"; do
+  run_legacy_dump "$workload"
+  run_current_restore "$workload"
+done
+
+info "PostgreSQL migration completed; target containers remain stopped"
+printf 'Logical dumps retained under: %s\n' "$dump_dir"

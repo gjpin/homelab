@@ -138,3 +138,19 @@ are recreated rather than backed up.
 
 Volumes belonging to inactive incubator bundles are intentionally outside this
 backup inventory.
+
+## Older Docker/Restic repositories
+
+The pre-Quadlet `main` deployment backed up one `/data/containers` tree and did
+not use the current named-volume metadata. Keep that repository and its
+password unchanged, and treat it as read-only during a host migration. The
+legacy repository must not be initialized again and must not be used with the
+current `bin/restic` wrapper.
+
+For a one-time migration, follow
+[the old-main migration guide](legacy-main-to-quadlets.md). It restores the
+legacy snapshot to a private staging directory, copies only durable
+application data into newly created Quadlet volumes, and converts the two
+PostgreSQL 17 data directories through logical dumps before PostgreSQL 18 is
+started. Future backups should use the new configured prefix and the current
+Quadlet backup format.

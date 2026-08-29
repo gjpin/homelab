@@ -494,6 +494,7 @@ The canonical procedures are:
 
 - [Encrypted S3 setup and manual backups](docs/backups.md)
 - [Restore onto a replacement host](docs/host-migration.md)
+- [Migrate an old `main` Docker snapshot to Quadlets](docs/legacy-main-to-quadlets.md)
 - [Restore one older volume on the existing host](docs/restore-volume.md)
 
 The automated snapshots are encrypted locally, incremental, and deduplicated.

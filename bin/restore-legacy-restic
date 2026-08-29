@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: bin/restore-legacy-restic \
+  --snapshot SNAPSHOT_ID \
+  --legacy-env FILE \
+  --staging-dir DIRECTORY \
+  [--restic-bin PATH] [--dry-run]
+
+Verify and restore a legacy Docker/Restic snapshot containing
+/data/containers, then map its durable application data into empty Quadlet
+named volumes. The legacy Restic repository is never written.
+EOF
+}
+
+snapshot=
+legacy_env=
+staging_dir=
+restic_binary=${LEGACY_RESTIC_BIN:-/usr/bin/restic}
+dry_run=false
+
+while (($#)); do
+  case "$1" in
+    --snapshot) snapshot=${2:?}; shift 2 ;;
+    --legacy-env) legacy_env=${2:?}; shift 2 ;;
+    --staging-dir) staging_dir=${2:?}; shift 2 ;;
+    --restic-bin) restic_binary=${2:?}; shift 2 ;;
+    --dry-run) dry_run=true; shift ;;
+    --help|-h) usage; exit 0 ;;
+    *) die "unknown argument: $1" ;;
+  esac
+done
+
+[[ $snapshot =~ ^[0-9a-f]{64}$ ]] || die "snapshot must be a 64-character lowercase hexadecimal ID"
+[[ -n $legacy_env ]] || die "--legacy-env is required"
+[[ -n $staging_dir ]] || die "--staging-dir is required"
+[[ -x $restic_binary ]] || die "restic is not executable: $restic_binary"
+
+root=$(repo_root)
+require_command find
+require_command podman
+require_command realpath
+require_command stat
+require_command tar
+
+load_legacy_env() {
+  local file=$1 line key value
+  local -A seen=()
+  [[ -f $file && -r $file ]] || die "legacy Restic environment file is not readable: $file"
+  local mode
+  mode=$(stat -c '%a' "$file") || die "cannot inspect legacy environment file: $file"
+  [[ $mode =~ ^[0-7]+$ ]] || die "legacy environment file mode is invalid: $file"
+  (( (10#$mode & 077) == 0 )) || die "legacy environment file must not be group/world accessible: $file"
+
+  AWS_ACCESS_KEY_ID=
+  AWS_SECRET_ACCESS_KEY=
+  RESTIC_PASSWORD=
+  RESTIC_REPOSITORY=
+  AWS_DEFAULT_REGION=
+  while IFS= read -r line || [[ -n $line ]]; do
+    [[ $line =~ ^[[:space:]]*$ || $line =~ ^[[:space:]]*# ]] && continue
+    [[ $line =~ ^[[:space:]]*(AWS_ACCESS_KEY_ID|AWS_SECRET_ACCESS_KEY|RESTIC_PASSWORD|RESTIC_REPOSITORY|AWS_DEFAULT_REGION)[[:space:]]*=(.*)$ ]] || {
+      die "legacy Restic environment contains an unsupported line"
+    }
+    key=${BASH_REMATCH[1]}
+    value=${BASH_REMATCH[2]}
+    [[ -z ${seen[$key]+x} ]] || die "legacy Restic environment contains duplicate key: $key"
+    seen[$key]=1
+    value=${value#"${value%%[![:space:]]*}"}
+    value=${value%"${value##*[![:space:]]}"}
+    case "$value" in
+      "\"*\"") value=${value:1:${#value}-2} ;;
+      "'*'") value=${value:1:${#value}-2} ;;
+    esac
+    [[ $value != *$'\n'* && $value != *$'\r'* ]] || die "legacy Restic environment contains a newline"
+    printf -v "$key" '%s' "$value"
+  done <"$file"
+
+  [[ -n $AWS_ACCESS_KEY_ID ]] || die "legacy Restic environment is missing AWS_ACCESS_KEY_ID"
+  [[ -n $AWS_SECRET_ACCESS_KEY ]] || die "legacy Restic environment is missing AWS_SECRET_ACCESS_KEY"
+  [[ -n $RESTIC_PASSWORD ]] || die "legacy Restic environment is missing RESTIC_PASSWORD"
+  [[ -n $RESTIC_REPOSITORY ]] || die "legacy Restic environment is missing RESTIC_REPOSITORY"
+  export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY RESTIC_PASSWORD RESTIC_REPOSITORY
+  if [[ -n $AWS_DEFAULT_REGION ]]; then
+    export AWS_DEFAULT_REGION
+  else
+    unset AWS_DEFAULT_REGION
+  fi
+  export RESTIC_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/restic-legacy-restore"
+}
+
+load_legacy_env "$legacy_env"
+
+staging_dir=$(realpath -m -- "$staging_dir")
+[[ $staging_dir != / && $staging_dir != "$HOME" ]] || die "refusing unsafe staging directory: $staging_dir"
+if [[ -e $staging_dir ]]; then
+  [[ -d $staging_dir ]] || die "staging path is not a directory: $staging_dir"
+  [[ -z $(find "$staging_dir" -mindepth 1 -print -quit) ]] || {
+    die "staging directory must be empty: $staging_dir"
+  }
+else
+  $dry_run || install -d -m 0700 "$staging_dir"
+fi
+
+if [[ -n $(podman ps --quiet) ]]; then
+  die "running containers exist; stop the deployment before restoring legacy data"
+fi
+
+mapfile -t volume_files < <(find "$root/quadlet/volumes" -type f -name '*.volume' | sort)
+declare -A volume_labels=()
+declare -A volume_seen=()
+expected_volumes=()
+for volume_file in "${volume_files[@]}"; do
+  volume=$(sed -n 's/^VolumeName=//p' "$volume_file")
+  label=$(sed -n 's/^Label=//p' "$volume_file")
+  [[ $volume =~ ^homelab-[a-z0-9-]+$ ]] || die "invalid Quadlet volume name: $volume_file"
+  [[ $label == io.containers.systemd.application=* ]] || die "invalid Quadlet volume label: $volume_file"
+  [[ -z ${volume_seen[$volume]+x} ]] || die "duplicate Quadlet volume: $volume"
+  volume_seen[$volume]=1
+  volume_labels[$volume]=$label
+  expected_volumes+=("$volume")
+done
+
+for volume in "${expected_volumes[@]}"; do
+  podman volume exists "$volume" && die "refusing existing target volume: $volume"
+done
+
+declare -A legacy_paths=(
+  [homelab-caddy-data]=caddy/volumes/caddy
+  [homelab-caddy-bookmarks]=caddy/volumes/bookmarks
+  [homelab-forgejo-data]=forgejo/volumes/data
+  [homelab-homeassistant-config]=homeassistant/volumes/homeassistant
+  [homelab-homeassistant-mosquitto-data]=homeassistant/volumes/mosquitto/data
+  [homelab-homeassistant-zigbee2mqtt]=homeassistant/volumes/zigbee2mqtt
+  [homelab-immich-data]=immich/volumes/immich
+  [homelab-radicale-collections]=radicale/volumes/radicale
+  [homelab-supernote-data]=supernote/volumes/supernote/data
+  [homelab-supernote-recycle]=supernote/volumes/supernote/recycle
+  [homelab-supernote-logs-app]=supernote/volumes/supernote/logs-app
+  [homelab-supernote-logs-cloud]=supernote/volumes/supernote/logs-cloud
+  [homelab-supernote-logs-web]=supernote/volumes/supernote/logs-web
+  [homelab-supernote-convert]=supernote/volumes/supernote/convert
+  [homelab-supernote-mariadb]=supernote/volumes/mariadb
+  [homelab-syncthing-data]=syncthing/volumes/syncthing
+  [homelab-vaultwarden-data]=vaultwarden/volumes/vaultwarden
+)
+
+for volume in "${!legacy_paths[@]}"; do
+  [[ -n ${volume_seen[$volume]+x} ]] || die "legacy mapping names an undeclared volume: $volume"
+done
+
+printf 'Legacy snapshot: %s\n' "$snapshot"
+printf 'Legacy repository: %s\n' "$RESTIC_REPOSITORY"
+printf 'Staging directory: %s\n' "$staging_dir"
+printf '\nMappings:\n'
+for volume in $(printf '%s\n' "${!legacy_paths[@]}" | sort); do
+  printf '  %-38s /data/containers/%s\n' "$volume" "${legacy_paths[$volume]}"
+done
+printf '\nUnmapped target volumes are created empty for cache, generated configuration, or\nPostgreSQL migration. The script never activates an application.\n'
+
+if $dry_run; then
+  info "dry-run complete; no Restic restore or volume creation was performed"
+  exit 0
+fi
+
+install -d -m 0700 "$staging_dir" "$RESTIC_CACHE_DIR"
+info "verifying legacy Restic repository"
+"$restic_binary" snapshots "$snapshot" >/dev/null
+"$restic_binary" check >/dev/null
+
+info "restoring /data/containers into staging"
+"$restic_binary" restore "$snapshot" \
+  --target "$staging_dir" \
+  --include /data/containers >/dev/null
+
+legacy_root="$staging_dir/data/containers"
+[[ -d $legacy_root ]] || die "Restic restore did not produce $legacy_root"
+for volume in "${!legacy_paths[@]}"; do
+  source_path="$legacy_root/${legacy_paths[$volume]}"
+  [[ -d $source_path && ! -L $source_path ]] || die "required legacy data path is missing or symlinked: $source_path"
+done
+
+info "creating empty Quadlet volumes"
+for volume in "${expected_volumes[@]}"; do
+  podman volume create --label "${volume_labels[$volume]}" "$volume" >/dev/null
+done
+
+copy_tree() {
+  local source_path=$1 volume=$2 mountpoint
+  mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$volume")
+  [[ -d $mountpoint && $mountpoint != / && $mountpoint != "$HOME" ]] || {
+    die "unsafe or unavailable mountpoint for $volume: $mountpoint"
+  }
+  podman unshare tar --acls --xattrs --selinux --numeric-owner \
+    --directory "$source_path" --create --file - . |
+    podman unshare tar --acls --xattrs --selinux --numeric-owner \
+    --directory "$mountpoint" --extract --file -
+}
+
+info "copying durable legacy data into rootless volumes"
+for volume in $(printf '%s\n' "${!legacy_paths[@]}" | sort); do
+  copy_tree "$legacy_root/${legacy_paths[$volume]}" "$volume"
+done
+
+info "legacy data staged; PostgreSQL volumes remain empty for bin/restore-legacy-postgres"
+printf 'Staging directory retained: %s\n' "$staging_dir"
