@@ -245,11 +245,11 @@ authoritative detailed configuration.
 | `forgejo` | Rootless Forgejo plus PostgreSQL | Backend plus Forgejo edge; `git` route | Rootless UIDs; Forgejo and PostgreSQL volumes; database secret |
 | `homeassistant` | Home Assistant, Mosquitto, and Zigbee2MQTT | Backend plus Home Assistant edge; `home` and `home-zigbee` routes | Zigbee device fixture and `container_device_t` exception; D-Bus read-only bind; MQTT secret |
 | `immich` | Rootless server, PostgreSQL, Valkey, and ML service | Backend plus server edge; dedicated ML egress; `photos` route | Multiple durable volumes; database secret; ML outbound isolation |
-| `radicale` | Custom rootless image with rendered config | Radicale network; `contacts` route | Bcrypt htpasswd secret; custom build and rendered user/config files |
+| `radicale` | Custom rootless image with rendered config | Internal Radicale network; `contacts` route; no Internet egress | Bcrypt htpasswd secret; custom build and rendered user/config files |
 | `searxng` | Rootless SearXNG plus Valkey | Backend plus SearXNG edge; `search` route | Rendered secret-key settings and cache volume; Valkey remains backend-only |
-| `supernote` | MariaDB, Valkey, notelib, and service | Backend plus service edge and notelib egress; `supernote` route | Seeded SQL asset; multiple durable volumes; amd64/QEMU exception; narrowly allowlisted `CHOWN`/`NET_BIND_SERVICE` |
-| `syncthing` | Rootless single service | Syncthing network; `syncthing` UI route; TCP/UDP `22000` direct | Durable data volume; direct protocol exposure is documented and firewalled |
-| `vaultwarden` | Rootless single service | Vaultwarden network; `vault` UI, websocket, and notification routes | Durable data volume; admin token secret; websocket routing must remain tested |
+| `supernote` | MariaDB, Valkey, notelib, and service | Internal backend plus internal service edge and internal notelib network; `supernote` route; no Internet egress | Seeded SQL asset; multiple durable volumes; amd64/QEMU exception; narrowly allowlisted `CHOWN`/`NET_BIND_SERVICE`; notelib network retains a historical `egress` name without a documented outbound dependency |
+| `syncthing` | Rootless single service | Internal Syncthing network; `syncthing` UI route; TCP/UDP `22000` direct; no Internet egress | Durable data volume; direct protocol exposure is documented and firewalled; Internet discovery/relay and outbound peer sessions are unavailable |
+| `vaultwarden` | Rootless single service | Internal Vaultwarden network; `vault` UI, websocket, and notification routes; no Internet egress | Durable data volume; admin token secret; websocket routing must remain tested |
 
 Inactive bundles under `incubator/` are useful reference implementations but
 are not active workload inventory entries. AnythingLLM demonstrates a simple
@@ -271,3 +271,16 @@ and add a new inventory record.
   fixture conventions.
 - `bin/render-config`, `bin/reconcile`, and `bin/security-audit` — secret
   rendering, activation, and runtime enforcement.
+
+## GitHub Actions
+
+- When creating or updating GitHub Actions workflows, always use the latest stable release of each action.
+- Pin every `uses:` reference to the action's full commit SHA. Do not use mutable tags or branches.
+- Put the human-readable action version immediately after the pinned SHA as a comment.
+- Whenever the action version changes, update both the version comment and the pinned commit SHA together.
+
+Example:
+
+```yaml
+uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+```

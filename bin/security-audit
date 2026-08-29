@@ -57,9 +57,18 @@ for forbidden in \
 done
 
 for internal in \
-  homelab-forgejo homelab-homeassistant homelab-immich homelab-searxng homelab-supernote; do
+  homelab-forgejo homelab-homeassistant homelab-immich homelab-searxng homelab-supernote \
+  homelab-radicale homelab-syncthing homelab-vaultwarden \
+  homelab-supernote-edge homelab-supernote-notelib-egress; do
   podman network inspect "$internal" | jq -e '.[0].internal == true' >/dev/null || \
-    die "backend network is not internal: $internal"
+    die "network is not internal: $internal"
+done
+
+for name in radicale syncthing vaultwarden notelib supernote-service; do
+  while IFS= read -r network; do
+    podman network inspect "$network" | jq -e '.[0].internal == true' >/dev/null || \
+      die "$name has external access through non-internal network $network"
+  done < <(podman inspect "$name" | jq -r '.[0].NetworkSettings.Networks | keys[]')
 done
 
 info "runtime container security audit passed"

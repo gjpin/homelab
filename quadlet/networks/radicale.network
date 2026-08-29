@@ -2,5 +2,6 @@
 NetworkName=homelab-radicale
 Subnet=10.200.6.0/24
 Gateway=10.200.6.1
+Internal=true
 Options=isolate=true
 Label=io.containers.systemd.application=radicale

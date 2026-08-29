@@ -325,10 +325,37 @@ check_runtime() {
   done
 }
 
+check_no_egress() {
+  local name network
+  local -a blocked_networks=()
+
+  for name in "${expected_names[@]}"; do
+    while IFS= read -r network; do
+      case "$network" in
+        homelab-radicale|homelab-syncthing|homelab-vaultwarden|\
+        homelab-supernote-edge|homelab-supernote-notelib-egress)
+          blocked_networks+=("$network")
+          ;;
+      esac
+    done < <(podman inspect "$name" | jq -r '.[0].NetworkSettings.Networks | keys[]')
+  done
+
+  ((${#blocked_networks[@]} > 0)) || return 0
+  mapfile -t blocked_networks < <(printf '%s\n' "${blocked_networks[@]}" | sort -u)
+  for network in "${blocked_networks[@]}"; do
+    if podman run --rm --network "$network" "$probe_image" \
+      sh -c 'busybox nc -z -w 3 1.1.1.1 443' >/dev/null 2>&1; then
+      die "network permits external TCP access: $network"
+    fi
+  done
+}
+
 until check_runtime; do
   (( SECONDS < deadline )) || die "containers did not become ready within ${timeout_seconds}s"
   sleep 5
 done
+
+check_no_egress
 
 stable_ids=()
 for name in "${expected_names[@]}"; do

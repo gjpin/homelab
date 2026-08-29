@@ -5,6 +5,34 @@ hybrid post-quantum age keys, separated edge and internal backend networks,
 and a root-owned socket proxy that forwards TCP 443 to rootless Caddy on
 `127.0.0.1:8443`.
 
+## Services
+
+| Name | URL | Description | Access to internet |
+| --- | --- | --- | --- |
+| [Caddy](https://github.com/caddyserver/caddy) | bookmarks.${BASE_DOMAIN} | Authenticated bookmarks and WebDAV service | Yes |
+| [Forgejo](https://codeberg.org/forgejo/forgejo) | git.${BASE_DOMAIN} | Git server / DevOps platform | Yes |
+| [Home Assistant](https://github.com/home-assistant/core) | home.${BASE_DOMAIN} | Home automation | Yes |
+| [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt) | home-zigbee.${BASE_DOMAIN} | Zigbee to MQTT bridge | Yes |
+| [Immich](https://github.com/immich-app/immich) | photos.${BASE_DOMAIN} | Photo and video backup solution | Yes |
+| [Radicale](https://github.com/Kozea/Radicale) | contacts.${BASE_DOMAIN} | CardDAV (contact) server | No |
+| [SearXNG](https://github.com/searxng/searxng) | search.${BASE_DOMAIN} | Internet metasearch engine | Yes |
+| [Supernote Private Cloud](https://support.supernote.com/setting-up-your-own-supernote-private-cloud-beta) | supernote.${BASE_DOMAIN} | Private Cloud for Supernote | No |
+| [Syncthing](https://github.com/syncthing/syncthing) | syncthing.${BASE_DOMAIN} | Continuous file synchronization | No |
+| [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | vault.${BASE_DOMAIN} | Unofficial Bitwarden-compatible server | No |
+
+The table lists user-facing services. Supporting databases, caches, MQTT, and
+worker containers stay on internal or dedicated backend networks and are not
+directly exposed. “Yes” means the service has Internet egress; “No” means all
+of its attached Podman networks are internal. Inbound public access is still
+limited to the Caddy HTTPS proxy, plus Syncthing's documented TCP/UDP 22000
+protocol ports.
+
+Supernote's `notelib` retains a separate network for service-specific
+isolation. It is now internal as well; the repository history does not record
+an upstream dependency that requires Internet access, so the historical
+`egress` name should not be interpreted as an exception to the no-egress
+policy.
+
 ## Security model
 
 - All containers run under the dedicated, password-locked `homelab` account.
@@ -12,7 +40,10 @@ and a root-owned socket proxy that forwards TCP 443 to rootless Caddy on
 - Only TCP 443 and Syncthing TCP/UDP 22000 are exposed externally.
 - Application networks use strictly isolated deterministic `/24` ranges within
   `10.200.0.0/16`. Caddy joins edge networks only; database, cache, and MQTT
-  networks are internal.
+  networks are internal. Radicale, Supernote, Syncthing, and Vaultwarden have
+  no Internet egress; their application networks are internal while remaining
+  reachable from Caddy or, for Syncthing, through its published protocol
+  ports.
 - Writable application state lives in rootless Podman named volumes.
 - Deployment secrets are encrypted in Git and selectively imported as Podman
   secrets. Rendered secret-bearing configuration exists only below the

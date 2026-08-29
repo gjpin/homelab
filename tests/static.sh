@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 root=$(cd -- "$(dirname -- "$0")/.." && pwd)
 containers="$root/quadlet/applications"
+workflows="$root/.github/workflows"
 # shellcheck source=/dev/null
 source "$root/bin/lib.sh"
 
@@ -345,6 +346,13 @@ for backend in forgejo homeassistant immich searxng supernote; do
   }
 done
 
+for blocked_network in radicale syncthing vaultwarden supernote-edge supernote-notelib-egress; do
+  rg -q '^Internal=true$' "$root/quadlet/networks/$blocked_network.network" || {
+    printf 'network must block external access: %s\n' "$blocked_network" >&2
+    exit 1
+  }
+done
+
 if rg -l --glob '*postgres.container' --glob '*mariadb.container' \
   --glob '*valkey.container' --glob '*mosquitto.container' \
   '^Network=.*-edge\.network$' "$containers"; then
@@ -381,5 +389,13 @@ if rg '^FROM ' "$root/images" | rg -v '@sha256:[0-9a-f]{64}([[:space:]]+AS[[:spa
   printf 'every Containerfile base image must be pinned by digest\n' >&2
   exit 1
 fi
+
+action_line_re='^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]+[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}[[:space:]]+# v[0-9]+(\.[0-9]+){1,2}$'
+while IFS= read -r action_line; do
+  [[ $action_line =~ $action_line_re ]] || {
+    printf 'GitHub Action must use a full SHA and version comment: %s\n' "$action_line" >&2
+    exit 1
+  }
+done < <(rg --no-filename '^[[:space:]]*(-[[:space:]]+)?uses:' "$workflows")
 
 printf 'static topology validation passed\n'
