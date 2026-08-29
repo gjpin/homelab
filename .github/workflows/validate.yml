@@ -32,8 +32,30 @@ jobs:
           docker buildx build --pull --platform linux/amd64 --file images/radicale/Containerfile --tag localhost/homelab/radicale:test-amd64 --load images/radicale
           docker buildx build --pull --platform linux/arm64 --file images/radicale/Containerfile --tag localhost/homelab/radicale:test-arm64 --load images/radicale
 
+  host-tools:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+
+      - name: Test the pinned SOPS host tool
+        run: |
+          docker run --rm \
+            --platform linux/${{ matrix.architecture }} \
+            --volume "$GITHUB_WORKSPACE:/src:ro" \
+            --workdir /src \
+            fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
+            bash -lc 'dnf install -y age curl diffutils >/dev/null && ./tests/host-tools.sh'
+
   e2e:
-    needs: validate
+    needs: [validate, host-tools]
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:

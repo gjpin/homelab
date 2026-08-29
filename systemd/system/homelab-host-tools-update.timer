@@ -1,0 +1,11 @@
+[Unit]
+Description=Check the GitOps-approved host tools daily
+
+[Timer]
+OnBootSec=15min
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+RandomizedDelaySec=15min
+
+[Install]
+WantedBy=timers.target

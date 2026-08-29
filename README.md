@@ -79,9 +79,8 @@ access is enabled.
   `openssh-clients`, `passt`, `podman`, `policycoreutils`, `python3`,
   `ripgrep`, `shadow-utils`, `systemd`, `tar`, and `util-linux`. The script
   also provisions valid `homelab` subordinate-ID ranges and installs the
-  official SOPS v3.13.3 RPM (`sops-3.13.3-1.x86_64.rpm` or
-  `sops-3.13.3-1.aarch64.rpm`) after verifying its pinned SHA-256 checksum and
-  RPM metadata.
+  SOPS RPM selected by the checksum-pinned metadata in
+  `config/host-tools.env`.
 - On arm64, bootstrap installs Fedora's `qemu-user-binfmt` and
   `qemu-user-static-x86` packages and enables `systemd-binfmt`. The native
   multi-architecture images follow the host; Supernote's amd64-only `notelib`
@@ -201,12 +200,12 @@ Perform these steps in order. Replace every uppercase placeholder.
 
    Record the printed `age1pq1...` host recipient. Bootstrap creates the locked
    `homelab` account, installs Fedora's age and restic RPMs plus the
-   checksum-verified SOPS v3.13.3 RPM, clones the private repository, generates
-   `/home/homelab/.config/sops/age/keys.txt`, installs the TCP 443 proxy, and
-   configures firewalld. The version command must report restic 0.19.1 or
-   later. The generated `keys.txt` private identity is required
-   to decrypt the existing secrets on a replacement host. Back it up in step
-   15. Never commit it.
+   checksum-verified SOPS RPM, clones the private repository, generates
+   `/home/homelab/.config/sops/age/keys.txt`, installs the TCP 443 proxy and
+   the daily host-tools update timer, and configures firewalld. The version
+   command must report restic 0.19.1 or later. The generated `keys.txt` private
+   identity is required to decrypt the existing secrets on a replacement host.
+   Back it up in step 15. Never commit it.
 
 8. Verify that the installed deploy credential can read the private repository:
 
@@ -336,7 +335,7 @@ Perform these steps in order. Replace every uppercase placeholder.
     to the backup inventory below; the installed copy remains under the
     `homelab` account.
 
-The first deployment downloads and checksum-verifies the Supernote database
+The first deployment checksum-verifies the vendored Supernote database
 bootstrap SQL, builds the two custom images, pulls every upstream image, and
 starts all application targets. It creates empty application state.
 
@@ -396,16 +395,23 @@ workflow. It fails with a setup message when `RENOVATE_TOKEN` is absent. The
 workflow is restricted to scheduled and manual events, so the secret is never
 exposed to pull-request code.
 
+Require the `validate`, `host-tools (amd64)`, `host-tools (arm64)`, and `e2e`
+checks in the `main` branch protection rule. Renovate's SOPS pull request must
+pass both host-tool architecture tests and the full real Podman E2E run before
+it can be merged. Keep approval and merge manual; passing checks do not
+automatically merge an update.
+
 The included `renovate.json` understands Quadlet `Image=` entries and the
 custom image build inputs. Its Docker digest pinning and `currentDigest`
 capture mean Renovate changes the SHA-256 digest together with a tag, and also
 proposes digest-only updates when a tag is republished. Custom managers cover
 the Caddy `xcaddy` modules, Radicale's pinned Alpine packages, and the
-architecture-specific release assets and checksums used by the age, SOPS, and
-Restic installers. Container updates are never automerged; after review and
-merge, deployment remains the responsibility of the GitOps reconciler. The
-workflow action and Renovate container version are pinned and are themselves
-managed by Renovate.
+architecture-specific SOPS release assets and checksums in
+`config/host-tools.env`. Fedora-managed age and Restic packages are not
+controlled by this GitOps pin. Container and host-tool updates are never
+automerged; after review and merge, deployment remains the responsibility of
+the GitOps reconciler. The workflow action and Renovate container version are
+pinned and are themselves managed by Renovate.
 
 Useful commands as the `homelab` user:
 
@@ -802,8 +808,31 @@ secrets cannot be recovered and must be replaced.
 
 ## Host-managed updates
 
-The socket proxy is intentionally outside rootless GitOps. After reviewing a
-change under `systemd/system`, reinstall it explicitly:
+SOPS is a manually fetched host tool, so its release tag and amd64/arm64
+checksums are committed in `config/host-tools.env`. Renovate checks the
+upstream stable release daily and opens a pull request. After the pull request
+passes the required host-tool tests and the full E2E suite and is merged,
+`homelab-reconcile.timer` publishes the new metadata through `current`.
+
+`homelab-host-tools-update.timer` then runs daily at 02:00 in the host timezone
+with a persistent catch-up run. Its root-owned helper is installed by
+`bootstrap-host`; the helper reads only validated metadata and derives the
+fixed SOPS GitHub URL and artifact name. It never executes code from the
+mutable Git checkout. A failed download, checksum, metadata, or installation
+leaves the previously installed SOPS version in place. Inspect it with:
+
+```bash
+systemctl status homelab-host-tools-update.timer
+systemctl status homelab-host-tools-update.service
+rpm -q sops
+```
+
+For an existing host that predates this timer, rerun the reviewed `bootstrap-host`
+command from the initial-installation procedure once. This installs the fixed
+helper and timer; it does not grant the Git reconciler root access.
+
+The socket proxy is also intentionally outside rootless GitOps. After reviewing
+a change under `systemd/system`, reinstall it explicitly:
 
 ```bash
 sudo install -m 0644 systemd/system/caddy-https-proxy.* /etc/systemd/system/
@@ -811,5 +840,7 @@ sudo systemctl daemon-reload
 sudo systemctl restart caddy-https-proxy.socket
 ```
 
-This separation prevents a compromised Git credential from becoming a root
-execution path.
+The fixed host-tool helper and socket proxy are the only host-root integration
+points. The Git reconciler still has no sudo access, and the host-tool helper
+accepts only release metadata for the fixed SOPS upstream rather than running
+repository scripts as root.

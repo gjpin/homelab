@@ -117,7 +117,11 @@ if [[ $arch == arm64 ]]; then
     die "ARM64 bootstrap found a disabled qemu-x86_64 binfmt registration"
 fi
 
-"$root/bin/install-sops"
+"$root/bin/install-sops" "$root/config/host-tools.env"
+# The system updater is deliberately copied outside the mutable Git checkout;
+# it reads only validated release metadata from the deployed current release.
+install -d -m 0755 /usr/local/libexec
+install -m 0755 "$root/bin/install-sops" /usr/local/libexec/homelab-install-sops
 # Remove binaries from older revisions only after Fedora's packages and the
 # checksum-verified SOPS RPM have installed successfully.
 legacy_bin_dir=/usr/local/bin
@@ -194,8 +198,11 @@ loginctl terminate-user "$runtime_user" || true
 
 install -m 0644 "$root/systemd/system/caddy-https-proxy.socket" /etc/systemd/system/caddy-https-proxy.socket
 install -m 0644 "$root/systemd/system/caddy-https-proxy.service" /etc/systemd/system/caddy-https-proxy.service
+install -m 0644 "$root/systemd/system/homelab-host-tools-update.service" /etc/systemd/system/homelab-host-tools-update.service
+install -m 0644 "$root/systemd/system/homelab-host-tools-update.timer" /etc/systemd/system/homelab-host-tools-update.timer
 systemctl daemon-reload
 systemctl enable --now caddy-https-proxy.socket
+systemctl enable --now homelab-host-tools-update.timer
 
 firewall-cmd --permanent --zone "$firewalld_zone" --add-service=https
 firewall-cmd --permanent --zone "$firewalld_zone" --add-port=22000/tcp

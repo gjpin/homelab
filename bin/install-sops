@@ -3,34 +3,77 @@ set -Eeuo pipefail
 
 [[ ${EUID} -eq 0 ]] || { printf 'Run this command as root.\n' >&2; exit 1; }
 
-# shellcheck source=/dev/null
-source "$(dirname -- "$0")/lib.sh"
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+info() {
+  printf '==> %s\n' "$*" >&2
+}
+
+host_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) printf '%s\n' amd64 ;;
+    aarch64|arm64) printf '%s\n' arm64 ;;
+    *) die "unsupported host architecture: $(uname -m) (supported architectures: amd64 and arm64)" ;;
+  esac
+}
+
+config_file=${1:?usage: install-sops HOST_TOOLS_METADATA}
+[[ -r $config_file ]] || die "host tools metadata is not readable: $config_file"
+
+release_tag=
+amd64_rpm_sha256=
+arm64_rpm_sha256=
+amd64_binary_sha256=
+arm64_binary_sha256=
+while IFS= read -r line || [[ -n $line ]]; do
+  [[ -z $line || $line == \#* ]] && continue
+  [[ $line == *=* ]] || die "invalid host tools metadata line: $line"
+  key=${line%%=*}
+  value=${line#*=}
+  case "$key" in
+    SOPS_RELEASE_TAG) [[ -z $release_tag ]] || die "duplicate host tools metadata key: $key"; release_tag=$value ;;
+    SOPS_AMD64_RPM_SHA256) [[ -z $amd64_rpm_sha256 ]] || die "duplicate host tools metadata key: $key"; amd64_rpm_sha256=$value ;;
+    SOPS_ARM64_RPM_SHA256) [[ -z $arm64_rpm_sha256 ]] || die "duplicate host tools metadata key: $key"; arm64_rpm_sha256=$value ;;
+    SOPS_AMD64_BINARY_SHA256) [[ -z $amd64_binary_sha256 ]] || die "duplicate host tools metadata key: $key"; amd64_binary_sha256=$value ;;
+    SOPS_ARM64_BINARY_SHA256) [[ -z $arm64_binary_sha256 ]] || die "duplicate host tools metadata key: $key"; arm64_binary_sha256=$value ;;
+    *) die "unknown host tools metadata key: $key" ;;
+  esac
+done <"$config_file"
+
+[[ $release_tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "SOPS release tag is invalid: $release_tag"
+for checksum in "$amd64_rpm_sha256" "$arm64_rpm_sha256" \
+  "$amd64_binary_sha256" "$arm64_binary_sha256"; do
+  [[ $checksum =~ ^[0-9a-f]{64}$ ]] || die "host tools metadata contains an invalid SHA-256 checksum"
+done
 
 arch=$(host_arch)
-require_command curl
-require_command dnf
-require_command rpm
-require_command sha256sum
-
-version=3.13.3
 case "$arch" in
   amd64)
     rpm_arch=x86_64
-    rpm_file=sops-3.13.3-1.x86_64.rpm
-    rpm_sha256=f362eabc5b17b84894952fc57737eccf26ef8a4321453c165f4b1205b5544123
+    rpm_sha256=$amd64_rpm_sha256
     ;;
   arm64)
     rpm_arch=aarch64
-    rpm_file=sops-3.13.3-1.aarch64.rpm
-    rpm_sha256=0b3a519c93abaff3edfcaf8a16b19cd3b7cc935daf604999b3b52aac96e5770e
+    rpm_sha256=$arm64_rpm_sha256
     ;;
 esac
-url="https://github.com/getsops/sops/releases/download/v${version}/${rpm_file}"
+version=${release_tag#v}
+rpm_file="sops-${version}-1.${rpm_arch}.rpm"
+url="https://github.com/getsops/sops/releases/download/${release_tag}/${rpm_file}"
+
+for command in curl dnf rpm sha256sum sort; do
+  command -v "$command" >/dev/null 2>&1 || die "required command not found: $command"
+done
+
 tmp_rpm=$(mktemp --suffix=.rpm)
 trap 'rm -f -- "$tmp_rpm"' EXIT
 
 curl --fail --location --proto '=https' --tlsv1.2 --output "$tmp_rpm" "$url"
-printf '%s  %s\n' "$rpm_sha256" "$tmp_rpm" | sha256sum --check --status
+printf '%s  %s\n' "$rpm_sha256" "$tmp_rpm" | sha256sum --check --status || \
+  die "downloaded SOPS RPM checksum does not match the GitOps pin"
 
 rpm_name=$(rpm -qp --queryformat '%{NAME}' "$tmp_rpm") || die "downloaded SOPS RPM metadata is invalid"
 rpm_version=$(rpm -qp --queryformat '%{VERSION}' "$tmp_rpm") || die "downloaded SOPS RPM metadata is invalid"
@@ -41,9 +84,29 @@ rpm_package_arch=$(rpm -qp --queryformat '%{ARCH}' "$tmp_rpm") || die "downloade
   die "downloaded SOPS RPM metadata does not match $rpm_file"
 }
 rpm -qip "$tmp_rpm" >/dev/null || die "downloaded SOPS RPM metadata could not be read"
-dnf install -y "$tmp_rpm"
+
+if rpm -q sops >/dev/null 2>&1; then
+  installed_version=$(rpm -q --queryformat '%{VERSION}' sops)
+  installed_release=$(rpm -q --queryformat '%{RELEASE}' sops)
+  installed_evr="${installed_version}-${installed_release}"
+  candidate_evr="${version}-1"
+  lowest=$(printf '%s\n%s\n' "$installed_evr" "$candidate_evr" | sort -V | sed -n '1p')
+  [[ $lowest == "$installed_evr" ]] || die "refusing to downgrade SOPS from $installed_evr to $candidate_evr"
+  if [[ $installed_evr == "$candidate_evr" ]]; then
+    info "SOPS $candidate_evr is already installed"
+  else
+    info "updating SOPS from $installed_evr to $candidate_evr"
+    dnf install -y "$tmp_rpm"
+  fi
+else
+  info "installing SOPS $version"
+  dnf install -y "$tmp_rpm"
+fi
+
+# Remove binaries left by revisions that installed release assets directly.
 rm -f -- /usr/local/bin/sops
-installed_version=$(rpm -q --queryformat '%{VERSION}\n' sops) || die "SOPS RPM did not install"
-[[ $installed_version == "$version" ]] || \
-  die "installed SOPS version is $installed_version, expected $version"
+installed_version=$(rpm -q --queryformat '%{VERSION}\n' sops) || die "SOPS RPM is not installed"
+installed_release=$(rpm -q --queryformat '%{RELEASE}\n' sops) || die "SOPS RPM metadata is unavailable"
+[[ $installed_version == "$version" && $installed_release == 1 ]] || \
+  die "installed SOPS is ${installed_version}-${installed_release}, expected ${version}-1"
 /usr/bin/sops --version >/dev/null

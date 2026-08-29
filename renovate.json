@@ -71,37 +71,25 @@
     },
     {
       "customType": "regex",
-      "description": "Update age release assets and architecture-specific checksums",
-      "managerFilePatterns": ["/^bin\\/install-age$/"],
+      "description": "Update the SOPS host-tool release",
+      "managerFilePatterns": ["/^config\\/host-tools\\.env$/"],
       "matchStrings": [
-        "(?<architecture>amd64|arm64)\\)\\n[ \\t]+release_tag=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)\\n[ \\t]+version=\\$\\{release_tag#v\\}\\n[ \\t]+archive_sha256=(?<currentDigest>[0-9a-f]{64})"
+        "SOPS_RELEASE_TAG=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
       ],
-      "autoReplaceStringTemplate": "{{{architecture}}})\n    release_tag={{{newValue}}}\n    version=${release_tag#v}\n    archive_sha256={{{newDigest}}}",
-      "depNameTemplate": "FiloSottile/age",
-      "datasourceTemplate": "github-release-attachments",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "description": "Update SOPS release assets and architecture-specific checksums",
-      "managerFilePatterns": ["/^bin\\/install-sops$/"],
-      "matchStrings": [
-        "(?<architecture>amd64|arm64)\\)\\n[ \\t]+release_tag=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)\\n[ \\t]+version=\\$\\{release_tag#v\\}\\n[ \\t]+binary_sha256=(?<currentDigest>[0-9a-f]{64})"
-      ],
-      "autoReplaceStringTemplate": "{{{architecture}}})\n    release_tag={{{newValue}}}\n    version=${release_tag#v}\n    binary_sha256={{{newDigest}}}",
+      "autoReplaceStringTemplate": "SOPS_RELEASE_TAG={{{newValue}}}",
       "depNameTemplate": "getsops/sops",
-      "datasourceTemplate": "github-release-attachments",
+      "datasourceTemplate": "github-releases",
       "versioningTemplate": "semver"
     },
     {
       "customType": "regex",
-      "description": "Update Restic release assets and architecture-specific checksums",
-      "managerFilePatterns": ["/^bin\\/install-restic$/"],
+      "description": "Update architecture-specific SOPS host-tool checksums",
+      "managerFilePatterns": ["/^config\\/host-tools\\.env$/"],
       "matchStrings": [
-        "(?<architecture>amd64|arm64)\\)\\n[ \\t]+release_tag=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)\\n[ \\t]+version=\\$\\{release_tag#v\\}\\n[ \\t]+archive_sha256=(?<currentDigest>[0-9a-f]{64})"
+        "# renovate: datasource=github-release-attachments depName=getsops/sops currentValue=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)\\n(?<checksumName>SOPS_(?:AMD64|ARM64)_(?:RPM|BINARY)_SHA256)=(?<currentDigest>[0-9a-f]{64})"
       ],
-      "autoReplaceStringTemplate": "{{{architecture}}})\n    release_tag={{{newValue}}}\n    version=${release_tag#v}\n    archive_sha256={{{newDigest}}}",
-      "depNameTemplate": "restic/restic",
+      "autoReplaceStringTemplate": "# renovate: datasource=github-release-attachments depName=getsops/sops currentValue={{{newValue}}}\n{{{checksumName}}}={{{newDigest}}}",
+      "depNameTemplate": "getsops/sops",
       "datasourceTemplate": "github-release-attachments",
       "versioningTemplate": "semver"
     }
@@ -145,19 +133,12 @@
       "groupName": "radicale"
     },
     {
-      "description": "Keep age architecture assets together",
-      "matchPackageNames": ["FiloSottile/age"],
-      "groupName": "age"
-    },
-    {
-      "description": "Keep SOPS architecture assets together",
+      "description": "Keep the SOPS host-tool release and checksums together",
       "matchPackageNames": ["getsops/sops"],
-      "groupName": "sops"
-    },
-    {
-      "description": "Keep Restic architecture assets together",
-      "matchPackageNames": ["restic/restic"],
-      "groupName": "restic"
+      "groupName": "sops-host-tools",
+      "ignoreUnstable": true,
+      "minimumReleaseAge": "3 days",
+      "automerge": false
     }
   ]
 }

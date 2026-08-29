@@ -1,0 +1,22 @@
+[Unit]
+Description=Install the GitOps-approved SOPS host tool
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/home/homelab/current/config/host-tools.env
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/local/libexec/homelab-install-sops /home/homelab/current/config/host-tools.env
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectControlGroups=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+SystemCallArchitectures=native

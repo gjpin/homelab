@@ -8,6 +8,10 @@ done
 printf '\nContainers:\n'
 podman ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
 
+printf '\nHost tools:\n'
+printf '%-28s %s\n' homelab-host-tools-update.timer "$(systemctl is-active homelab-host-tools-update.timer 2>/dev/null || true)"
+printf '%-28s %s\n' 'sops version' "$(sops --version 2>/dev/null || printf 'unavailable')"
+
 printf '\nBackup:\n'
 printf '%-28s %s\n' homelab-backup.timer "$(systemctl --user is-active homelab-backup.timer 2>/dev/null || true)"
 next_run=$(systemctl --user show homelab-backup.timer --property=NextElapseUSecRealtime --value 2>/dev/null || true)

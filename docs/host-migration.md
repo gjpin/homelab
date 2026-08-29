@@ -68,7 +68,8 @@ sudo ./bin/bootstrap-host \
   --firewalld-zone public
 ```
 
-The printed recipient must match the one checked above. Attach the Zigbee
+The printed recipient must match the one checked above. Bootstrap also installs
+the fixed SOPS updater and enables its daily system timer. Attach the Zigbee
 coordinator first; if its stable serial ID changed, update and push
 `config/site.env` before bootstrap.
 

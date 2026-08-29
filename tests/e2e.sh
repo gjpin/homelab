@@ -222,6 +222,8 @@ sops --encrypt \
 rm -f -- "$test_root/secrets/e2e-plaintext.yaml"
 
 mkdir -p "$test_root/assets/supernote"
+[[ -e "$test_root/assets/supernote/supernotedb.sql" ]] && \
+  chmod u+w -- "$test_root/assets/supernote/supernotedb.sql"
 : >"$test_root/assets/supernote/supernotedb.sql"
 sed -i \
   -e 's#^Image=.*#Image=localhost/homelab/e2e-zigbee2mqtt#' \

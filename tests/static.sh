@@ -11,6 +11,17 @@ require_command jq
 
 "$root/tests/architecture.sh"
 
+load_host_tools "$root/config/host-tools.env"
+[[ -f "$root/config/host-tools.env" ]] || { printf 'host tools metadata is missing\n' >&2; exit 1; }
+for field in \
+  SOPS_RELEASE_TAG SOPS_AMD64_RPM_SHA256 SOPS_AMD64_BINARY_SHA256 \
+  SOPS_ARM64_RPM_SHA256 SOPS_ARM64_BINARY_SHA256; do
+  rg -q "^${field}=" "$root/config/host-tools.env" || {
+    printf 'host tools metadata is missing: %s\n' "$field" >&2
+    exit 1
+  }
+done
+
 rg -q 'age-keygen -pq -o' "$root/bin/bootstrap-host" || { printf 'host age identity is not post-quantum\n' >&2; exit 1; }
 for package in \
   age ca-certificates container-selinux curl diffutils firewalld fuse-overlayfs \
@@ -33,24 +44,42 @@ fi
 for mapping in \
   'rpm_arch=x86_64' \
   'rpm_arch=aarch64' \
-  'sops-3.13.3-1.x86_64.rpm' \
-  'sops-3.13.3-1.aarch64.rpm'; do
+  "rpm_file=\"sops-\${version}-1.\${rpm_arch}.rpm\"" \
+  "releases/download/\${release_tag}/\${rpm_file}"; do
   rg -Fq "$mapping" "$root/bin/install-sops" || {
-    printf 'missing SOPS RPM architecture mapping: %s\n' "$mapping" >&2
-    exit 1
-  }
-done
-for checksum in \
-  f362eabc5b17b84894952fc57737eccf26ef8a4321453c165f4b1205b5544123 \
-  0b3a519c93abaff3edfcaf8a16b19cd3b7cc935daf604999b3b52aac96e5770e; do
-  rg -Fq "$checksum" "$root/bin/install-sops" || {
-    printf 'missing SOPS RPM checksum: %s\n' "$checksum" >&2
+    printf 'missing SOPS installer mapping: %s\n' "$mapping" >&2
     exit 1
   }
 done
 rg -q 'rpm -qip' "$root/bin/install-sops" || { printf 'SOPS RPM metadata is not validated\n' >&2; exit 1; }
 rg -q 'dnf install -y "\$tmp_rpm"' "$root/bin/install-sops" || { printf 'SOPS RPM is not installed through DNF\n' >&2; exit 1; }
 rg -q 'installed_version=.*%\{VERSION\}' "$root/bin/install-sops" || { printf 'installed SOPS version is not checked\n' >&2; exit 1; }
+rg -q 'refusing to downgrade SOPS' "$root/bin/install-sops" || { printf 'SOPS installer does not reject downgrades\n' >&2; exit 1; }
+rg -q 'install -m 0755 "\$root/bin/install-sops" /usr/local/libexec/homelab-install-sops' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not install the fixed SOPS updater\n' >&2
+  exit 1
+}
+for unit in homelab-host-tools-update.service homelab-host-tools-update.timer; do
+  [[ -f "$root/systemd/system/$unit" ]] || { printf 'missing host-tools system unit: %s\n' "$unit" >&2; exit 1; }
+done
+rg -q '^ExecStart=/usr/local/libexec/homelab-install-sops ' \
+  "$root/systemd/system/homelab-host-tools-update.service" || {
+  printf 'host-tools service does not use the fixed installer\n' >&2
+  exit 1
+}
+if rg -n 'ExecStart=.*(%h/current/bin|/home/homelab/current/bin|/current/bin)' \
+  "$root/systemd/system/homelab-host-tools-update.service"; then
+  printf 'host-tools service executes mutable Git content as root\n' >&2
+  exit 1
+fi
+rg -q '^OnCalendar=\*-\*-\* 02:00:00$' "$root/systemd/system/homelab-host-tools-update.timer" || {
+  printf 'host-tools timer is not scheduled daily\n' >&2
+  exit 1
+}
+rg -q '^Persistent=true$' "$root/systemd/system/homelab-host-tools-update.timer" || {
+  printf 'host-tools timer must catch up missed runs\n' >&2
+  exit 1
+}
 rg -q 'require_rpm_version age 1\.3\.0' "$root/bin/bootstrap-host" || { printf 'Fedora age minimum is not checked\n' >&2; exit 1; }
 rg -q 'require_rpm_version restic 0\.19\.1' "$root/bin/bootstrap-host" || { printf 'Fedora restic minimum is not checked\n' >&2; exit 1; }
 rg -q 'rm -f --' "$root/bin/bootstrap-host" || { printf 'legacy host binaries are not cleaned up\n' >&2; exit 1; }

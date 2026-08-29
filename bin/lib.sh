@@ -41,6 +41,39 @@ require_subordinate_id_range() {
   ' "$database" || die "$user has no valid subordinate ID range in $database"
 }
 
+load_host_tools() {
+  local file=${1:-$(repo_root)/config/host-tools.env}
+  local line key value
+  [[ -r $file ]] || die "missing host tools metadata: $file"
+  SOPS_RELEASE_TAG=
+  SOPS_AMD64_RPM_SHA256=
+  SOPS_AMD64_BINARY_SHA256=
+  SOPS_ARM64_RPM_SHA256=
+  SOPS_ARM64_BINARY_SHA256=
+  while IFS= read -r line || [[ -n $line ]]; do
+    [[ -z $line || $line == \#* ]] && continue
+    [[ $line == *=* ]] || die "invalid host tools metadata line: $line"
+    key=${line%%=*}
+    value=${line#*=}
+    case "$key" in
+      SOPS_RELEASE_TAG) [[ -z $SOPS_RELEASE_TAG ]] || die "duplicate host tools metadata key: $key"; SOPS_RELEASE_TAG=$value ;;
+      SOPS_AMD64_RPM_SHA256) [[ -z $SOPS_AMD64_RPM_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_AMD64_RPM_SHA256=$value ;;
+      SOPS_AMD64_BINARY_SHA256) [[ -z $SOPS_AMD64_BINARY_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_AMD64_BINARY_SHA256=$value ;;
+      SOPS_ARM64_RPM_SHA256) [[ -z $SOPS_ARM64_RPM_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_ARM64_RPM_SHA256=$value ;;
+      SOPS_ARM64_BINARY_SHA256) [[ -z $SOPS_ARM64_BINARY_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_ARM64_BINARY_SHA256=$value ;;
+      *) die "unknown host tools metadata key: $key" ;;
+    esac
+  done <"$file"
+  [[ $SOPS_RELEASE_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "SOPS release tag is invalid: $SOPS_RELEASE_TAG"
+  for value in "$SOPS_AMD64_RPM_SHA256" "$SOPS_AMD64_BINARY_SHA256" \
+    "$SOPS_ARM64_RPM_SHA256" "$SOPS_ARM64_BINARY_SHA256"; do
+    [[ $value =~ ^[0-9a-f]{64}$ ]] || die "host tools metadata contains an invalid SHA-256 checksum"
+  done
+  SOPS_VERSION=${SOPS_RELEASE_TAG#v}
+  export SOPS_RELEASE_TAG SOPS_VERSION SOPS_AMD64_RPM_SHA256 SOPS_AMD64_BINARY_SHA256
+  export SOPS_ARM64_RPM_SHA256 SOPS_ARM64_BINARY_SHA256
+}
+
 load_site_config() {
   local root=${1:-$(repo_root)}
   local file="$root/config/site.env"

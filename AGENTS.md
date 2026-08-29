@@ -18,6 +18,12 @@ changes.
 - Pin every upstream container image and every `Containerfile` base image by
   immutable `@sha256:` digest. Do not use `:latest`, floating tags, or
   `AutoUpdate=`.
+- Pin manually fetched host-tool releases and every architecture-specific
+  artifact checksum in `config/host-tools.env`. Renovate must check these
+  releases daily and open a reviewed PR; required architecture tests and the
+  full E2E suite must pass before merge. A host-root updater may consume only
+  validated data from the deployed release and must never execute scripts from
+  the mutable Git checkout. Fedora repository packages remain Fedora-managed.
 - Onboard new applications and services from the latest stable upstream
   release available at the time of onboarding. Do not deliberately select an
   older, prerelease, nightly, or end-of-life release; any unavoidable
@@ -232,6 +238,25 @@ architecture exception, migration procedure, or special backup semantics.
 Review image updates through Renovate; never enable automatic image updates.
 For grouped services or custom build dependencies, update `renovate.json` so
 the images and build inputs are reviewed together.
+
+### Host-tool updates
+
+Manually fetched host tools are deployment dependencies and must follow the
+same reviewed update path as images:
+
+- Keep release tags and all architecture-specific checksums in
+  `config/host-tools.env`; derive URLs and filenames in the installer from a
+  fixed upstream repository.
+- Renovate checks daily and opens a non-automerged pull request. Require the
+  host-tool tests for every supported architecture and the complete Podman E2E
+  suite before merging to `main`.
+- Installers must validate the checksum and package metadata before changing a
+  host installation, reject downgrades, and leave the current version intact
+  on failure.
+- If root is required, install a fixed helper during trusted host bootstrap.
+  The helper may parse deployed metadata but must not execute repository code
+  as root. Document the timer, recovery behavior, and one-time rollout for
+  existing hosts.
 
 ## Workload inventory
 
