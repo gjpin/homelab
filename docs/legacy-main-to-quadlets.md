@@ -2,7 +2,7 @@
 
 This is the one-time recovery procedure for the Docker deployment from the
 old `main` branch. That deployment backed up a single `/data/containers` tree
-with Restic. The current `quadlets` branch backs up labeled named volumes and
+with Restic. The current `main` branch backs up labeled named volumes and
 uses a different repository prefix, so the current `bin/restic` wrapper cannot
 open the old repository.
 
@@ -21,7 +21,7 @@ verification.
 
 ## 1. Prepare the new branch and host
 
-On the operator workstation, use a trusted checkout of the `quadlets` branch.
+On the operator workstation, use a trusted checkout of the `main` branch.
 Set the real values in `config/site.env` and commit them before bootstrapping:
 
 ```dotenv
@@ -31,12 +31,12 @@ HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=your-stable-serial-id
 BACKUP_S3_ENDPOINT=https://s3.REGION.backblazeb2.com
 BACKUP_S3_REGION=REGION
 BACKUP_S3_BUCKET=BUCKET
-BACKUP_S3_PREFIX=homelab-quadlets
+BACKUP_S3_PREFIX=homelab
 ```
 
-Use a new prefix such as `homelab-quadlets`. Do not initialize or write to the
-old Docker repository. A new Restic repository password is recommended; keep
-it separately in the operator password manager.
+Use a new prefix such as `homelab` (or a fresh dedicated prefix). Do not
+initialize or write to the old Docker repository. A new Restic repository
+password is recommended; keep it separately in the operator password manager.
 
 Create a new operator age identity if one is not already backed up:
 
@@ -54,7 +54,7 @@ new host identity. Record the printed host recipient.
 ```bash
 sudo ./bin/bootstrap-host \
   --repo git@github.com:OWNER/REPOSITORY.git \
-  --branch quadlets \
+  --branch main \
   --git-key ../github-deploy-key \
   --known-hosts ../github-known-hosts \
   --firewalld-zone public
@@ -89,6 +89,13 @@ If the old repository was configured at the bucket root, leave the repository
 URL at the bucket root. The migration tool rejects extra environment keys,
 world-readable files, and shell syntax; it never sources the file.
 
+To inspect the legacy snapshots and retrieve the full 64-character snapshot ID:
+
+```bash
+export $(grep -v '^#' /home/homelab/legacy-restic.env | xargs)
+restic snapshots --json | jq -r '.[-1].id'
+```
+
 ## 3. Restore the legacy file data
 
 Run these commands as `homelab` on the new host. Use a new, empty staging path
@@ -117,8 +124,8 @@ staging="$HOME/legacy-restore-$snapshot"
 The first command verifies the inputs without changing volumes. The real run
 performs `restic snapshots`, `restic check`, and a read-only restore, then
 creates every active Quadlet volume with its declared workload label. It copies
-the durable mappings below and leaves caches, generated configuration, and
-both PostgreSQL volumes empty:
+the durable mappings below, normalizes Forgejo's layout for rootless execution,
+and leaves caches, generated configuration, and both PostgreSQL volumes empty:
 
 | Legacy path below `/data/containers` | Quadlet volume |
 | --- | --- |
@@ -136,15 +143,16 @@ both PostgreSQL volumes empty:
 | `vaultwarden/volumes/vaultwarden` | `homelab-vaultwarden-data` |
 
 AnythingLLM and Docs MCP are intentionally not restored or activated because
-they remain inactive incubator bundles on the `quadlets` branch.
+they remain inactive incubator bundles on the `main` branch.
 
 ## 4. Convert PostgreSQL 17 data
 
 The repository contains the exact, digest-pinned PostgreSQL 17 migration image
 metadata in `config/legacy-migration.env`. The command below requires the
 legacy generated PostgreSQL configs and data directories in the staging tree.
-It creates no application network and uses temporary containers with no
-capabilities, no network, a read-only root, and a 1024-process limit.
+It creates no application network and uses temporary containers running as
+unprivileged `postgres` with no capabilities, no network, a read-only root,
+and a 1024-process limit.
 
 ```bash
 ./bin/restore-legacy-postgres \
@@ -206,32 +214,36 @@ target checkout, still without reconciling:
 sudo -iu homelab
 export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 cd ~/git/repository
-git pull --ff-only origin quadlets
+git pull --ff-only origin main
 ```
 
 ## 6. Reconcile and verify
 
-The deployed `homelab-reconcile.service` is pinned to `HOMELAB_GIT_BRANCH=quadlets`.
-Use the explicit variable for the first manual run as well:
+Run reconciliation and audit:
 
 ```bash
-HOMELAB_GIT_BRANCH=quadlets ./bin/reconcile
+./bin/reconcile
 ./bin/status
 ./bin/security-audit
 ```
 
 Before reconciliation, review any deployment-owned files that the current
-branch mounts read-only over restored files. In particular,
-`config/templates/homeassistant/automations.yaml` is currently `[]`; merge
-any desired legacy automations into that tracked template and push the change
-before activating Home Assistant. The current Caddy, Radicale, SearXNG,
-Mosquitto, Zigbee2MQTT, and Supernote configuration templates are also the
-authoritative deployment configuration; restored volume data remains the
-application state.
+branch mounts read-only over restored files. In particular:
+- `config/templates/homeassistant/automations.yaml` is currently `[]`; merge
+  any desired legacy automations into that tracked template and push the change
+  before activating Home Assistant.
+- If you configured custom device names or settings in legacy Zigbee2MQTT
+  (`zigbee2mqtt/configuration.yaml`), note that the Quadlet unit mounts
+  `config/templates/homeassistant/zigbee2mqtt.yaml` read-only. Merge required
+  device or group blocks into that template prior to activation.
+- `bin/restore-legacy-restic` automatically adapts legacy Forgejo layout
+  to `/var/lib/gitea/custom/conf/app.ini` and rewrites internal `/data/` paths.
+- The current Caddy, Radicale, SearXNG, Mosquitto, Zigbee2MQTT, and Supernote
+  configuration templates are the authoritative deployment configuration;
+  restored volume data remains the application state.
 
 After the deployment is healthy, initialize the new repository exactly once
-using the new `homelab-quadlets` prefix and the new repository password stored
-in SOPS:
+using the configured prefix and the repository password stored in SOPS:
 
 ```bash
 ./bin/restic init

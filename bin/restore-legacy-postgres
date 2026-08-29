@@ -253,13 +253,14 @@ run_legacy_dump() {
     --directory "$staging_dir/data/containers/${old_data_paths[$workload]}" --create --file - . |
     podman unshare tar --acls --xattrs --selinux --numeric-owner \
       --directory "$mountpoint" --extract --file -
-  printf '%s=%s\n%s=%s\n%s=%s\nPGDATA=/var/lib/postgresql/data\n' \
+  printf '%s=%s\n%s=%s\n%s=%s\nPGDATA=/var/lib/postgresql/data\nPOSTGRES_HOST_AUTH_METHOD=trust\n' \
     POSTGRES_PASSWORD "${old_passwords[$workload]}" \
     POSTGRES_USER "${db_users[$workload]}" \
     POSTGRES_DB "${db_names[$workload]}" >"$env_file"
   chmod 0600 "$env_file"
   podman run --detach --name "$container" \
     --network none \
+    --user "${current_users[$workload]}" \
     --read-only --read-only-tmpfs \
     --cap-drop all --security-opt=no-new-privileges --pids-limit 1024 \
     --tmpfs /tmp:rw,noexec,nosuid,nodev \
@@ -270,7 +271,8 @@ run_legacy_dump() {
     "${legacy_images[$workload]}" >/dev/null
   wait_ready "$container" "${db_users[$workload]}" "${db_names[$workload]}"
   info "dumping legacy PostgreSQL database: $workload"
-  podman exec "$container" pg_dump -h 127.0.0.1 -U "${db_users[$workload]}" \
+  podman exec --env "PGPASSWORD=${old_passwords[$workload]}" "$container" \
+    pg_dump -h 127.0.0.1 -U "${db_users[$workload]}" \
     -d "${db_names[$workload]}" --format=custom --no-owner >"$dump_path"
   [[ -s $dump_path ]] || die "legacy PostgreSQL dump is empty: $dump_path"
 }
@@ -284,7 +286,7 @@ run_current_restore() {
   volume=${target_volumes[$workload]}
   new_containers[$workload]=$container
   podman container exists "$container" && die "temporary migration container already exists: $container"
-  printf '%s=%s\n%s=%s\n%s=%s\nPGDATA=/var/lib/postgresql/data\n' \
+  printf '%s=%s\n%s=%s\n%s=%s\nPGDATA=/var/lib/postgresql/data\nPOSTGRES_HOST_AUTH_METHOD=trust\n' \
     POSTGRES_PASSWORD "${old_passwords[$workload]}" \
     POSTGRES_USER "${db_users[$workload]}" \
     POSTGRES_DB "${db_names[$workload]}" >"$env_file"
@@ -311,9 +313,11 @@ run_current_restore() {
   wait_ready "$container" "${db_users[$workload]}" "${db_names[$workload]}"
   info "restoring PostgreSQL dump into Quadlet volume: $workload"
   podman cp "$dump_path" "$container:/tmp/legacy.dump"
-  podman exec "$container" pg_restore -h 127.0.0.1 -U "${db_users[$workload]}" \
+  podman exec --env "PGPASSWORD=${old_passwords[$workload]}" "$container" \
+    pg_restore -h 127.0.0.1 -U "${db_users[$workload]}" \
     -d "${db_names[$workload]}" --clean --if-exists --no-owner --exit-on-error /tmp/legacy.dump
-  result=$(podman exec "$container" psql -h 127.0.0.1 -U "${db_users[$workload]}" \
+  result=$(podman exec --env "PGPASSWORD=${old_passwords[$workload]}" "$container" \
+    psql -h 127.0.0.1 -U "${db_users[$workload]}" \
     -d "${db_names[$workload]}" --tuples-only --no-align --command='SELECT current_database()')
   [[ $result == "${db_names[$workload]}" ]] || die "PostgreSQL verification failed: $workload"
 }

@@ -44,7 +44,11 @@ for mapping in \
   }
 done
 
+rg -q -- 'migrate_forgejo_layout' "$restic_restore"
+rg -q -- 'custom/conf/app.ini' "$restic_restore"
+
 rg -q -- '--network none' "$postgres_restore"
+rg -Fq -- '--user "${current_users[$workload]}"' "$postgres_restore"
 rg -q -- '--cap-drop all' "$postgres_restore"
 rg -q -- '--security-opt=no-new-privileges' "$postgres_restore"
 rg -q -- '--pids-limit 1024' "$postgres_restore"
@@ -61,7 +65,9 @@ fi
 rg -q '^LEGACY_FORGEJO_POSTGRES_IMAGE=[^[:space:]]+@sha256:[0-9a-f]{64}$' "$metadata"
 rg -q '^LEGACY_IMMICH_POSTGRES_IMAGE=[^[:space:]]+@sha256:[0-9a-f]{64}$' "$metadata"
 
-rg -q '^Environment=HOMELAB_GIT_BRANCH=quadlets$' \
-  "$root/systemd/user/homelab-reconcile.service"
+if rg -n 'HOMELAB_GIT_BRANCH=quadlets' "$root/systemd/user/homelab-reconcile.service"; then
+  printf 'homelab-reconcile.service hardcodes quadlets branch\n' >&2
+  exit 1
+fi
 
 printf 'legacy restore safety tests passed\n'

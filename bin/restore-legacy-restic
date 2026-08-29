@@ -208,5 +208,36 @@ for volume in $(printf '%s\n' "${!legacy_paths[@]}" | sort); do
   copy_tree "$legacy_root/${legacy_paths[$volume]}" "$volume"
 done
 
+migrate_forgejo_layout() {
+  local volume=homelab-forgejo-data mountpoint
+  mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$volume")
+  [[ -d $mountpoint && $mountpoint != / && $mountpoint != "$HOME" ]] || {
+    die "unsafe or unavailable mountpoint for $volume: $mountpoint"
+  }
+  podman unshare bash -c '
+    set -euo pipefail
+    mountpoint=$1
+    if [[ -d "$mountpoint/gitea" ]]; then
+      if [[ -f "$mountpoint/gitea/conf/app.ini" ]]; then
+        mkdir -p "$mountpoint/custom/conf"
+        sed -i "s#/data/#/var/lib/gitea/#g" "$mountpoint/gitea/conf/app.ini"
+        mv "$mountpoint/gitea/conf/app.ini" "$mountpoint/custom/conf/app.ini"
+        rmdir "$mountpoint/gitea/conf" 2>/dev/null || true
+      fi
+      for item in "$mountpoint/gitea"/*; do
+        if [[ -e "$item" ]]; then
+          base=$(basename "$item")
+          if [[ ! -e "$mountpoint/$base" ]]; then
+            mv "$item" "$mountpoint/$base"
+          fi
+        fi
+      done
+      rmdir "$mountpoint/gitea" 2>/dev/null || true
+    fi
+  ' _ "$mountpoint"
+}
+
+migrate_forgejo_layout
+
 info "legacy data staged; PostgreSQL volumes remain empty for bin/restore-legacy-postgres"
 printf 'Staging directory retained: %s\n' "$staging_dir"
