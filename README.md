@@ -432,6 +432,34 @@ the current release continues running. Runtime failures are not automatically
 rolled back after a stateful service starts because its database may already
 have migrated.
 
+### Automated PostgreSQL major version updates
+
+When Renovate updates a PostgreSQL container image across major versions (e.g.
+PostgreSQL 17 to 18, 18 to 19, or Immich custom vector PostgreSQL images), the
+migration runs fully automatically during `reconcile` before the new systemd
+application target starts:
+
+1. `bin/migrate-postgres` detects the mismatch between the on-disk `PG_VERSION`
+   in the named volume and the target image major version.
+2. The owning application target is stopped.
+3. An ephemeral rootless container with `--network none` runs the previous
+   PostgreSQL image to generate a logical custom-format dump.
+4. A pre-migration tarball of the raw data directory is archived for rollback
+   safety.
+5. The volume is re-initialized with the new PostgreSQL image, the dump is
+   restored and verified (`SELECT current_database()`), and a copy of the dump is
+   preserved in `~/.local/state/homelab/postgres-upgrades/`.
+6. If restoration fails, the data directory is rolled back from the archive.
+7. Systemd starts the new PostgreSQL container cleanly on the migrated volume.
+
+The migration tool can also be run or inspected manually:
+
+```bash
+~/current/bin/migrate-postgres --check
+~/current/bin/migrate-postgres --dry-run
+~/current/bin/migrate-postgres --workload forgejo
+```
+
 ### Hardening an existing host
 
 Hosts installed by an older revision have `container_use_devices` enabled

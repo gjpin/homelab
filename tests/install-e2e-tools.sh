@@ -10,6 +10,7 @@ tool_dir="$HOME/.local/bin"
 tmp_dir=$(mktemp -d)
 trap 'rm -rf -- "$tmp_dir"' EXIT
 install -d -m 0700 "$tool_dir"
+export PATH="$tool_dir:$PATH"
 
 case "$(uname -m)" in
   x86_64)

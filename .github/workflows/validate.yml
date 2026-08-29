@@ -99,7 +99,9 @@ jobs:
         if: steps.scope.outputs.mode != 'none'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes jq podman qemu-system-x86 qemu-utils
+          sudo apt-get install --yes gvproxy jq podman qemu-system-x86 qemu-utils
+          sudo mkdir -p /usr/libexec/podman
+          sudo ln -sf /usr/bin/gvproxy /usr/libexec/podman/gvproxy
 
       - name: Run selected Podman E2E
         if: steps.scope.outputs.mode != 'none'

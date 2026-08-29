@@ -408,5 +408,8 @@ done
 
 if [[ $selector_mode == all ]]; then
   "$test_root/bin/security-audit"
+  "$test_root/tests/postgres-migration-e2e.sh"
+elif [[ " ${selected_workloads[*]} " =~ " forgejo " || " ${selected_workloads[*]} " =~ " immich " ]]; then
+  "$test_root/tests/postgres-migration-e2e.sh"
 fi
 printf 'real Podman E2E passed: %s container(s)\n' "${#expected_names[@]}"

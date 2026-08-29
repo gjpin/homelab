@@ -307,9 +307,13 @@ rg -q 'bin/security-audit' "$root/bin/reconcile" || {
   printf 'reconciliation must run the runtime security audit\n' >&2
   exit 1
 }
+rg -q 'bin/migrate-postgres' "$root/bin/reconcile" || {
+  printf 'reconciliation must run the automated postgres migration tool\n' >&2
+  exit 1
+}
 
-[[ -x "$root/bin/backup" && -x "$root/bin/restic" && -x "$root/bin/install-sops" ]] || {
-  printf 'backup executables are not executable\n' >&2
+[[ -x "$root/bin/backup" && -x "$root/bin/restic" && -x "$root/bin/install-sops" && -x "$root/bin/migrate-postgres" ]] || {
+  printf 'required executables are not executable\n' >&2
   exit 1
 }
 rg -q '^restic_binary=\$\{HOMELAB_RESTIC_BIN:-/usr/bin/restic\}$' "$root/bin/restic" || {

@@ -1,0 +1,316 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+umask 077
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+usage() {
+  cat <<'EOF'
+Usage: bin/migrate-postgres [--release DIRECTORY] [--workload NAME] [--check] [--dry-run]
+
+Automatically detect and perform PostgreSQL major version migrations for
+declared workloads. When a Quadlet container image specifies a higher
+PostgreSQL major version than the existing on-disk volume, this tool dumps
+the database using the previous image, re-initializes the volume with the
+new image, restores the dump, and verifies database integrity.
+EOF
+}
+
+release=$(repo_root)
+workload_filter=
+check_only=false
+dry_run=false
+
+while (($#)); do
+  case "$1" in
+    --release) release=${2:?}; shift 2 ;;
+    --workload) workload_filter=${2:?}; shift 2 ;;
+    --check) check_only=true; shift ;;
+    --dry-run) dry_run=true; shift ;;
+    --help|-h) usage; exit 0 ;;
+    *) die "unknown argument: $1" ;;
+  esac
+done
+
+require_command find
+require_command jq
+require_command podman
+require_command sed
+require_command tar
+
+[[ -d $release ]] || die "release directory does not exist: $release"
+current_link=${HOMELAB_CURRENT_LINK:-$HOME/current}
+state_dir=${HOMELAB_STATE_DIR:-$HOME/.local/state/homelab}
+runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}
+
+extract_image_major_version() {
+  local image=$1 version=
+  if [[ -z $image ]]; then
+    return 1
+  fi
+  # First attempt: run postgres --version inside the image
+  version=$(podman run --rm --network none --cap-drop all --security-opt=no-new-privileges \
+    --entrypoint postgres "$image" --version 2>/dev/null | sed -nE 's/.*PostgreSQL\) ([0-9]+).*/\1/p') || true
+  if [[ $version =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$version"
+    return 0
+  fi
+  # Fallback attempt: parse major version from image tag
+  if [[ $image =~ :([0-9]+)(\.[0-9]+|-|@) ]]; then
+    printf '%s\n' "${BASH_REMATCH[1]}"
+    return 0
+  fi
+  return 1
+}
+
+# Collect all PostgreSQL container units in the release
+postgres_units=()
+while IFS= read -r line; do
+  [[ -n $line ]] && postgres_units+=("$line")
+done < <(find "$release/quadlet/applications" -name '*-postgres.container' -type f | sort)
+if ((${#postgres_units[@]} == 0)); then
+  exit 0
+fi
+
+migrations_needed=0
+
+for unit_path in "${postgres_units[@]}"; do
+  workload=$(basename "$(dirname "$unit_path")")
+  if [[ -n $workload_filter && $workload != "$workload_filter" ]]; then
+    continue
+  fi
+
+  target_image=$(sed -n 's/^Image=//p' "$unit_path")
+  [[ -n $target_image ]] || die "missing Image in $unit_path"
+  user=$(sed -n 's/^User=//p' "$unit_path")
+  [[ -n $user ]] || user="postgres:postgres"
+  db_user=$(sed -n 's/^Environment=POSTGRES_USER=//p' "$unit_path")
+  [[ -n $db_user ]] || db_user="$workload"
+  db_name=$(sed -n 's/^Environment=POSTGRES_DB=//p' "$unit_path")
+  [[ -n $db_name ]] || db_name="$workload"
+  initdb_args=$(sed -n 's/^Environment=POSTGRES_INITDB_ARGS=//p' "$unit_path")
+
+  volume_file_name=$(sed -n 's/^Volume=\([^:]*\):\/var\/lib\/postgresql\/data:U$/\1/p' "$unit_path")
+  [[ -n $volume_file_name ]] || die "missing or unsupported PGDATA Volume mount in $unit_path"
+  volume_file="$release/quadlet/volumes/$volume_file_name"
+  [[ -f $volume_file ]] || die "missing volume unit: $volume_file"
+  target_volume=$(sed -n 's/^VolumeName=//p' "$volume_file")
+  [[ -n $target_volume ]] || die "missing VolumeName in $volume_file"
+
+  # Optional config volume (e.g. Immich)
+  config_volume_file_name=$(sed -n 's/^Volume=\([^:]*\):\/etc\/postgresql:U$/\1/p' "$unit_path")
+  config_volume=
+  if [[ -n $config_volume_file_name && -f "$release/quadlet/volumes/$config_volume_file_name" ]]; then
+    config_volume=$(sed -n 's/^VolumeName=//p' "$release/quadlet/volumes/$config_volume_file_name")
+  fi
+
+  # Check if volume exists on host
+  if ! podman volume exists "$target_volume"; then
+    continue
+  fi
+  mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$target_volume")
+  [[ -d $mountpoint ]] || continue
+
+  # Check if PG_VERSION exists on disk
+  if ! podman unshare test -f "$mountpoint/PG_VERSION"; then
+    continue
+  fi
+  on_disk_version=$(podman unshare cat "$mountpoint/PG_VERSION" 2>/dev/null | tr -d '[:space:]')
+  [[ $on_disk_version =~ ^[0-9]+$ ]] || die "invalid PG_VERSION for volume $target_volume: $on_disk_version"
+
+  target_version=$(extract_image_major_version "$target_image") || \
+    die "could not determine target PostgreSQL major version for $target_image"
+
+  if ((on_disk_version == target_version)); then
+    continue
+  fi
+
+  if ((on_disk_version > target_version)); then
+    die "unsupported PostgreSQL downgrade from $on_disk_version to $target_version for workload $workload"
+  fi
+
+  migrations_needed=$((migrations_needed + 1))
+  info "PostgreSQL major version migration detected for $workload: $on_disk_version -> $target_version"
+
+  if $check_only; then
+    continue
+  fi
+
+  # Resolve the previous image matching on_disk_version
+  old_image=
+  container_filename=$(basename "$unit_path")
+  if [[ -L $current_link && -f "$current_link/quadlet/applications/$workload/$container_filename" ]]; then
+    candidate_image=$(sed -n 's/^Image=//p' "$current_link/quadlet/applications/$workload/$container_filename")
+    candidate_version=$(extract_image_major_version "$candidate_image") || true
+    if [[ $candidate_version == "$on_disk_version" ]]; then
+      old_image="$candidate_image"
+    fi
+  fi
+
+  if [[ -z $old_image ]]; then
+    if [[ $target_image =~ ^ghcr\.io/immich-app/postgres: ]]; then
+      old_image="ghcr.io/immich-app/postgres:${on_disk_version}"
+    else
+      old_image="docker.io/postgres:${on_disk_version}-bookworm"
+    fi
+  fi
+
+  if $dry_run; then
+    info "dry-run: would migrate $workload from PostgreSQL $on_disk_version to $target_version using $old_image -> $target_image"
+    continue
+  fi
+
+  if ! podman image exists "$old_image"; then
+    info "pulling previous PostgreSQL image: $old_image"
+    podman pull "$old_image" >/dev/null
+  fi
+
+  # Ensure owning application target and service are stopped
+  if command -v systemctl >/dev/null 2>&1; then
+    systemctl --user stop "homelab-$workload.target" "${workload}-postgres.service" >/dev/null 2>&1 || true
+  fi
+
+  work_dir=$(mktemp -d "$runtime_dir/homelab-pg-upgrade-${workload}.XXXXXX")
+  backup_dir="$state_dir/postgres-upgrades"
+  install -d -m 0700 "$backup_dir"
+
+  old_container="homelab-migrate-old-${workload}-$$"
+  new_container="homelab-migrate-new-${workload}-$$"
+  dump_file="$work_dir/${workload}-pg${on_disk_version}.dump"
+  raw_backup_tar="$work_dir/${workload}-pg${on_disk_version}-raw.tar"
+
+  # Invoked by the EXIT trap below.
+  # shellcheck disable=SC2329
+  cleanup() {
+    local rc=$?
+    set +e
+    podman rm -f "$old_container" "$new_container" >/dev/null 2>&1 || true
+    rm -rf -- "$work_dir"
+    trap - EXIT
+    exit "$rc"
+  }
+  trap cleanup EXIT
+
+  info "starting temporary container to dump PostgreSQL $on_disk_version for $workload"
+  old_env_file="$work_dir/old.env"
+  printf 'POSTGRES_USER=%s\nPOSTGRES_DB=%s\nPGDATA=/var/lib/postgresql/data\nPOSTGRES_HOST_AUTH_METHOD=trust\n' \
+    "$db_user" "$db_name" >"$old_env_file"
+  chmod 0600 "$old_env_file"
+
+  old_run_args=(podman run --detach --name "$old_container" --network none)
+  old_run_args+=(--user "$user" --read-only --read-only-tmpfs --cap-drop all --security-opt=no-new-privileges --pids-limit 1024)
+  old_run_args+=(--tmpfs "/tmp:rw,noexec,nosuid,nodev" --tmpfs "/run/postgresql:rw,noexec,nosuid,nodev" --tmpfs "/var/run/postgresql:rw,noexec,nosuid,nodev")
+  old_run_args+=(--env-file "$old_env_file" --volume "$target_volume:/var/lib/postgresql/data:U")
+  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
+    old_run_args+=(--volume "$config_volume:/etc/postgresql:U")
+  fi
+  old_run_args+=("$old_image")
+  "${old_run_args[@]}" >/dev/null
+
+  # Wait for old container readiness
+  ready=false
+  for ((attempt = 1; attempt <= 90; attempt++)); do
+    if podman exec "$old_container" pg_isready -h 127.0.0.1 -U "$db_user" -d "$db_name" >/dev/null 2>&1; then
+      ready=true
+      break
+    fi
+    sleep 1
+  done
+  $ready || die "legacy PostgreSQL container did not become ready: $old_container"
+
+  info "dumping database for $workload"
+  podman exec "$old_container" pg_dump -h 127.0.0.1 -U "$db_user" -d "$db_name" --format=custom --no-owner >"$dump_file"
+  [[ -s $dump_file ]] || die "PostgreSQL dump for $workload is empty: $dump_file"
+  podman rm -f "$old_container" >/dev/null
+
+  info "creating pre-migration rollback archive for $workload"
+  podman unshare tar --acls --xattrs --selinux --numeric-owner \
+    --directory "$mountpoint" --create --file "$raw_backup_tar" .
+
+  info "preparing volume for PostgreSQL $target_version initialization"
+  podman unshare find "$mountpoint" -mindepth 1 -delete
+  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
+    config_mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$config_volume")
+    podman unshare find "$config_mountpoint" -mindepth 1 -delete
+  fi
+
+  info "starting temporary container to initialize PostgreSQL $target_version for $workload"
+  new_env_file="$work_dir/new.env"
+  printf 'POSTGRES_USER=%s\nPOSTGRES_DB=%s\nPGDATA=/var/lib/postgresql/data\nPOSTGRES_HOST_AUTH_METHOD=trust\n' \
+    "$db_user" "$db_name" >"$new_env_file"
+  if [[ -n $initdb_args ]]; then
+    printf 'POSTGRES_INITDB_ARGS=%s\n' "$initdb_args" >>"$new_env_file"
+  fi
+  chmod 0600 "$new_env_file"
+
+  new_run_args=(podman run --detach --name "$new_container" --network none)
+  new_run_args+=(--user "$user" --read-only --read-only-tmpfs --cap-drop all --security-opt=no-new-privileges --pids-limit 1024)
+  new_run_args+=(--tmpfs "/tmp:rw,noexec,nosuid,nodev" --tmpfs "/run/postgresql:rw,noexec,nosuid,nodev" --tmpfs "/var/run/postgresql:rw,noexec,nosuid,nodev")
+  new_run_args+=(--env-file "$new_env_file" --volume "$target_volume:/var/lib/postgresql/data:U")
+  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
+    new_run_args+=(--volume "$config_volume:/etc/postgresql:U")
+  fi
+  new_run_args+=("$target_image")
+  "${new_run_args[@]}" >/dev/null
+
+  ready=false
+  for ((attempt = 1; attempt <= 90; attempt++)); do
+    if podman exec "$new_container" pg_isready -h 127.0.0.1 -U "$db_user" -d "$db_name" >/dev/null 2>&1; then
+      ready=true
+      break
+    fi
+    sleep 1
+  done
+  if ! $ready; then
+    info "initialization failed; rolling back $workload data directory"
+    podman rm -f "$new_container" >/dev/null 2>&1 || true
+    podman unshare find "$mountpoint" -mindepth 1 -delete
+    podman unshare tar --acls --xattrs --selinux --numeric-owner \
+      --directory "$mountpoint" --extract --file "$raw_backup_tar"
+    die "new PostgreSQL container did not become ready: $new_container"
+  fi
+
+  info "restoring database dump into PostgreSQL $target_version for $workload"
+  podman cp "$dump_file" "$new_container:/tmp/migration.dump"
+  restore_rc=0
+  podman exec "$new_container" pg_restore -h 127.0.0.1 -U "$db_user" -d "$db_name" \
+    --clean --if-exists --no-owner --exit-on-error /tmp/migration.dump || restore_rc=$?
+
+  if ((restore_rc != 0)); then
+    info "restore failed; rolling back $workload data directory"
+    podman rm -f "$new_container" >/dev/null 2>&1 || true
+    podman unshare find "$mountpoint" -mindepth 1 -delete
+    podman unshare tar --acls --xattrs --selinux --numeric-owner \
+      --directory "$mountpoint" --extract --file "$raw_backup_tar"
+    die "PostgreSQL restore failed for $workload; rollback completed"
+  fi
+
+  # Integrity verification
+  verified_db=$(podman exec "$new_container" psql -h 127.0.0.1 -U "$db_user" -d "$db_name" \
+    --tuples-only --no-align --command='SELECT current_database()')
+  [[ $verified_db == "$db_name" ]] || die "database verification query failed for $workload"
+
+  podman rm -f "$new_container" >/dev/null
+
+  post_disk_version=$(podman unshare cat "$mountpoint/PG_VERSION" 2>/dev/null | tr -d '[:space:]')
+  [[ $post_disk_version == "$target_version" ]] || \
+    die "migrated PG_VERSION verification failed for $workload (expected $target_version, found $post_disk_version)"
+
+  # Retain dump in state directory for disaster recovery
+  timestamp=$(date +%Y%m%d%H%M%S)
+  dump_archive="$backup_dir/${workload}-pg${on_disk_version}-to-pg${target_version}-${timestamp}.dump"
+  cp -f "$dump_file" "$dump_archive"
+  chmod 0600 "$dump_archive"
+  info "PostgreSQL migration completed for $workload ($on_disk_version -> $target_version)"
+  info "migration backup retained at: $dump_archive"
+
+  rm -rf -- "$work_dir"
+  trap - EXIT
+done
+
+if $check_only && ((migrations_needed > 0)); then
+  exit 1
+fi
+
+exit 0

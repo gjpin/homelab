@@ -90,6 +90,8 @@ for image in "${images[@]}"; do
   fi
 done
 
+"$release/bin/migrate-postgres" --release "$release"
+
 apps=()
 if [[ -z $deployed_commit ]]; then
   mapfile -t apps < <(jq -r 'keys[]' "$release/manifests/applications.json")

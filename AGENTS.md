@@ -301,8 +301,8 @@ and add a new inventory record.
 - `tests/static.sh` — repository topology and security invariants.
 - `tests/e2e-readiness.json` and `tests/e2e.sh` — real Podman readiness and
   fixture conventions.
-- `bin/render-config`, `bin/reconcile`, and `bin/security-audit` — secret
-  rendering, activation, and runtime enforcement.
+- `bin/render-config`, `bin/reconcile`, `bin/migrate-postgres`, and `bin/security-audit` — secret
+  rendering, activation, automated PostgreSQL major migrations, and runtime enforcement.
 
 ## GitHub Actions
 
