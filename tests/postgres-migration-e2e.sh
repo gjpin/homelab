@@ -31,6 +31,8 @@ test_parent=$(mktemp -d "${XDG_RUNTIME_DIR:-/tmp}/homelab-pg-e2e.XXXXXX")
 test_volume="homelab-e2e-migrate-$$-$(date +%s)"
 seed_container="homelab-e2e-seed-$$"
 verify_container="homelab-e2e-verify-$$"
+install -d -m 0700 "$test_parent/runtime"
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-$test_parent/runtime}"
 
 cleanup() {
   local rc=$?
@@ -108,8 +110,9 @@ on_disk_version=$(podman unshare cat "$mountpoint/PG_VERSION" | tr -d '[:space:]
 info "constructing test release layout pointing to test volume"
 test_release="$test_parent/release"
 install -d -m 0700 "$test_release/bin" "$test_release/quadlet/applications/forgejo" "$test_release/quadlet/volumes"
-cp "$source_root/bin/migrate-postgres" "$source_root/bin/lib.sh" "$test_release/bin/"
-chmod 0755 "$test_release/bin/migrate-postgres"
+cp "$source_root/bin/migrate-databases" "$source_root/bin/migrate-postgres" \
+  "$source_root/bin/lib.sh" "$test_release/bin/"
+chmod 0755 "$test_release/bin/migrate-databases" "$test_release/bin/migrate-postgres"
 
 cat >"$test_release/quadlet/volumes/forgejo-postgres.volume" <<EOF
 [Volume]
@@ -134,7 +137,7 @@ Volume=forgejo-postgres.volume:/var/lib/postgresql/data:U
 EOF
 
 info "executing bin/migrate-postgres on real container volume"
-HOMELAB_STATE_DIR="$test_parent/state" \
+HOMELAB_STATE_DIR="$test_parent/state" HOMELAB_OPERATION_LOCK_HELD=1 \
   "$test_release/bin/migrate-postgres" --release "$test_release" --workload forgejo
 
 migrated_disk_version=$(podman unshare cat "$mountpoint/PG_VERSION" | tr -d '[:space:]')

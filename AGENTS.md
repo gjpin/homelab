@@ -90,6 +90,9 @@ Each container unit must have a unique `ContainerName`, the appropriate
 `User=`, `Network=`, `PartOf=homelab-<workload>.target`, dependency ordering
 with `After=`/`Requires=`, and the standard security and restart settings.
 Use service DNS names on Podman networks instead of host addresses.
+PostgreSQL and MariaDB units must be named `<service>-postgres.container`
+and `<service>-mariadb.container`; `bin/migrate-databases` discovers only
+those globs and will skip any other database filename.
 
 If the application needs a locally built image, also create:
 
@@ -275,7 +278,7 @@ authoritative detailed configuration.
 | --- | --- | --- | --- |
 | `caddy` | Custom build; reverse-proxy entrypoint | All active edge networks; `*.BASE_DOMAIN`; loopback `127.0.0.1:8443` only | Caddy user; Cloudflare and bookmarks secrets; `NET_BIND_SERVICE`; never joins backend networks |
 | `forgejo` | Rootless Forgejo plus PostgreSQL | Backend plus Forgejo edge; `git` route | Rootless UIDs; Forgejo and PostgreSQL volumes; database secret |
-| `homeassistant` | Home Assistant, Mosquitto, and Zigbee2MQTT | Backend plus Home Assistant edge; `home` and `home-zigbee` routes | Zigbee device fixture and `container_device_t` exception; D-Bus read-only bind; MQTT secret |
+| `homeassistant` | Home Assistant, Mosquitto, and Zigbee2MQTT | Backend plus Home Assistant edge; `home` and `home-zigbee` routes | Zigbee device fixture and `container_device_t` exception; D-Bus read-only bind; MQTT Podman secret plus `ZIGBEE2MQTT_CONFIG_*` GitOps env; writable Zigbee2MQTT data volume |
 | `immich` | Rootless server, PostgreSQL, Valkey, and ML service | Backend plus server edge; dedicated ML egress; `photos` route | Multiple durable volumes; database secret; ML outbound isolation |
 | `radicale` | Custom rootless image with rendered config | Internal Radicale network; `contacts` route; no Internet egress | Bcrypt htpasswd secret; custom build and rendered user/config files |
 | `searxng` | Rootless SearXNG plus Valkey | Backend plus SearXNG edge; `search` route | Rendered secret-key settings and cache volume; Valkey remains backend-only |
@@ -301,8 +304,8 @@ and add a new inventory record.
 - `tests/static.sh` — repository topology and security invariants.
 - `tests/e2e-readiness.json` and `tests/e2e.sh` — real Podman readiness and
   fixture conventions.
-- `bin/render-config`, `bin/reconcile`, `bin/migrate-postgres`, and `bin/security-audit` — secret
-  rendering, activation, automated PostgreSQL major migrations, and runtime enforcement.
+- `bin/render-config`, `bin/reconcile`, `bin/migrate-databases`, and `bin/security-audit` — secret
+  rendering, activation, automated PostgreSQL/MariaDB major migrations, and runtime enforcement.
 
 ## GitHub Actions
 

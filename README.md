@@ -428,36 +428,52 @@ podman ps
 ```
 
 If Git, SOPS, validation, a registry, or a local build fails before activation,
-the current release continues running. Runtime failures are not automatically
-rolled back after a stateful service starts because its database may already
-have migrated.
+the current release continues running. If systemd reload or a unit health check
+fails after the `current` symlink has already moved, reconcile restores the
+previous `current` target and reloads units; that symlink rollback is not a
+database downgrade, and named-volume major migrations already applied by
+`migrate-databases` are not reversed. Runtime failures after a stateful
+service starts are also not automatically rolled back, because its database
+may already have migrated.
 
-### Automated PostgreSQL major version updates
+### Automated PostgreSQL and MariaDB major version updates
 
-When Renovate updates a PostgreSQL container image across major versions (e.g.
-PostgreSQL 17 to 18, 18 to 19, or Immich custom vector PostgreSQL images), the
-migration runs fully automatically during `reconcile` before the new systemd
-application target starts:
+When Renovate updates a PostgreSQL or MariaDB container image across major
+versions, `bin/migrate-databases` runs during `reconcile` before the new
+systemd application target starts. It discovers only
+`*-postgres.container` and `*-mariadb.container` units. Thin wrappers
+`bin/migrate-postgres` and `bin/migrate-mariadb` select one engine for
+manual use.
 
-1. `bin/migrate-postgres` detects the mismatch between the on-disk `PG_VERSION`
-   in the named volume and the target image major version.
-2. The owning application target is stopped.
-3. An ephemeral rootless container with `--network none` runs the previous
-   PostgreSQL image to generate a logical custom-format dump.
-4. A pre-migration tarball of the raw data directory is archived for rollback
-   safety.
-5. The volume is re-initialized with the new PostgreSQL image, the dump is
-   restored and verified (`SELECT current_database()`), and a copy of the dump is
-   preserved in `~/.local/state/homelab/postgres-upgrades/`.
-6. If restoration fails, the data directory is rolled back from the archive.
-7. Systemd starts the new PostgreSQL container cleanly on the migrated volume.
+Shared steps:
+
+1. Detect a mismatch between the on-disk major (`PG_VERSION`, or
+   `mariadb_upgrade_info` / `mysql_upgrade_info`) and the target image.
+2. Stop the owning application target and database unit, then fail if either
+   is still active or if any container still has the data volume mounted.
+3. Dump the database with an ephemeral rootless `--network none` container
+   using the previous image, and write a raw tarball of the data directory
+   into `~/.local/state/homelab/{postgres,mariadb}-upgrades/` before wiping
+   the volume.
+4. Re-initialize the volume with the new image, restore the dump, and verify
+   it (`SELECT current_database()` for PostgreSQL, schema presence for
+   MariaDB).
+5. On success, keep the logical dump and delete the bulky raw tarball. If
+   restoration or verification fails, roll back from the state-dir tarball
+   (not a temp directory).
+
+PostgreSQL uses a custom-format `pg_dump` / `pg_restore`. MariaDB uses
+`mariadb-dump --all-databases` as root via the imported
+`MYSQL_ROOT_PASSWORD` secret and does not mount `docker-entrypoint-initdb.d`
+seed SQL during the upgrade. Downgrades are refused.
 
 The migration tool can also be run or inspected manually:
 
 ```bash
-~/current/bin/migrate-postgres --check
-~/current/bin/migrate-postgres --dry-run
+~/current/bin/migrate-databases --check
+~/current/bin/migrate-databases --dry-run
 ~/current/bin/migrate-postgres --workload forgejo
+~/current/bin/migrate-mariadb --workload supernote
 ```
 
 ### Hardening an existing host

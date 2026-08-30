@@ -90,7 +90,7 @@ for image in "${images[@]}"; do
   fi
 done
 
-"$release/bin/migrate-postgres" --release "$release"
+HOMELAB_OPERATION_LOCK_HELD=1 "$release/bin/migrate-databases" --release "$release"
 
 apps=()
 if [[ -z $deployed_commit ]]; then
@@ -145,6 +145,25 @@ done
 
 previous_target=
 [[ -L $current_link ]] && previous_target=$(readlink "$current_link")
+
+restore_prior_release() {
+  local message=$1
+  if [[ -n $previous_target ]]; then
+    ln -sfn "$previous_target" "$current_link"
+    ln -sfn "$current_link/quadlet" "$runtime_home/.config/containers/systemd/homelab"
+    for source in "$current_link"/systemd/user/*; do
+      [[ -e $source || -L $source ]] || continue
+      unit=$(basename -- "$source")
+      ln -sfn "$source" "$runtime_home/.config/systemd/user/$unit"
+    done
+    systemctl --user daemon-reload || true
+    for app in "${previous_apps[@]}"; do
+      systemctl --user start "homelab-$app.target" || true
+    done
+  fi
+  die "$message"
+}
+
 ln -sfn "$release" "$current_link.next"
 mv -Tf "$current_link.next" "$current_link"
 install -d -m 0700 "$runtime_home/.config/containers/systemd" "$runtime_home/.config/systemd/user"
@@ -155,12 +174,7 @@ for source in "$current_link"/systemd/user/*; do
 done
 
 if ! systemctl --user daemon-reload; then
-  [[ -n $previous_target ]] && ln -sfn "$previous_target" "$current_link"
-  systemctl --user daemon-reload || true
-  for retired_app in "${retired_active_apps[@]}"; do
-    systemctl --user start "homelab-$retired_app.target" || true
-  done
-  die "systemd reload failed; restored prior release"
+  restore_prior_release "systemd reload failed; restored prior release"
 fi
 
 for retired_app in "${retired_apps[@]}"; do
@@ -184,7 +198,8 @@ done
 
 for app in "${apps[@]}"; do
   while IFS= read -r unit; do
-    systemctl --user is-active --quiet "$unit" || die "$app unit failed health/activation checks: $unit"
+    systemctl --user is-active --quiet "$unit" || \
+      restore_prior_release "$app unit failed health/activation checks: $unit. Named-volume major migrations already applied are not reversed."
   done < <(jq -r --arg app "$app" '.[$app].units[]' "$release/manifests/applications.json")
 done
 "$release/bin/security-audit"

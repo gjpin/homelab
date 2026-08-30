@@ -234,6 +234,7 @@ done < <(rg --no-filename '^Secret=' "$containers" | cut -d= -f2 | cut -d, -f1 |
 [[ $(rg -l '^ReadOnlyTmpfs=true$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must explicitly enable read-only tmpfs support\n' >&2; exit 1; }
 [[ $(rg -l '^PodmanArgs=.*--image-volume=ignore$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must reject implicit anonymous image volumes\n' >&2; exit 1; }
 [[ $(rg -l '^PidsLimit=1024$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must set the approved PID limit\n' >&2; exit 1; }
+[[ $(rg -l '^RunInit=true$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must set RunInit=true\n' >&2; exit 1; }
 [[ $(rg -l '^PartOf=homelab-.*\.target$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must belong to an application target\n' >&2; exit 1; }
 
 rootless_units=(
@@ -307,12 +308,22 @@ rg -q 'bin/security-audit' "$root/bin/reconcile" || {
   printf 'reconciliation must run the runtime security audit\n' >&2
   exit 1
 }
-rg -q 'bin/migrate-postgres' "$root/bin/reconcile" || {
-  printf 'reconciliation must run the automated postgres migration tool\n' >&2
+rg -q 'bin/migrate-databases' "$root/bin/reconcile" || {
+  printf 'reconciliation must run the automated database migration tool\n' >&2
+  exit 1
+}
+rg -q 'HOMELAB_OPERATION_LOCK_HELD=1' "$root/bin/reconcile" || {
+  printf 'reconciliation must mark the maintenance lock as held for migrate-databases\n' >&2
+  exit 1
+}
+rg -q 'restore_prior_release' "$root/bin/reconcile" || {
+  printf 'reconciliation must restore the prior current symlink on activation failure\n' >&2
   exit 1
 }
 
-[[ -x "$root/bin/backup" && -x "$root/bin/restic" && -x "$root/bin/install-sops" && -x "$root/bin/migrate-postgres" ]] || {
+[[ -x "$root/bin/backup" && -x "$root/bin/restic" && -x "$root/bin/install-sops" && \
+  -x "$root/bin/migrate-databases" && -x "$root/bin/migrate-postgres" && \
+  -x "$root/bin/migrate-mariadb" ]] || {
   printf 'required executables are not executable\n' >&2
   exit 1
 }
@@ -410,6 +421,72 @@ rg -q '^Network=supernote-notelib-egress.network$' \
 
 rg -q '^HOMEASSISTANT_TRUSTED_PROXY_SUBNET=10\.200\.12\.0/24$' "$root/bin/render-config" || {
   printf 'Home Assistant must trust its Caddy edge subnet\n' >&2
+  exit 1
+}
+
+while IFS= read -r unit; do
+  base=$(basename -- "$unit")
+  case "$base" in
+    *-postgres.container|*-mariadb.container) ;;
+    *)
+      printf 'database Image= unit must be named *-postgres.container or *-mariadb.container: %s\n' \
+        "$unit" >&2
+      exit 1
+      ;;
+  esac
+done < <(rg -l '^Image=.*(postgres|mariadb)' "$containers" --glob '*.container')
+
+rg -q '^Volume=homeassistant-config.volume:/config:U$' \
+  "$containers/homeassistant/homeassistant.container" || {
+  printf 'Home Assistant config volume must use :U\n' >&2
+  exit 1
+}
+if rg -q 'configuration.yaml' \
+  "$containers/homeassistant/homeassistant-zigbee2mqtt.container"; then
+  printf 'Zigbee2MQTT must not bind-mount configuration.yaml\n' >&2
+  exit 1
+fi
+rg -q '^EnvironmentFile=%t/homelab/rendered/homeassistant/zigbee2mqtt.env$' \
+  "$containers/homeassistant/homeassistant-zigbee2mqtt.container" || {
+  printf 'Zigbee2MQTT must load the rendered ZIGBEE2MQTT_CONFIG_* env file\n' >&2
+  exit 1
+}
+rg -q '^Secret=homeassistant-mosquitto-password,type=env,target=ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD$' \
+  "$containers/homeassistant/homeassistant-zigbee2mqtt.container" || {
+  printf 'Zigbee2MQTT must inject the Mosquitto password as a Podman secret\n' >&2
+  exit 1
+}
+[[ -f $root/config/templates/homeassistant/zigbee2mqtt.env ]] || {
+  printf 'missing Zigbee2MQTT env template\n' >&2
+  exit 1
+}
+[[ ! -e $root/config/templates/homeassistant/zigbee2mqtt.yaml ]] || {
+  printf 'retired Zigbee2MQTT YAML overlay must not exist\n' >&2
+  exit 1
+}
+caddyfile="$root/config/templates/caddy/Caddyfile"
+bookmarks_header=false
+in_bookmarks=false
+depth=0
+while IFS= read -r line; do
+  # shellcheck disable=SC2016
+  if [[ $line == 'bookmarks.{$BASE_DOMAIN} {' ]]; then
+    in_bookmarks=true
+    depth=1
+    continue
+  fi
+  if $in_bookmarks; then
+    [[ $line == *'import default-header'* ]] && bookmarks_header=true
+    opens=$(printf '%s' "$line" | tr -cd '{')
+    closes=$(printf '%s' "$line" | tr -cd '}')
+    depth=$((depth + ${#opens} - ${#closes}))
+    if ((depth <= 0)); then
+      break
+    fi
+  fi
+done <"$caddyfile"
+$bookmarks_header || {
+  printf 'Caddy bookmarks site must import default-header\n' >&2
   exit 1
 }
 

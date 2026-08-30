@@ -17,7 +17,8 @@ install -d "$fixture/bin" "$fixture/config" "$fixture/manifests" \
   "$fixture/quadlet/volumes" "$fake_bin" "$runtime_dir" \
   "$test_home/.config/sops/age" "$state_dir"
 
-cp "$source_root/bin/migrate-postgres" "$source_root/bin/lib.sh" "$fixture/bin/"
+cp "$source_root/bin/migrate-databases" "$source_root/bin/migrate-postgres" \
+  "$source_root/bin/lib.sh" "$fixture/bin/"
 cp "$source_root/manifests/applications.json" "$fixture/manifests/"
 cp -R "$source_root/quadlet/volumes" "$fixture/quadlet/"
 cp "$source_root/quadlet/applications/forgejo/forgejo-postgres.container" "$fixture/quadlet/applications/forgejo/"
@@ -39,7 +40,13 @@ set -Eeuo pipefail
 [[ ${1:-} == --user ]] && shift
 printf 'systemctl %s\n' "$*" >>"$TEST_LOG"
 case "${1:-}" in
-  is-active|show|start|stop|disable|status) exit 0 ;;
+  is-active)
+    if [[ ${TEST_STOP_FAIL:-0} == 1 ]]; then
+      exit 0
+    fi
+    exit 1
+    ;;
+  show|start|stop|disable|status) exit 0 ;;
   *) exit 2 ;;
 esac
 EOF
@@ -75,6 +82,12 @@ case "${1:-} ${2:-}" in
     printf '%s\n' "$mountpoint"
     ;;
   'image exists')
+    exit 0
+    ;;
+  'ps '*)
+    if [[ ${TEST_VOLUME_BUSY:-0} == 1 ]]; then
+      printf 'busy-container\n'
+    fi
     exit 0
     ;;
   'pull '*)
@@ -147,15 +160,19 @@ case "${1:-} ${2:-}" in
 esac
 EOF
 
-chmod 0755 "$fixture/bin/migrate-postgres" "$fake_bin/systemctl" "$fake_bin/podman" "$fake_bin/tar"
+chmod 0755 "$fixture/bin/migrate-databases" "$fixture/bin/migrate-postgres" \
+  "$fake_bin/systemctl" "$fake_bin/podman" "$fake_bin/tar"
 
 run_migrate() {
   env PATH="$fake_bin:$PATH" HOME="$test_home" XDG_RUNTIME_DIR="$runtime_dir" \
-    HOMELAB_STATE_DIR="$state_dir" TEST_LOG="$log" TEST_FIXTURE="$fixture" \
+    HOMELAB_STATE_DIR="$state_dir" HOMELAB_OPERATION_LOCK_HELD=1 \
+    TEST_LOG="$log" TEST_FIXTURE="$fixture" \
     TEST_VOLUME_ROOT="$test_root/volumes" \
     TEST_START_FAIL="${TEST_START_FAIL:-0}" \
     TEST_DUMP_FAIL="${TEST_DUMP_FAIL:-0}" \
     TEST_RESTORE_FAIL="${TEST_RESTORE_FAIL:-0}" \
+    TEST_STOP_FAIL="${TEST_STOP_FAIL:-0}" \
+    TEST_VOLUME_BUSY="${TEST_VOLUME_BUSY:-0}" \
     TEST_NEW_VERSION="${TEST_NEW_VERSION:-18}" \
     "$fixture/bin/migrate-postgres" "$@"
 }
@@ -203,8 +220,14 @@ grep -q 'pg_dump' "$log"
 grep -q 'pg_restore' "$log"
 grep -q 'SELECT current_database()' "$log"
 [[ $(cat "$test_root/volumes/homelab-forgejo-postgres/PG_VERSION") == '18' ]]
-# Verify dump archive created in state dir
+# Verify dump archive created in state dir and the bulky raw tar was removed
 ls "$state_dir/postgres-upgrades"/forgejo-pg17-to-pg18-*.dump >/dev/null
+shopt -s nullglob
+raw_tars=("$state_dir/postgres-upgrades"/forgejo-postgres17-raw-*.tar)
+((${#raw_tars[@]} == 0)) || {
+  printf 'raw rollback tar was not removed after success\n' >&2
+  exit 1
+}
 
 # Test 5: Major version upgrade for Immich (e.g. 18 -> 19)
 sed -i.bak 's/postgres:18-/postgres:19-/' "$fixture/quadlet/applications/immich/immich-postgres.container"
@@ -233,5 +256,30 @@ fi
 # Verify original files were restored via rollback
 [[ -f "$test_root/volumes/homelab-forgejo-postgres/original.txt" ]]
 [[ $(cat "$test_root/volumes/homelab-forgejo-postgres/PG_VERSION") == '17' ]]
+ls "$state_dir/postgres-upgrades"/forgejo-pg17-to-pg18-*.dump >/dev/null
+ls "$state_dir/postgres-upgrades"/forgejo-postgres17-raw-*.tar >/dev/null
+
+# Test 8: Refuse to migrate while the workload is still active
+printf '17\n' >"$test_root/volumes/homelab-forgejo-postgres/PG_VERSION"
+: >"$log"
+if TEST_STOP_FAIL=1 run_migrate --release "$fixture" --workload forgejo >/dev/null 2>&1; then
+  printf 'migration unexpectedly succeeded while the workload was active\n' >&2
+  exit 1
+fi
+! grep -q 'pg_dump' "$log" || {
+  printf 'dump ran while the workload was still active\n' >&2
+  exit 1
+}
+
+# Test 9: Refuse to migrate while the volume is still mounted
+: >"$log"
+if TEST_VOLUME_BUSY=1 run_migrate --release "$fixture" --workload forgejo >/dev/null 2>&1; then
+  printf 'migration unexpectedly succeeded while the volume was mounted\n' >&2
+  exit 1
+fi
+! grep -q 'pg_dump' "$log" || {
+  printf 'dump ran while the volume was still mounted\n' >&2
+  exit 1
+}
 
 printf 'PostgreSQL migration orchestration tests passed\n'

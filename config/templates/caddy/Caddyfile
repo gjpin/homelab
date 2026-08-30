@@ -20,6 +20,7 @@
 }
 
 bookmarks.{$BASE_DOMAIN} {
+	import default-header
 	root * /data/bookmarks
 	basic_auth {
 		admin {$CADDY_HASHED_PASSWORD}

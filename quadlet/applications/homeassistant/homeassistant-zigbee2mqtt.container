@@ -1,6 +1,8 @@
 [Unit]
 Description=Home Assistant Zigbee2MQTT
+After=homelab-secrets.service
 After=homeassistant-mosquitto.container
+Requires=homelab-secrets.service
 Requires=homeassistant-mosquitto.container
 PartOf=homelab-homeassistant.target
 
@@ -10,13 +12,14 @@ Pull=missing
 ContainerName=homeassistant-zigbee2mqtt
 User=1000:1000
 EnvironmentFile=%t/homelab/rendered/site.env
+EnvironmentFile=%t/homelab/rendered/homeassistant/zigbee2mqtt.env
+Secret=homeassistant-mosquitto-password,type=env,target=ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD
 Network=homeassistant.network
 Network=homeassistant-edge.network
 GroupAdd=keep-groups
 AddDevice=%h/.local/state/homelab/zigbee-router:/dev/ttyACM0
 SecurityLabelType=container_device_t
 Volume=homeassistant-zigbee2mqtt.volume:/app/data:U
-Volume=%t/homelab/rendered/homeassistant/zigbee2mqtt.yaml:/app/data/configuration.yaml:ro,Z
 Volume=/run/udev:/run/udev:ro
 LogDriver=journald
 NoNewPrivileges=true

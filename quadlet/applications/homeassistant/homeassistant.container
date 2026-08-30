@@ -11,7 +11,7 @@ ContainerName=homeassistant
 EnvironmentFile=%t/homelab/rendered/site.env
 Network=homeassistant.network
 Network=homeassistant-edge.network
-Volume=homeassistant-config.volume:/config
+Volume=homeassistant-config.volume:/config:U
 Volume=%t/homelab/rendered/homeassistant/configuration.yaml:/config/configuration.yaml:ro,Z
 Volume=%t/homelab/rendered/homeassistant/automations.yaml:/config/automations.yaml:ro,Z
 Volume=/run/dbus:/run/dbus:ro
@@ -22,6 +22,7 @@ ReadOnly=true
 ReadOnlyTmpfs=true
 PodmanArgs=--image-volume=ignore
 PidsLimit=1024
+RunInit=true
 
 [Service]
 Restart=always

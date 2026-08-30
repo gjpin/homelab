@@ -233,9 +233,12 @@ branch mounts read-only over restored files. In particular:
   any desired legacy automations into that tracked template and push the change
   before activating Home Assistant.
 - If you configured custom device names or settings in legacy Zigbee2MQTT
-  (`zigbee2mqtt/configuration.yaml`), note that the Quadlet unit mounts
-  `config/templates/homeassistant/zigbee2mqtt.yaml` read-only. Merge required
-  device or group blocks into that template prior to activation.
+  (`zigbee2mqtt/configuration.yaml`), those values live on the writable
+  `homeassistant-zigbee2mqtt` named volume. GitOps MQTT, serial, and
+  frontend settings come from `ZIGBEE2MQTT_CONFIG_*` environment overrides
+  (plus the Mosquitto password Podman secret) and win over the on-volume
+  file at start. Merge any additional keys you still need into
+  `config/templates/homeassistant/zigbee2mqtt.env` before activation.
 - `bin/restore-legacy-restic` automatically adapts legacy Forgejo layout
   to `/var/lib/gitea/custom/conf/app.ini` and rewrites internal `/data/` paths.
 - The current Caddy, Radicale, SearXNG, Mosquitto, Zigbee2MQTT, and Supernote

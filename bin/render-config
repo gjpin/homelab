@@ -49,6 +49,7 @@ replace_secret supernote-database-root-password '.supernote.database_root_passwo
 replace_secret supernote-database-user-password '.supernote.database_user_password'
 replace_secret supernote-valkey-password '.supernote.valkey_password'
 replace_secret vaultwarden-admin-token '.vaultwarden.admin_token_hash'
+replace_secret homeassistant-mosquitto-password '.homeassistant.mosquitto_password'
 
 HOMEASSISTANT_TRUSTED_PROXY_SUBNET=10.200.12.0/24
 export BASE_DOMAIN HOMEASSISTANT_TRUSTED_PROXY_SUBNET
@@ -61,12 +62,12 @@ export BASE_DOMAIN HOMEASSISTANT_TRUSTED_PROXY_SUBNET
 envsubst '${HOMEASSISTANT_TRUSTED_PROXY_SUBNET}' <"$root/config/templates/homeassistant/configuration.yaml" >"$rendered/homeassistant/configuration.yaml"
 cp -- "$root/config/templates/homeassistant/automations.yaml" "$rendered/homeassistant/automations.yaml"
 
-HOMEASSISTANT_MOSQUITTO_PASSWORD=$(secret_value '.homeassistant.mosquitto_password')
-export HOMEASSISTANT_MOSQUITTO_PASSWORD
+# GitOps MQTT/serial/frontend settings; the MQTT password is a Podman secret.
 # shellcheck disable=SC2016
-envsubst '${BASE_DOMAIN} ${HOMEASSISTANT_MOSQUITTO_PASSWORD}' <"$root/config/templates/homeassistant/zigbee2mqtt.yaml" >"$rendered/homeassistant/zigbee2mqtt.yaml"
+envsubst '${BASE_DOMAIN}' <"$root/config/templates/homeassistant/zigbee2mqtt.env" >"$rendered/homeassistant/zigbee2mqtt.env"
 cp -- "$root/config/templates/homeassistant/mosquitto.conf" "$rendered/homeassistant/mosquitto.conf"
 
+HOMEASSISTANT_MOSQUITTO_PASSWORD=$(secret_value '.homeassistant.mosquitto_password')
 printf '%s' "$HOMEASSISTANT_MOSQUITTO_PASSWORD" | "$root/bin/mosquitto-password" >"$rendered/homeassistant/mosquitto-passwords"
 
 printf '%s\n' "$(secret_value '.radicale.htpasswd_record')" >"$rendered/radicale/users"
