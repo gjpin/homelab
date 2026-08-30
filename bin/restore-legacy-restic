@@ -13,9 +13,18 @@ Usage: bin/restore-legacy-restic \
   --staging-dir DIRECTORY \
   [--restic-bin PATH] [--dry-run]
 
+       bin/restore-legacy-restic \
+  --list-snapshots \
+  --legacy-env FILE \
+  [--restic-bin PATH]
+
 Verify and restore a legacy Docker/Restic snapshot containing
 /data/containers, then map its durable application data into empty Quadlet
 named volumes. The legacy Restic repository is never written.
+
+--list-snapshots contacts the legacy repository and prints snapshot id, time,
+and hostname for snapshots that contain /data/containers. --dry-run does not
+contact the repository.
 EOF
 }
 
@@ -24,6 +33,7 @@ legacy_env=
 staging_dir=
 restic_binary=${LEGACY_RESTIC_BIN:-/usr/bin/restic}
 dry_run=false
+list_snapshots=false
 
 while (($#)); do
   case "$1" in
@@ -32,22 +42,19 @@ while (($#)); do
     --staging-dir) staging_dir=${2:?}; shift 2 ;;
     --restic-bin) restic_binary=${2:?}; shift 2 ;;
     --dry-run) dry_run=true; shift ;;
+    --list-snapshots) list_snapshots=true; shift ;;
     --help|-h) usage; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
 done
 
-[[ $snapshot =~ ^[0-9a-f]{64}$ ]] || die "snapshot must be a 64-character lowercase hexadecimal ID"
 [[ -n $legacy_env ]] || die "--legacy-env is required"
-[[ -n $staging_dir ]] || die "--staging-dir is required"
 [[ -x $restic_binary ]] || die "restic is not executable: $restic_binary"
 
 root=$(repo_root)
 require_command find
-require_command podman
 require_command realpath
 require_command stat
-require_command tar
 
 load_legacy_env() {
   local file=$1 line key value
@@ -74,10 +81,7 @@ load_legacy_env() {
     seen[$key]=1
     value=${value#"${value%%[![:space:]]*}"}
     value=${value%"${value##*[![:space:]]}"}
-    case "$value" in
-      "\"*\"") value=${value:1:${#value}-2} ;;
-      "'*'") value=${value:1:${#value}-2} ;;
-    esac
+    value=$(unquote_env_value "$value")
     [[ $value != *$'\n'* && $value != *$'\r'* ]] || die "legacy Restic environment contains a newline"
     printf -v "$key" '%s' "$value"
   done <"$file"
@@ -97,12 +101,25 @@ load_legacy_env() {
 
 load_legacy_env "$legacy_env"
 
+if $list_snapshots; then
+  require_command jq
+  install -d -m 0700 "$RESTIC_CACHE_DIR"
+  "$restic_binary" snapshots --path /data/containers --json |
+    jq -r '.[] | [.id, .time, (.hostname // "-")] | @tsv'
+  exit 0
+fi
+
+[[ $snapshot =~ ^[0-9a-f]{64}$ ]] || die "snapshot must be a 64-character lowercase hexadecimal ID"
+[[ -n $staging_dir ]] || die "--staging-dir is required"
+require_command podman
+require_command tar
+
 staging_dir=$(realpath -m -- "$staging_dir")
 [[ $staging_dir != / && $staging_dir != "$HOME" ]] || die "refusing unsafe staging directory: $staging_dir"
 if [[ -e $staging_dir ]]; then
   [[ -d $staging_dir ]] || die "staging path is not a directory: $staging_dir"
   [[ -z $(find "$staging_dir" -mindepth 1 -print -quit) ]] || {
-    die "staging directory must be empty: $staging_dir"
+    die "staging directory must be empty: $staging_dir"$'\n'"remove it with: rm -rf -- $(printf '%q' "$staging_dir")"
   }
 else
   $dry_run || install -d -m 0700 "$staging_dir"
@@ -128,7 +145,9 @@ for volume_file in "${volume_files[@]}"; do
 done
 
 for volume in "${expected_volumes[@]}"; do
-  podman volume exists "$volume" && die "refusing existing target volume: $volume"
+  if podman volume exists "$volume"; then
+    die "refusing existing target volume: $volume"$'\n'"remove it with: podman volume rm $(printf '%q' "$volume")"
+  fi
 done
 
 declare -A legacy_paths=(
@@ -209,32 +228,19 @@ for volume in $(printf '%s\n' "${!legacy_paths[@]}" | sort); do
 done
 
 migrate_forgejo_layout() {
-  local volume=homelab-forgejo-data mountpoint
+  local volume=homelab-forgejo-data mountpoint lib
   mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$volume")
   [[ -d $mountpoint && $mountpoint != / && $mountpoint != "$HOME" ]] || {
     die "unsafe or unavailable mountpoint for $volume: $mountpoint"
   }
+  lib="$root/bin/lib.sh"
+  [[ -f $lib ]] || die "missing helper library: $lib"
   podman unshare bash -c '
     set -euo pipefail
-    mountpoint=$1
-    if [[ -d "$mountpoint/gitea" ]]; then
-      if [[ -f "$mountpoint/gitea/conf/app.ini" ]]; then
-        mkdir -p "$mountpoint/custom/conf"
-        sed -i "s#/data/#/var/lib/gitea/#g" "$mountpoint/gitea/conf/app.ini"
-        mv "$mountpoint/gitea/conf/app.ini" "$mountpoint/custom/conf/app.ini"
-        rmdir "$mountpoint/gitea/conf" 2>/dev/null || true
-      fi
-      for item in "$mountpoint/gitea"/*; do
-        if [[ -e "$item" ]]; then
-          base=$(basename "$item")
-          if [[ ! -e "$mountpoint/$base" ]]; then
-            mv "$item" "$mountpoint/$base"
-          fi
-        fi
-      done
-      rmdir "$mountpoint/gitea" 2>/dev/null || true
-    fi
-  ' _ "$mountpoint"
+    # shellcheck source=/dev/null
+    source "$1"
+    rewrite_legacy_forgejo_tree "$2"
+  ' _ "$lib" "$mountpoint"
 }
 
 migrate_forgejo_layout

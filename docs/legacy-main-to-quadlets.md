@@ -12,7 +12,9 @@ data into newly created Quadlet volumes, and leaves cache volumes empty. The
 old Forgejo and Immich PostgreSQL 17 directories are never opened by the
 PostgreSQL 18 containers: `bin/restore-legacy-postgres` runs each old directory
 in a temporary rootless container, creates a logical dump, and restores it into
-the corresponding empty PostgreSQL 18 volume.
+the corresponding empty PostgreSQL 18 volume. Supernote MariaDB 12.3.x data is
+copied as files; the first reconciliation's `bin/migrate-databases` is a no-op
+when the on-disk major already matches the Quadlet image.
 
 Do not run the application targets until both restore commands have completed.
 Keep the old repository, the staging directory, and the operator recovery
@@ -22,7 +24,9 @@ verification.
 ## 1. Prepare the new branch and host
 
 On the operator workstation, use a trusted checkout of the `main` branch.
-Set the real values in `config/site.env` and commit them before bootstrapping:
+`bin/init-secrets` later needs the workstation tools listed in `README.md`
+(SOPS with age 1.3, `argon2`, and Python `bcrypt`). Set the real values in
+`config/site.env` and commit them before bootstrapping:
 
 ```dotenv
 BASE_DOMAIN=your-real-domain
@@ -47,6 +51,10 @@ age-keygen -pq -o ~/.config/sops/age/operator.txt
 age-keygen -y ~/.config/sops/age/operator.txt
 ```
 
+Plug the Zigbee coordinator into the new host before bootstrap.
+`bootstrap-host` stops if
+`/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID` is missing.
+
 Push the site configuration, then bootstrap the fresh Fedora host from this
 branch. On the new ARM64 host, omit `--host-age-key`; bootstrap will generate a
 new host identity. Record the printed host recipient.
@@ -66,8 +74,8 @@ been reviewed below.
 
 ## 2. Obtain and verify the legacy Restic environment
 
-Create a local file from the old `/etc/restic/env` values. Keep it outside Git,
-mode `0600`, and include only these keys:
+Copy the old `/etc/restic/env` file as-is, including quoted values. Keep it
+outside Git, mode `0600`, and include only these keys:
 
 ```dotenv
 AWS_ACCESS_KEY_ID=${OLD_AWS_ACCESS_KEY_ID}
@@ -89,18 +97,28 @@ If the old repository was configured at the bucket root, leave the repository
 URL at the bucket root. The migration tool rejects extra environment keys,
 world-readable files, and shell syntax; it never sources the file.
 
-To inspect the legacy snapshots and retrieve the full 64-character snapshot ID:
+To inspect snapshots that contain `/data/containers` and retrieve the full
+64-character snapshot ID, run as `homelab`:
 
 ```bash
-export $(grep -v '^#' /home/homelab/legacy-restic.env | xargs)
-restic snapshots --json | jq -r '.[-1].id'
+sudo -iu homelab
+export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+cd ~/git/repository
+./bin/restore-legacy-restic \
+  --list-snapshots \
+  --legacy-env "$HOME/legacy-restic.env"
 ```
+
+Choose the newest snapshot for this host. Do not take the last row of an
+unfiltered `restic snapshots --json` list if the same repository also holds
+other trees.
 
 ## 3. Restore the legacy file data
 
-Run these commands as `homelab` on the new host. Use a new, empty staging path
-with enough space for the restored `/data/containers` tree and the temporary
-logical dumps:
+Run these commands as `homelab` on the new host. Staging is a full
+`/data/containers` tree; after the copy into named volumes, plan on about twice
+the Immich library size plus room for logical dumps. `restic check` of a large
+B2 repository can take a long time.
 
 ```bash
 sudo -iu homelab
@@ -121,11 +139,15 @@ staging="$HOME/legacy-restore-$snapshot"
   --staging-dir "$staging"
 ```
 
-The first command verifies the inputs without changing volumes. The real run
-performs `restic snapshots`, `restic check`, and a read-only restore, then
-creates every active Quadlet volume with its declared workload label. It copies
-the durable mappings below, normalizes Forgejo's layout for rootless execution,
-and leaves caches, generated configuration, and both PostgreSQL volumes empty:
+`--dry-run` only checks local inputs, empty staging, and absent volumes. It
+does not contact B2. `--list-snapshots` and the real restore do.
+
+The real run performs `restic snapshots`, `restic check`, and a read-only
+restore, then creates every active Quadlet volume with its declared workload
+label. It copies the durable mappings below, moves Forgejo's `app.ini` to
+`custom/conf/app.ini` and rewrites `/data` paths while keeping `gitea/` as
+application data, and leaves caches, generated configuration, and both
+PostgreSQL volumes empty. MariaDB is copied as files.
 
 | Legacy path below `/data/containers` | Quadlet volume |
 | --- | --- |
@@ -145,14 +167,20 @@ and leaves caches, generated configuration, and both PostgreSQL volumes empty:
 AnythingLLM and Docs MCP are intentionally not restored or activated because
 they remain inactive incubator bundles on the `main` branch.
 
+If a restore fails after volumes exist, the error names the `podman volume rm`
+or `rm -rf` command for that path. Recreate only the named empty volume; do
+not mix a half-copied Postgres volume with a new dump.
+
 ## 4. Convert PostgreSQL 17 data
 
-The repository contains the exact, digest-pinned PostgreSQL 17 migration image
-metadata in `config/legacy-migration.env`. The command below requires the
-legacy generated PostgreSQL configs and data directories in the staging tree.
-It creates no application network and uses temporary containers running as
-unprivileged `postgres` with no capabilities, no network, a read-only root,
-and a 1024-process limit.
+Do not skip this step. Empty PostgreSQL 18 volumes plus restored Forgejo or
+Immich files is a split-brain. The repository contains the exact,
+digest-pinned PostgreSQL 17 migration image metadata in
+`config/legacy-migration.env`. The command below requires the legacy generated
+PostgreSQL configs and data directories in the staging tree. It creates no
+application network and uses temporary containers running as unprivileged
+`postgres` with no capabilities, no network, a read-only root, and a
+1024-process limit.
 
 ```bash
 ./bin/restore-legacy-postgres \
@@ -166,10 +194,10 @@ and a 1024-process limit.
 The logical dumps are retained at
 `$staging/quadlet-postgres-dumps/`. Temporary containers, temporary volumes,
 and runtime environment files are removed after success or failure. The
-target PostgreSQL volumes are never removed automatically. If a migration
-fails, inspect the retained staging tree and rerun only after resolving the
-cause; use a new empty target host/volume set rather than mixing partial
-database state.
+target PostgreSQL volumes are never removed automatically. If a dump directory
+already exists or a target volume is not empty, the error prints the exact
+`rm -rf` or `podman volume rm` command for that object. Recreate only that
+empty volume rather than wiping unrelated restored data.
 
 ## 5. Create the encrypted deployment secrets
 
@@ -190,22 +218,24 @@ restored application state. Read the values from the staging tree in a
 protected terminal or editor; never put a recovered secret in a command
 argument or plaintext Git file:
 
-- `forgejo.database_password` must be the password in
+- `forgejo.database_password` must be `POSTGRES_PASSWORD` in
   `$staging/data/containers/forgejo/docker/config.env`.
-- `immich.database_password` must be the password in
+- `immich.database_password` must be `POSTGRES_PASSWORD` in
   `$staging/data/containers/immich/docker/config.env`.
-- `homeassistant.mosquitto_password` must be the password in the restored
-  Zigbee2MQTT configuration.
+- `homeassistant.mosquitto_password` must be the MQTT password in
+  `$staging/data/containers/homeassistant/volumes/zigbee2mqtt/configuration.yaml`
+  (that file is also copied onto `homelab-homeassistant-zigbee2mqtt`).
 - `supernote.database_root_password` and
-  `supernote.database_user_password` must match the restored Supernote
-  `supernote/docker/config.env`.
+  `supernote.database_user_password` must match
+  `$staging/data/containers/supernote/docker/config.env`.
 
-The Caddy bookmarks bcrypt record, Radicale htpasswd record, and SearXNG
-secret key can likewise be preserved from the restored legacy configuration if
-desired. Alternatively, use the newly generated credentials and record them.
-The new Vaultwarden admin secret is an Argon2 hash; choose and record a new
-admin password unless you deliberately convert the old plaintext token with
-the host's `argon2` utility. Never commit a plaintext recovered credential.
+To keep the old bookmarks, Radicale, or Vaultwarden admin passwords, type
+those passwords into the `init-secrets` prompts. The Caddy bcrypt record,
+Radicale htpasswd record, and SearXNG secret key can also be preserved from
+the restored legacy configuration if desired. The new Vaultwarden admin secret
+is an Argon2 hash; choose and record a new admin password unless you
+deliberately convert the old plaintext token with the host's `argon2` utility.
+Never commit a plaintext recovered credential.
 
 Commit and push `.sops.yaml` and `secrets/secrets.sops.yaml`. Then update the
 target checkout, still without reconciling:
@@ -230,20 +260,22 @@ Run reconciliation and audit:
 Before reconciliation, review any deployment-owned files that the current
 branch mounts read-only over restored files. In particular:
 - `config/templates/homeassistant/automations.yaml` is currently `[]`; merge
-  any desired legacy automations into that tracked template and push the change
-  before activating Home Assistant.
-- If you configured custom device names or settings in legacy Zigbee2MQTT
-  (`zigbee2mqtt/configuration.yaml`), those values live on the writable
-  `homeassistant-zigbee2mqtt` named volume. GitOps MQTT, serial, and
-  frontend settings come from `ZIGBEE2MQTT_CONFIG_*` environment overrides
-  (plus the Mosquitto password Podman secret) and win over the on-volume
-  file at start. Merge any additional keys you still need into
-  `config/templates/homeassistant/zigbee2mqtt.env` before activation.
-- `bin/restore-legacy-restic` automatically adapts legacy Forgejo layout
-  to `/var/lib/gitea/custom/conf/app.ini` and rewrites internal `/data/` paths.
-- The current Caddy, Radicale, SearXNG, Mosquitto, Zigbee2MQTT, and Supernote
-  configuration templates are the authoritative deployment configuration;
-  restored volume data remains the application state.
+  any desired automations from
+  `$staging/data/containers/homeassistant/volumes/homeassistant/automations.yaml`
+  into that tracked template and push the change before activating Home
+  Assistant.
+- Restored Zigbee2MQTT `configuration.yaml` on `homelab-homeassistant-zigbee2mqtt`
+  is the live file for `network_key`, `pan_id`, devices, and groups. Do not
+  copy those blocks into Git. `ZIGBEE2MQTT_CONFIG_*` values in
+  `config/templates/homeassistant/zigbee2mqtt.env` override MQTT, serial, and
+  frontend settings. Change `ZIGBEE2MQTT_CONFIG_SERIAL_ADAPTER` only if the
+  coordinator is not `ember`.
+- `bin/restore-legacy-restic` moves Forgejo `app.ini` to
+  `/var/lib/gitea/custom/conf/app.ini`, rewrites `/data` paths, and leaves
+  avatars and attachments under `gitea/`.
+- The current Caddy, Radicale, SearXNG, Mosquitto, and Supernote configuration
+  templates are the authoritative deployment configuration; restored volume
+  data remains the application state.
 
 After the deployment is healthy, initialize the new repository exactly once
 using the configured prefix and the repository password stored in SOPS:
@@ -260,4 +292,6 @@ Do not run `init` against the old repository. Confirm the first new snapshot,
 the host age identity, and the expected named-volume inventory before removing
 the legacy environment file or staging directory. Keep the old B2 repository
 untouched until application logins, Forgejo/Immich databases, Supernote data,
-Home Assistant, and Syncthing have all been checked.
+Home Assistant, and Syncthing have all been checked. Syncthing keeps its
+device ID from the restored volume; this Quadlet has no Internet egress, so
+peers must use LAN TCP/UDP 22000 rather than global discovery or relays.

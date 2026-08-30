@@ -18,6 +18,33 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
 }
 
+unquote_env_value() {
+  local value=$1
+  case "$value" in
+    \"*\") value=${value:1:${#value}-2} ;;
+    \'*\') value=${value:1:${#value}-2} ;;
+  esac
+  printf '%s' "$value"
+}
+
+rewrite_legacy_forgejo_tree() {
+  local mountpoint=$1 app_ini tmp_ini
+  [[ -n $mountpoint && -d $mountpoint && $mountpoint != / ]] || die "unsafe Forgejo tree: ${mountpoint:-}"
+  [[ -d $mountpoint/gitea ]] || return 0
+  if [[ -f $mountpoint/gitea/conf/app.ini ]]; then
+    mkdir -p "$mountpoint/custom/conf"
+    app_ini="$mountpoint/gitea/conf/app.ini"
+    tmp_ini="$app_ini.rewritten"
+    sed \
+      -e 's#/data/#/var/lib/gitea/#g' \
+      -e 's#\([[:space:]=]\)/data$#\1/var/lib/gitea#' \
+      "$app_ini" >"$tmp_ini"
+    mv "$tmp_ini" "$app_ini"
+    mv "$app_ini" "$mountpoint/custom/conf/app.ini"
+    rmdir "$mountpoint/gitea/conf" 2>/dev/null || true
+  fi
+}
+
 host_arch() {
   local arch=${1:-$(uname -m)}
   case "$arch" in
