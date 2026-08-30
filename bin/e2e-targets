@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# Print the E2E scope for a Git change. The output is one of:
+# Print the E2E scope for a Git change. The default output is one of:
 #   all       a global change requires the complete suite
 #   none      no deployed workload is affected
 #   <name>    one affected workload per line
+#
+# --format=ci also prints image-build and host-tool flags for GitHub Actions.
 #
 # The caller must check out HEAD at the requested head ref. This keeps the
 # resolver independent of GitHub's event payload while still allowing it to be
@@ -14,11 +16,42 @@ source "$(dirname -- "$0")/lib.sh"
 
 usage() {
   cat <<'EOF'
-Usage: bin/e2e-targets BASE_REF HEAD_REF
+Usage: bin/e2e-targets [--format=ci] BASE_REF HEAD_REF
 
 Print the affected workload E2E scope for the Git diff between two refs.
+With --format=ci, print GitHub Actions outputs for E2E, custom image builds,
+and host-tool tests.
 EOF
 }
+
+format=workloads
+while (($#)); do
+  case "$1" in
+    --format=ci)
+      format=ci
+      shift
+      ;;
+    --format=workloads)
+      format=workloads
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -*)
+      usage >&2
+      exit 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 
 [[ $# -eq 2 ]] || {
   usage >&2
@@ -31,13 +64,90 @@ root=$(repo_root)
 base_ref=$1
 head_ref=$2
 
-print_all() {
-  printf 'all\n'
+declare -A known_images=()
+declare -A build_images=()
+declare -A selected=()
+declare -A head_workload_set=()
+global_change=false
+host_tools_needed=false
+head_workloads=()
+
+load_known_images() {
+  local file path
+  for file in "$root"/quadlet/builds/*.build; do
+    [[ -e $file ]] || continue
+    known_images[$(basename -- "$file" .build)]=true
+  done
+  if git -C "$root" rev-parse --verify "$head_ref^{commit}" >/dev/null 2>&1; then
+    while IFS= read -r path; do
+      [[ $path == *.build ]] || continue
+      known_images[$(basename -- "$path" .build)]=true
+    done < <(git -C "$root" ls-tree --name-only "$head_ref" quadlet/builds/ 2>/dev/null || true)
+  fi
+}
+
+add_build_image() {
+  local image=$1
+  [[ ${known_images[$image]:-false} == true ]] && build_images[$image]=true
+}
+
+add_all_build_images() {
+  local image
+  for image in "${!known_images[@]}"; do
+    build_images[$image]=true
+  done
+}
+
+sorted_csv() {
+  (($# > 0)) || return 0
+  printf '%s\n' "$@" | sort | paste -sd, -
+}
+
+emit_result() {
+  local e2e_mode=none e2e_workloads='' image_list=''
+  if $global_change; then
+    e2e_mode=all
+    add_all_build_images
+    host_tools_needed=true
+  elif ((${#selected[@]} > 0)); then
+    e2e_mode=workloads
+    e2e_workloads=$(sorted_csv "${!selected[@]}")
+  fi
+  image_list=$(sorted_csv "${!build_images[@]}")
+
+  if [[ $format == ci ]]; then
+    printf 'e2e_mode=%s\n' "$e2e_mode"
+    printf 'e2e_workloads=%s\n' "$e2e_workloads"
+    printf 'build_images=%s\n' "$image_list"
+    if $host_tools_needed; then
+      printf 'host_tools=true\n'
+    else
+      printf 'host_tools=false\n'
+    fi
+  else
+    case "$e2e_mode" in
+      all)
+        printf 'all\n'
+        ;;
+      none)
+        printf 'none\n'
+        ;;
+      *)
+        printf '%s\n' "${!selected[@]}" | sort
+        ;;
+    esac
+  fi
+}
+
+fail_open() {
+  global_change=true
+  emit_result
   exit 0
 }
 
-git -C "$root" rev-parse --verify "$base_ref^{commit}" >/dev/null 2>&1 || print_all
-git -C "$root" rev-parse --verify "$head_ref^{commit}" >/dev/null 2>&1 || print_all
+load_known_images
+git -C "$root" rev-parse --verify "$base_ref^{commit}" >/dev/null 2>&1 || fail_open
+git -C "$root" rev-parse --verify "$head_ref^{commit}" >/dev/null 2>&1 || fail_open
 
 work_dir=$(mktemp -d "${TMPDIR:-/tmp}/homelab-e2e-targets.XXXXXX")
 cleanup() {
@@ -45,32 +155,28 @@ cleanup() {
 }
 trap cleanup EXIT
 
-git -C "$root" show "$base_ref:manifests/applications.json" >"$work_dir/base-manifest.json" || print_all
-git -C "$root" show "$head_ref:manifests/applications.json" >"$work_dir/head-manifest.json" || print_all
-git -C "$root" show "$base_ref:tests/e2e-readiness.json" >"$work_dir/base-readiness.json" || print_all
-git -C "$root" show "$head_ref:tests/e2e-readiness.json" >"$work_dir/head-readiness.json" || print_all
+git -C "$root" show "$base_ref:manifests/applications.json" >"$work_dir/base-manifest.json" || fail_open
+git -C "$root" show "$head_ref:manifests/applications.json" >"$work_dir/head-manifest.json" || fail_open
+git -C "$root" show "$base_ref:tests/e2e-readiness.json" >"$work_dir/base-readiness.json" || fail_open
+git -C "$root" show "$head_ref:tests/e2e-readiness.json" >"$work_dir/head-readiness.json" || fail_open
 
 for manifest in "$work_dir"/*-manifest.json; do
   jq -e '
     type == "object" and
     all(.[]; type == "object" and (.units | type == "array"))
-  ' "$manifest" >/dev/null || print_all
+  ' "$manifest" >/dev/null || fail_open
 done
 for metadata in "$work_dir"/*-readiness.json; do
-  jq -e '.version == 1 and (.containers | type == "object")' "$metadata" >/dev/null || print_all
+  jq -e '.version == 1 and (.containers | type == "object")' "$metadata" >/dev/null || fail_open
 done
 base_readiness_header=$(jq -c 'del(.containers)' "$work_dir/base-readiness.json")
 head_readiness_header=$(jq -c 'del(.containers)' "$work_dir/head-readiness.json")
-[[ $base_readiness_header == "$head_readiness_header" ]] || print_all
+[[ $base_readiness_header == "$head_readiness_header" ]] || fail_open
 
 mapfile -t head_workloads < <(jq -r 'keys[]' "$work_dir/head-manifest.json")
-declare -A head_workload_set=()
 for workload in "${head_workloads[@]}"; do
   head_workload_set[$workload]=true
 done
-
-declare -A selected=()
-global_change=false
 
 add_workload() {
   local workload=$1
@@ -91,6 +197,19 @@ workload_for_build() {
   return 1
 }
 
+workload_for_resource() {
+  local name=$1 workload best=
+  for workload in "${head_workloads[@]}"; do
+    if [[ $name == "$workload" || $name == "$workload"-* ]]; then
+      if [[ -z $best || ${#workload} -gt ${#best} ]]; then
+        best=$workload
+      fi
+    fi
+  done
+  [[ -n $best ]] || return 1
+  printf '%s\n' "$best"
+}
+
 container_owner() {
   local ref=$1 manifest=$2 container=$3 workload unit file name
   mapfile -t workloads < <(jq -r 'keys[]' "$manifest")
@@ -108,7 +227,7 @@ container_owner() {
   return 1
 }
 
-mapfile -t changed_paths < <(git -C "$root" diff --name-only "$base_ref" "$head_ref") || print_all
+mapfile -t changed_paths < <(git -C "$root" diff --name-only "$base_ref" "$head_ref") || fail_open
 for path in "${changed_paths[@]}"; do
   case "$path" in
     quadlet/applications/*/*)
@@ -126,6 +245,7 @@ for path in "${changed_paths[@]}"; do
     quadlet/builds/*.build)
       build=${path##*/}
       build=${build%.build}
+      add_build_image "$build"
       if workload=$(workload_for_build "$build"); then
         add_workload "$workload"
       else
@@ -135,6 +255,7 @@ for path in "${changed_paths[@]}"; do
     images/*/*)
       image=${path#images/}
       image=${image%%/*}
+      add_build_image "$image"
       if workload=$(workload_for_build "$image"); then
         add_workload "$workload"
       else
@@ -156,16 +277,44 @@ for path in "${changed_paths[@]}"; do
       # These files are handled structurally below so that adding a workload
       # does not broaden the E2E run to unrelated workloads.
       ;;
-    quadlet/networks/*|quadlet/volumes/*|config/site.env|.sops.yaml|\
+    quadlet/networks/*.network)
+      resource=${path##*/}
+      resource=${resource%.network}
+      if workload=$(workload_for_resource "$resource"); then
+        add_workload "$workload"
+      else
+        global_change=true
+      fi
+      ;;
+    quadlet/volumes/*.volume)
+      resource=${path##*/}
+      resource=${resource%.volume}
+      if workload=$(workload_for_resource "$resource"); then
+        add_workload "$workload"
+      else
+        global_change=true
+      fi
+      ;;
+    config/host-tools.env|tests/host-tools.sh|bin/install-sops|\
+      systemd/system/homelab-host-tools-update.service|\
+      systemd/system/homelab-host-tools-update.timer)
+      host_tools_needed=true
+      global_change=true
+      ;;
+    .github/workflows/validate.yml)
+      add_all_build_images
+      host_tools_needed=true
+      ;;
+    config/site.env|.sops.yaml|\
       secrets/*|bin/*|tests/e2e.sh|tests/e2e-selection.sh|tests/install-e2e-tools.sh|tests/static.sh|\
-      tests/backup.sh|tests/architecture.sh|tests/host-tools.sh|\
+      tests/backup.sh|tests/architecture.sh|\
       tests/postgres-migration.sh|tests/mariadb-migration.sh|\
       tests/postgres-migration-e2e.sh|tests/mariadb-migration-e2e.sh|\
       config/legacy-migration.env|\
-      systemd/user/*)
+      systemd/user/*|quadlet/networks/*|quadlet/volumes/*)
       global_change=true
       ;;
-    .github/*|README.md|docs/*|incubator/*|AGENTS.md)
+    .github/*|README.md|docs/*|incubator/*|AGENTS.md|renovate.json)
       ;;
     *)
       global_change=true
@@ -198,10 +347,4 @@ for container in "${readiness_containers[@]}"; do
   fi
 done
 
-if $global_change; then
-  print_all
-elif ((${#selected[@]} == 0)); then
-  printf 'none\n'
-else
-  printf '%s\n' "${!selected[@]}" | sort
-fi
+emit_result

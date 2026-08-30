@@ -144,6 +144,14 @@ rg -q 'fedora:44@sha256:[0-9a-f]{64}' "$root/.github/workflows/validate.yml" || 
   printf 'validation must use a digest-pinned Fedora 44 image\n' >&2
   exit 1
 }
+rg -q 'bin/e2e-targets --format=ci' "$root/.github/workflows/validate.yml" || {
+  printf 'validation must select CI scope from the Git diff\n' >&2
+  exit 1
+}
+rg -q '^    needs: \[select, validate\]$' "$root/.github/workflows/validate.yml" || {
+  printf 'e2e must not wait on host-tools when selecting affected workloads\n' >&2
+  exit 1
+}
 
 count=$(find "$containers" -name '*.container' -type f | wc -l | tr -d ' ')
 manifest_container_count=$(jq '[.[] .units[] | select(endswith(".service")) | select(endswith("-build.service") | not)] | length' \

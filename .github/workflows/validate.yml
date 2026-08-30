@@ -9,12 +9,58 @@ permissions:
   contents: read
 
 jobs:
+  select:
+    runs-on: ubuntu-latest
+    outputs:
+      e2e_mode: ${{ steps.scope.outputs.e2e_mode }}
+      e2e_workloads: ${{ steps.scope.outputs.e2e_workloads }}
+      build_images: ${{ steps.scope.outputs.build_images }}
+      host_tools: ${{ steps.scope.outputs.host_tools }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Select affected CI scope
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -Eeuo pipefail
+          if [[ $EVENT_NAME == pull_request ]]; then
+            ./bin/e2e-targets --format=ci "$PR_BASE_SHA" HEAD | tee -a "$GITHUB_OUTPUT"
+          elif [[ -z $BEFORE_SHA || $BEFORE_SHA =~ ^0+$ ]]; then
+            {
+              printf 'e2e_mode=all\n'
+              printf 'e2e_workloads=\n'
+              images=()
+              for file in quadlet/builds/*.build; do
+                [[ -e $file ]] || continue
+                images+=("$(basename -- "$file" .build)")
+              done
+              if ((${#images[@]} > 0)); then
+                IFS=,
+                printf 'build_images=%s\n' "${images[*]}"
+                unset IFS
+              else
+                printf 'build_images=\n'
+              fi
+              printf 'host_tools=true\n'
+            } | tee -a "$GITHUB_OUTPUT"
+          else
+            ./bin/e2e-targets --format=ci "$BEFORE_SHA" HEAD | tee -a "$GITHUB_OUTPUT"
+          fi
+
   validate:
+    needs: [select]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up QEMU
+        if: needs.select.outputs.build_images != ''
         uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
 
       - name: Validate repository and Quadlets
@@ -26,13 +72,33 @@ jobs:
             bash -lc 'dnf install -y git jq podman ripgrep ShellCheck >/dev/null && ./bin/validate && ./tests/static.sh && ./tests/e2e-selection.sh && ./tests/backup.sh && ./tests/legacy-restore.sh && ./tests/postgres-migration.sh && ./tests/mariadb-migration.sh && ln -s /src /root/current && systemd-analyze verify systemd/user/homelab-backup.service systemd/user/homelab-backup.timer'
 
       - name: Build custom images
+        if: needs.select.outputs.build_images != ''
+        env:
+          BUILD_IMAGES: ${{ needs.select.outputs.build_images }}
         run: |
-          docker buildx build --pull --platform linux/amd64 --file images/caddy/Containerfile --tag localhost/homelab/caddy:test-amd64 --load images/caddy
-          docker buildx build --pull --platform linux/arm64 --file images/caddy/Containerfile --tag localhost/homelab/caddy:test-arm64 --load images/caddy
-          docker buildx build --pull --platform linux/amd64 --file images/radicale/Containerfile --tag localhost/homelab/radicale:test-amd64 --load images/radicale
-          docker buildx build --pull --platform linux/arm64 --file images/radicale/Containerfile --tag localhost/homelab/radicale:test-arm64 --load images/radicale
+          set -Eeuo pipefail
+          IFS=, read -r -a images <<<"$BUILD_IMAGES"
+          for image in "${images[@]}"; do
+            [[ $image =~ ^[a-z0-9]+$ ]] || {
+              printf 'unexpected custom image: %s\n' "$image" >&2
+              exit 1
+            }
+            [[ -f images/$image/Containerfile ]] || {
+              printf 'missing Containerfile for %s\n' "$image" >&2
+              exit 1
+            }
+            docker buildx build --pull --platform linux/amd64 \
+              --file "images/$image/Containerfile" \
+              --tag "localhost/homelab/$image:test-amd64" \
+              --load "images/$image"
+            docker buildx build --pull --platform linux/arm64 \
+              --file "images/$image/Containerfile" \
+              --tag "localhost/homelab/$image:test-arm64" \
+              --load "images/$image"
+          done
 
   host-tools:
+    needs: [select]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     strategy:
@@ -43,9 +109,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up QEMU
+        if: needs.select.outputs.host_tools == 'true'
         uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
 
       - name: Test the pinned SOPS host tool
+        if: needs.select.outputs.host_tools == 'true'
         run: |
           docker run --rm \
             --platform linux/${{ matrix.architecture }} \
@@ -55,48 +123,32 @@ jobs:
             bash -lc 'dnf install -y age curl diffutils >/dev/null && ./tests/host-tools.sh'
 
   e2e:
-    needs: [validate, host-tools]
+    needs: [select, validate]
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-
-      - name: Select affected E2E workloads
-        id: scope
+      - name: Report E2E scope
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          BEFORE_SHA: ${{ github.event.before }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          E2E_MODE: ${{ needs.select.outputs.e2e_mode }}
+          E2E_WORKLOADS: ${{ needs.select.outputs.e2e_workloads }}
         run: |
-          if [[ $EVENT_NAME == pull_request ]]; then
-            base_ref=$PR_BASE_SHA
-            scope=$(./bin/e2e-targets "$base_ref" HEAD)
-          elif [[ -z $BEFORE_SHA || $BEFORE_SHA =~ ^0+$ ]]; then
-            scope=all
-          else
-            scope=$(./bin/e2e-targets "$BEFORE_SHA" HEAD)
-          fi
-
-          case "$scope" in
+          case "$E2E_MODE" in
             all)
-              printf 'mode=all\n' >>"$GITHUB_OUTPUT"
               printf 'E2E scope: all workloads\n'
               ;;
             none)
-              printf 'mode=none\n' >>"$GITHUB_OUTPUT"
               printf 'E2E scope: no affected workloads\n'
               ;;
             *)
-              printf 'mode=workloads\n' >>"$GITHUB_OUTPUT"
-              printf 'workloads=%s\n' "$(paste -sd, <<<"$scope")" >>"$GITHUB_OUTPUT"
-              printf 'E2E scope: %s\n' "$(tr '\n' ' ' <<<"$scope")"
+              printf 'E2E scope: %s\n' "${E2E_WORKLOADS//,/ }"
               ;;
           esac
 
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: needs.select.outputs.e2e_mode != 'none'
+
       - name: Install Podman machine prerequisites
-        if: steps.scope.outputs.mode != 'none'
+        if: needs.select.outputs.e2e_mode != 'none'
         run: |
           sudo apt-get update
           sudo apt-get install --yes gvproxy jq podman qemu-system-x86 qemu-utils virtiofsd
@@ -107,10 +159,10 @@ jobs:
           [[ -e /dev/kvm ]] && sudo chmod 666 /dev/kvm || true
 
       - name: Run selected Podman E2E
-        if: steps.scope.outputs.mode != 'none'
+        if: needs.select.outputs.e2e_mode != 'none'
         env:
-          E2E_MODE: ${{ steps.scope.outputs.mode }}
-          E2E_WORKLOADS: ${{ steps.scope.outputs.workloads }}
+          E2E_MODE: ${{ needs.select.outputs.e2e_mode }}
+          E2E_WORKLOADS: ${{ needs.select.outputs.e2e_workloads }}
         run: |
           if [[ $E2E_MODE == all ]]; then
             ./bin/e2e

@@ -396,11 +396,14 @@ workflow is restricted to scheduled and manual events, so the secret is never
 exposed to pull-request code.
 
 Require the `validate`, `host-tools (amd64)`, `host-tools (arm64)`, and `e2e`
-checks in the `main` branch protection rule. The E2E check derives its scope
-from the Git diff: workload changes run only the affected workloads, while
-global deployment changes run the complete real Podman E2E suite. Keep
-approval and merge manual; passing checks do not automatically merge an
-update.
+checks in the `main` branch protection rule. A `select` job maps the Git diff
+onto those checks: CI, docs, incubator, and Renovate-workflow changes skip
+Podman, custom image builds, and host-tool tests, so `e2e` can pass in
+seconds. Workload changes run only the affected workloads. Custom image
+Containerfiles build only the matching image. Host-tool metadata runs the
+architecture tests and the complete Podman suite. Global deployment changes
+still run the complete real Podman E2E suite. Keep approval and merge
+manual; passing checks do not automatically merge an update.
 
 The included `renovate.json` understands Quadlet `Image=` entries and the
 custom image build inputs. Its Docker digest pinning and `currentDigest`

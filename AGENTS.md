@@ -222,8 +222,10 @@ The selected run must start every declared container in the selected workload
 and its declared dependencies, verify readiness, and keep those containers
 running through the stability check. A global change must use `./bin/e2e`
 which starts every declared container and passes the runtime security audit.
-The CI workflow uses `bin/e2e-targets` to select this scope from the Git diff;
-documentation-only changes do not start a Podman machine.
+The CI workflow uses `bin/e2e-targets` to select this scope from the Git diff.
+Documentation, incubator, GitHub workflow, and `renovate.json` changes do not
+start a Podman machine, build custom images, or run host-tool tests. Custom
+image and host-tool jobs no-op unless those trees changed.
 
 ### 6. Finish validation and operational documentation
 
@@ -302,8 +304,8 @@ and add a new inventory record.
   exceptions.
 - `manifests/applications.json` — workload/unit/secret registration.
 - `tests/static.sh` — repository topology and security invariants.
-- `tests/e2e-readiness.json` and `tests/e2e.sh` — real Podman readiness and
-  fixture conventions.
+- `tests/e2e-readiness.json`, `tests/e2e.sh`, and `bin/e2e-targets` — real Podman
+  readiness, fixture conventions, and CI scope selection from the Git diff.
 - `bin/render-config`, `bin/reconcile`, `bin/migrate-databases`, and `bin/security-audit` — secret
   rendering, activation, automated PostgreSQL/MariaDB major migrations, and runtime enforcement.
 
