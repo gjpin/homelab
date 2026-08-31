@@ -7,7 +7,6 @@ umask 077
 source "$(dirname -- "$0")/lib.sh"
 
 root=$(repo_root)
-load_site_config "$root"
 require_command envsubst
 require_command jq
 require_command podman
@@ -20,10 +19,10 @@ runtime_root="${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/homelab"
 rendered="$runtime_root/rendered"
 install -d -m 0700 "$runtime_root" "$rendered" "$rendered/homeassistant" "$rendered/radicale" "$rendered/searxng" "$rendered/supernote"
 install -d -m 0700 "$HOME/.local/state/homelab"
-ln -sfn "/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID" "$HOME/.local/state/homelab/zigbee-router"
 
 secrets_json=$(sops --decrypt --output-type json "$secrets_file")
-apply_private_site_config "$secrets_json"
+apply_site_config "$secrets_json"
+ln -sfn "/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID" "$HOME/.local/state/homelab/zigbee-router"
 jq -e '
   .backup.s3_access_key_id | type == "string" and length > 0
 ' <<<"$secrets_json" >/dev/null || die "backup S3 access key ID is missing"

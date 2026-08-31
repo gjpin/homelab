@@ -11,19 +11,13 @@ runtime_dir="$test_root/runtime"
 state_dir="$test_home/.local/state/homelab"
 log="$test_root/commands.log"
 
-install -d "$fixture/bin" "$fixture/config" "$fixture/manifests" \
-  "$fixture/quadlet" "$fixture/secrets" "$fake_bin" "$runtime_dir" \
+install -d "$fixture/bin" "$fixture/secrets" "$fixture/manifests" \
+  "$fixture/quadlet" "$fake_bin" "$runtime_dir" \
   "$test_home/.config/sops/age" "$state_dir"
 cp "$source_root/bin/backup" "$source_root/bin/lib.sh" "$fixture/bin/"
 cp "$source_root/manifests/applications.json" "$fixture/manifests/"
 cp -R "$source_root/quadlet/volumes" "$fixture/quadlet/"
 
-cat >"$fixture/config/site.env" <<'EOF'
-TIMEZONE=Europe/Lisbon
-HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=test-device
-BACKUP_S3_ENDPOINT=https://s3.example.com
-BACKUP_S3_REGION=us-east-1
-EOF
 printf '{}\n' >"$fixture/secrets/secrets.sops.yaml"
 printf 'AGE-SECRET-KEY-TEST\n' >"$test_home/.config/sops/age/keys.txt"
 printf '0123456789abcdef0123456789abcdef01234567\n' >"$state_dir/deployed-commit"
@@ -94,8 +88,14 @@ EOF
 cat >"$fake_bin/sops" <<'EOF'
 #!/usr/bin/env bash
 jq -n --arg prefix "${TEST_S3_PREFIX-homelab}" '{
-  site: {base_domain: "home.example.com"},
+  site: {
+    base_domain: "home.example.com",
+    timezone: "Europe/Lisbon",
+    homeassistant_zigbee_router_serial_id: "test-device"
+  },
   backup: {
+    s3_endpoint: "https://s3.example.com",
+    s3_region: "us-east-1",
     s3_bucket: "homelab-test",
     s3_prefix: $prefix,
     s3_access_key_id: "id",
@@ -192,10 +192,9 @@ fi
 printf 'backup orchestration tests passed\n'
 
 restic_root="$test_root/restic-wrapper"
-install -d "$restic_root/bin" "$restic_root/config" "$restic_root/secrets"
+install -d "$restic_root/bin" "$restic_root/secrets"
 cp "$source_root/bin/restic" "$source_root/bin/lib.sh" "$restic_root/bin/"
 chmod 0755 "$restic_root/bin/restic"
-cp "$fixture/config/site.env" "$restic_root/config/site.env"
 printf '{}\n' >"$restic_root/secrets/secrets.sops.yaml"
 
 cat >"$fake_bin/print-restic-repository" <<'EOF'

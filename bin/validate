@@ -49,7 +49,6 @@ fi
 
 if $deployment; then
   load_site_config "$root"
-  load_private_site_config "$root"
 fi
 
 if command -v shellcheck >/dev/null 2>&1; then

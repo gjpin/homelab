@@ -162,12 +162,7 @@ while IFS= read -r source; do
   systemd_links+=("$link")
 done < <(find "$test_root/systemd/user" -maxdepth 1 -type f \( -name '*.service' -o -name '*.target' -o -name '*.timer' \) | sort)
 
-printf '%s\n' \
-  'TIMEZONE=Europe/Lisbon' \
-  'HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=e2e-fixture' \
-  'BACKUP_S3_ENDPOINT=https://s3.e2e.test' \
-  'BACKUP_S3_REGION=us-east-1' \
-  >"$test_root/config/site.env"
+rm -f -- "$test_root/config/site.env"
 
 cat >"$test_root/config/templates/caddy/Caddyfile" <<'EOF'
 {
@@ -183,7 +178,11 @@ EOF
 cat >"$test_root/secrets/e2e-plaintext.yaml" <<'EOF'
 site:
   base_domain: e2e.test
+  timezone: Europe/Lisbon
+  homeassistant_zigbee_router_serial_id: e2e-fixture
 backup:
+  s3_endpoint: https://s3.e2e.test
+  s3_region: us-east-1
   s3_bucket: homelab-e2e
   s3_prefix: e2e
   s3_access_key_id: e2e-access-key

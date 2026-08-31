@@ -113,12 +113,11 @@ Perform these steps in order. Replace every uppercase placeholder.
    create the repository.
 
 2. On the operator workstation, make this `podman` directory the repository
-   root, configure the site, validate it, and push the initial commit:
+   root, validate it, and push the initial commit:
 
    ```bash
    cd /PATH/TO/homelab/podman
    git init -b main
-   vi config/site.env
    ./bin/validate
    ./tests/static.sh
    git add .
@@ -127,13 +126,11 @@ Perform these steps in order. Replace every uppercase placeholder.
    git push -u origin main
    ```
 
-   Set `TIMEZONE`, `HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID`,
-   `BACKUP_S3_ENDPOINT`, and `BACKUP_S3_REGION` in `config/site.env`. Keep
-   `BASE_DOMAIN`, `BACKUP_S3_BUCKET`, and `BACKUP_S3_PREFIX` out of Git
-   plaintext; `bin/init-secrets` encrypts them later. The GitHub
-   repository is required on every replacement host; no separate repository
-   backup is required if GitHub remains available and contains every committed
-   change.
+   Do not put site identity in Git plaintext. `bin/init-secrets` encrypts the
+   domain, timezone, Zigbee serial ID, and all `BACKUP_S3_*` values later.
+   The GitHub repository is required on every replacement host; no separate
+   repository backup is required if GitHub remains available and contains
+   every committed change.
 
 3. On the operator workstation, generate one unencrypted SSH deploy key for
    this host. The systemd timer cannot use a passphrase-protected key:
@@ -261,15 +258,15 @@ Perform these steps in order. Replace every uppercase placeholder.
     required for ACME DNS-01 certificate issuance.
 
 12. Before running secret initialization, have these values ready: the base
-    domain, S3 bucket name, optional S3 prefix, the S3 key ID and secret, a
-    unique restic repository password of at least 20 characters, the
-    Cloudflare token from step 10, a bookmarks password, a Radicale username
-    and password, and a Vaultwarden admin password. Save the chosen
-    application passwords and the restic password in the operator password
-    manager; application password hashes cannot be reversed. From the
-    repository root on the operator workstation, initialize and push encrypted
-    secrets using the host recipient printed in step 7 and the operator
-    recipient printed in step 9:
+    domain, timezone, Zigbee router serial ID, S3 endpoint, region, bucket
+    name, optional S3 prefix, the S3 key ID and secret, a unique restic
+    repository password of at least 20 characters, the Cloudflare token from
+    step 10, a bookmarks password, a Radicale username and password, and a
+    Vaultwarden admin password. Save the chosen application passwords and the
+    restic password in the operator password manager; application password
+    hashes cannot be reversed. From the repository root on the operator
+    workstation, initialize and push encrypted secrets using the host
+    recipient printed in step 7 and the operator recipient printed in step 9:
 
     ```bash
     ./bin/init-secrets \
@@ -282,6 +279,18 @@ Perform these steps in order. Replace every uppercase placeholder.
 
     `secrets/secrets.sops.yaml` and `.sops.yaml` are required on a replacement
     host and are recovered by cloning the private repository.
+
+    Re-run host bootstrap so it can pull the encrypted file, set the timezone,
+    and grant Zigbee device access:
+
+    ```bash
+    cd ~/podman-bootstrap/source
+    sudo ./bin/bootstrap-host \
+      --repo git@github.com:OWNER/REPOSITORY.git \
+      --git-key ../github-deploy-key \
+      --known-hosts ../github-known-hosts \
+      --firewalld-zone public
+    ```
 
 13. Run the first reconciliation on the target host and verify it:
 
@@ -566,8 +575,7 @@ all other images use the host's native architecture.
 | Item | Backup requirement | Replacement-host action |
 | --- | --- | --- |
 | Private GitHub repository | Keep all changes pushed. An independent mirror is optional. | Clone it with a read-only deploy key. |
-| `.sops.yaml` and `secrets/secrets.sops.yaml` | Required; keep them committed in the private repository. They include the base domain, backup bucket, and prefix. | Clone them from GitHub; the host age identity decrypts them. |
-| `config/site.env` | Required; keep it committed in the private repository. | Clone it from GitHub. Update the Zigbee serial ID first if the replacement hardware differs. |
+| `.sops.yaml` and `secrets/secrets.sops.yaml` | Required; keep them committed in the private repository. They include the domain, timezone, Zigbee serial ID, and backup location. | Clone them from GitHub; the host age identity decrypts them. Update the Zigbee serial ID through SOPS first if the replacement hardware differs. |
 | Host age identity: `/home/homelab/.config/sops/age/keys.txt` | Required; store encrypted/offline. | Restore the exact file with `--host-age-key`. Do not generate a replacement when restoring existing SOPS secrets. |
 | Operator age identity: `~/.config/sops/age/operator.txt` | Required; store encrypted/offline, separately from the host identity. | Keep it on the operator workstation. It is the recovery identity if the host copy is lost. |
 | GitHub deploy private key | Optional. It is an unencrypted secret. | Prefer a new key and a new read-only GitHub deploy-key entry. Restore the old key only if intentionally retaining it. |
@@ -729,8 +737,9 @@ Do not run an initial reconciliation before restoring the volumes.
    ls -l /dev/serial/by-id/
    ```
 
-   If its serial ID differs, update `HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID` in
-   `config/site.env`, commit, and push that change before continuing.
+   If its serial ID differs, edit `site.homeassistant_zigbee_router_serial_id`
+   in `secrets/secrets.sops.yaml` with SOPS, commit, and push that change
+   before continuing.
 
 4. From the repository root on the operator workstation, copy the current
    trusted working tree and fresh GitHub inputs to the new host:

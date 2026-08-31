@@ -117,7 +117,7 @@ else
         mapfile -t apps < <(jq -r 'keys[]' "$release/manifests/applications.json")
         break
         ;;
-      secrets/*|.sops.yaml|config/site.env|bin/*|systemd/user/*|manifests/*)
+      secrets/*|.sops.yaml|bin/*|systemd/user/*|manifests/*)
         mapfile -t apps < <(jq -r 'keys[]' "$release/manifests/applications.json")
         break
         ;;

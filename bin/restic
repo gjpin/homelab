@@ -7,7 +7,6 @@ umask 077
 source "$(dirname -- "$0")/lib.sh"
 
 root=$(repo_root)
-load_site_config "$root"
 require_command jq
 require_command realpath
 require_command sops
@@ -18,7 +17,7 @@ restic_binary=${HOMELAB_RESTIC_BIN:-/usr/bin/restic}
 secrets_file="$root/secrets/secrets.sops.yaml"
 [[ -r $secrets_file ]] || die "missing encrypted secrets: $secrets_file"
 secrets_json=$(sops --decrypt --output-type json "$secrets_file")
-apply_private_site_config "$secrets_json"
+apply_site_config "$secrets_json"
 
 AWS_ACCESS_KEY_ID=$(jq -jer '.backup.s3_access_key_id' <<<"$secrets_json")
 AWS_SECRET_ACCESS_KEY=$(jq -jer '.backup.s3_secret_access_key' <<<"$secrets_json")

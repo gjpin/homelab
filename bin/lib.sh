@@ -107,6 +107,29 @@ validate_base_domain() {
   [[ $value =~ ^[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9]$ ]] || die "site.base_domain is invalid"
 }
 
+validate_timezone() {
+  local value=${1:-}
+  [[ $value =~ ^[A-Za-z0-9._+-]+(/[A-Za-z0-9._+-]+)+$ ]] || die "site.timezone is invalid"
+}
+
+validate_zigbee_serial() {
+  local value=${1:-}
+  [[ $value != "" && $value != "REPLACE_ME" ]] || die "site.homeassistant_zigbee_router_serial_id is not configured"
+  [[ $value =~ ^[A-Za-z0-9._:+-]+$ ]] || die "site.homeassistant_zigbee_router_serial_id is invalid"
+}
+
+validate_backup_s3_endpoint() {
+  local value=${1:-}
+  [[ $value =~ ^https://[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]{1,5})?$ ]] || \
+    die "backup.s3_endpoint must be an HTTPS origin without a trailing slash"
+  [[ $value != "https://s3.example.invalid" ]] || die "backup.s3_endpoint is not configured"
+}
+
+validate_backup_s3_region() {
+  local value=${1:-}
+  [[ $value =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]] || die "backup.s3_region is invalid"
+}
+
 validate_backup_s3_bucket() {
   local value=${1:-}
   [[ $value =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]] || die "backup.s3_bucket is invalid"
@@ -120,18 +143,27 @@ validate_backup_s3_prefix() {
   [[ $value != *'..'* && $value != *'//'* ]] || die "backup.s3_prefix contains an unsafe path component"
 }
 
-apply_private_site_config() {
+apply_site_config() {
   local secrets_json=$1
   BASE_DOMAIN=$(jq -r '.site.base_domain // empty' <<<"$secrets_json")
+  TIMEZONE=$(jq -r '.site.timezone // empty' <<<"$secrets_json")
+  HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=$(jq -r '.site.homeassistant_zigbee_router_serial_id // empty' <<<"$secrets_json")
+  BACKUP_S3_ENDPOINT=$(jq -r '.backup.s3_endpoint // empty' <<<"$secrets_json")
+  BACKUP_S3_REGION=$(jq -r '.backup.s3_region // empty' <<<"$secrets_json")
   BACKUP_S3_BUCKET=$(jq -r '.backup.s3_bucket // empty' <<<"$secrets_json")
   BACKUP_S3_PREFIX=$(jq -r '.backup.s3_prefix // empty' <<<"$secrets_json")
   validate_base_domain "$BASE_DOMAIN"
+  validate_timezone "$TIMEZONE"
+  validate_zigbee_serial "$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID"
+  validate_backup_s3_endpoint "$BACKUP_S3_ENDPOINT"
+  validate_backup_s3_region "$BACKUP_S3_REGION"
   validate_backup_s3_bucket "$BACKUP_S3_BUCKET"
   validate_backup_s3_prefix "$BACKUP_S3_PREFIX"
-  export BASE_DOMAIN BACKUP_S3_BUCKET BACKUP_S3_PREFIX
+  export BASE_DOMAIN TIMEZONE HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID
+  export BACKUP_S3_ENDPOINT BACKUP_S3_REGION BACKUP_S3_BUCKET BACKUP_S3_PREFIX
 }
 
-load_private_site_config() {
+load_site_config() {
   local root=${1:-$(repo_root)}
   local secrets_file="$root/secrets/secrets.sops.yaml"
   local secrets_json
@@ -139,41 +171,6 @@ load_private_site_config() {
   require_command jq
   require_command sops
   secrets_json=$(sops --decrypt --output-type json "$secrets_file")
-  apply_private_site_config "$secrets_json"
+  apply_site_config "$secrets_json"
   unset secrets_json
-}
-
-load_site_config() {
-  local root=${1:-$(repo_root)}
-  local file="$root/config/site.env"
-  local line key value
-  [[ -r "$file" ]] || die "missing site configuration: $file"
-  TIMEZONE=
-  HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=
-  BACKUP_S3_ENDPOINT=
-  BACKUP_S3_REGION=
-  while IFS= read -r line || [[ -n $line ]]; do
-    [[ -z $line || $line == \#* ]] && continue
-    [[ $line == *=* ]] || die "invalid site configuration line: $line"
-    key=${line%%=*}
-    value=${line#*=}
-    case "$key" in
-      BASE_DOMAIN) die "BASE_DOMAIN must be stored in secrets/secrets.sops.yaml as site.base_domain" ;;
-      TIMEZONE) TIMEZONE=$value ;;
-      HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID) HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=$value ;;
-      BACKUP_S3_ENDPOINT) BACKUP_S3_ENDPOINT=$value ;;
-      BACKUP_S3_REGION) BACKUP_S3_REGION=$value ;;
-      BACKUP_S3_BUCKET) die "BACKUP_S3_BUCKET must be stored in secrets/secrets.sops.yaml as backup.s3_bucket" ;;
-      BACKUP_S3_PREFIX) die "BACKUP_S3_PREFIX must be stored in secrets/secrets.sops.yaml as backup.s3_prefix" ;;
-      *) die "unknown site configuration key: $key" ;;
-    esac
-  done <"$file"
-  [[ ${TIMEZONE:-} =~ ^[A-Za-z0-9._+-]+(/[A-Za-z0-9._+-]+)+$ ]] || die "TIMEZONE is invalid"
-  [[ ${HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID:-} != "" && ${HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID} != "REPLACE_ME" ]] || die "HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID is not configured"
-  [[ $HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID =~ ^[A-Za-z0-9._:+-]+$ ]] || die "HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID is invalid"
-  [[ ${BACKUP_S3_ENDPOINT:-} =~ ^https://[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]{1,5})?$ ]] || die "BACKUP_S3_ENDPOINT must be an HTTPS origin without a trailing slash"
-  [[ $BACKUP_S3_ENDPOINT != "https://s3.example.invalid" ]] || die "BACKUP_S3_ENDPOINT is not configured"
-  [[ ${BACKUP_S3_REGION:-} =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]] || die "BACKUP_S3_REGION is invalid"
-  export TIMEZONE HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID
-  export BACKUP_S3_ENDPOINT BACKUP_S3_REGION
 }

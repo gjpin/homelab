@@ -76,8 +76,9 @@ sudo ./bin/bootstrap-host \
 
 The printed recipient must match the one checked above. Bootstrap also installs
 the fixed SOPS updater and enables its daily system timer. Attach the Zigbee
-coordinator first; if its stable serial ID changed, update and push
-`config/site.env` before bootstrap.
+coordinator first; if its stable serial ID changed, update
+`site.homeassistant_zigbee_router_serial_id` in `secrets/secrets.sops.yaml`
+with SOPS and push that change before bootstrap.
 
 ## Restore volumes and auxiliary state
 

@@ -339,20 +339,28 @@ rg -q '^restic_binary=\$\{HOMELAB_RESTIC_BIN:-/usr/bin/restic\}$' "$root/bin/res
   printf 'restic wrapper does not default to the Fedora package path\n' >&2
   exit 1
 }
-for setting in BACKUP_S3_ENDPOINT BACKUP_S3_REGION; do
-  rg -q "^${setting}=" "$root/config/site.env" || {
-    printf 'missing backup site setting: %s\n' "$setting" >&2
-    exit 1
-  }
-done
-for setting in BASE_DOMAIN BACKUP_S3_BUCKET BACKUP_S3_PREFIX; do
-  if rg -q "^${setting}=" "$root/config/site.env"; then
-    printf '%s must be stored in secrets/secrets.sops.yaml, not config/site.env\n' "$setting" >&2
-    exit 1
-  fi
-done
-rg -qF '"site": {"base_domain": base_domain}' "$root/bin/init-secrets" || {
+[[ ! -e $root/config/site.env ]] || {
+  printf 'config/site.env must not exist; site settings belong in secrets/secrets.sops.yaml\n' >&2
+  exit 1
+}
+rg -qF '"base_domain": base_domain' "$root/bin/init-secrets" || {
   printf 'init-secrets does not encrypt site.base_domain\n' >&2
+  exit 1
+}
+rg -qF '"timezone": timezone' "$root/bin/init-secrets" || {
+  printf 'init-secrets does not encrypt site.timezone\n' >&2
+  exit 1
+}
+rg -qF '"homeassistant_zigbee_router_serial_id": zigbee_serial' "$root/bin/init-secrets" || {
+  printf 'init-secrets does not encrypt site.homeassistant_zigbee_router_serial_id\n' >&2
+  exit 1
+}
+rg -qF '"s3_endpoint": backup_s3_endpoint' "$root/bin/init-secrets" || {
+  printf 'init-secrets does not encrypt backup.s3_endpoint\n' >&2
+  exit 1
+}
+rg -qF '"s3_region": backup_s3_region' "$root/bin/init-secrets" || {
+  printf 'init-secrets does not encrypt backup.s3_region\n' >&2
   exit 1
 }
 rg -qF '"s3_bucket": backup_s3_bucket' "$root/bin/init-secrets" || {
@@ -363,23 +371,25 @@ rg -qF '"s3_prefix": backup_s3_prefix' "$root/bin/init-secrets" || {
   printf 'init-secrets does not encrypt backup.s3_prefix\n' >&2
   exit 1
 }
-rg -q 'apply_private_site_config' "$root/bin/render-config" || {
-  printf 'render-config does not load private site identity from SOPS\n' >&2
+rg -q 'apply_site_config' "$root/bin/render-config" || {
+  printf 'render-config does not load site identity from SOPS\n' >&2
   exit 1
 }
-rg -q 'apply_private_site_config' "$root/bin/restic" || {
-  printf 'restic wrapper does not load private site identity from SOPS\n' >&2
+rg -q 'apply_site_config' "$root/bin/restic" || {
+  printf 'restic wrapper does not load site identity from SOPS\n' >&2
   exit 1
 }
 rg -q '^site:' "$root/secrets/secrets.example.yaml" || {
   printf 'missing private site schema section\n' >&2
   exit 1
 }
-rg -q '^  base_domain:' "$root/secrets/secrets.example.yaml" || {
-  printf 'missing private site schema key: base_domain\n' >&2
-  exit 1
-}
-for secret in s3_bucket s3_prefix s3_access_key_id s3_secret_access_key repository_password; do
+for key in base_domain timezone homeassistant_zigbee_router_serial_id; do
+  rg -q "^  ${key}:" "$root/secrets/secrets.example.yaml" || {
+    printf 'missing private site schema key: %s\n' "$key" >&2
+    exit 1
+  }
+done
+for secret in s3_endpoint s3_region s3_bucket s3_prefix s3_access_key_id s3_secret_access_key repository_password; do
   rg -q "^  ${secret}:" "$root/secrets/secrets.example.yaml" || {
     printf 'missing backup secret schema key: %s\n' "$secret" >&2
     exit 1

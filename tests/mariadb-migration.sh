@@ -12,7 +12,7 @@ runtime_dir="$test_root/runtime"
 state_dir="$test_home/.local/state/homelab"
 log="$test_root/commands.log"
 
-install -d "$fixture/bin" "$fixture/config" "$fixture/manifests" \
+install -d "$fixture/bin" "$fixture/manifests" \
   "$fixture/quadlet/applications/supernote" \
   "$fixture/quadlet/volumes" "$fake_bin" "$runtime_dir" \
   "$test_home/.config/sops/age" "$state_dir"
@@ -23,13 +23,6 @@ cp "$source_root/manifests/applications.json" "$fixture/manifests/"
 cp "$source_root/quadlet/volumes/supernote-mariadb.volume" "$fixture/quadlet/volumes/"
 cp "$source_root/quadlet/applications/supernote/supernote-mariadb.container" \
   "$fixture/quadlet/applications/supernote/"
-
-cat >"$fixture/config/site.env" <<'EOF'
-TIMEZONE=Europe/Lisbon
-HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=test-device
-BACKUP_S3_ENDPOINT=https://s3.example.com
-BACKUP_S3_REGION=us-east-1
-EOF
 
 cat >"$fake_bin/systemctl" <<'EOF'
 #!/usr/bin/env bash

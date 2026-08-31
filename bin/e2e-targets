@@ -305,7 +305,7 @@ for path in "${changed_paths[@]}"; do
       add_all_build_images
       host_tools_needed=true
       ;;
-    config/site.env|.sops.yaml|\
+    .sops.yaml|\
       secrets/*|bin/*|tests/e2e.sh|tests/e2e-selection.sh|tests/install-e2e-tools.sh|tests/static.sh|\
       tests/backup.sh|tests/architecture.sh|\
       tests/postgres-migration.sh|tests/mariadb-migration.sh|\

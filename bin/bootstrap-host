@@ -177,9 +177,20 @@ recipient=$(runuser -u "$runtime_user" -- env HOME="$runtime_home" \
   age-keygen -y "$runtime_home/.config/sops/age/keys.txt")
 require_pq_age_recipient "host identity recipient" "$recipient"
 
-if [[ ! -d $runtime_home/git/repository/.git ]]; then
-  if [[ -n $git_key ]]; then
-    git_ssh="ssh -i $runtime_home/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$runtime_home/.ssh/known_hosts"
+git_ssh=
+if [[ -n $git_key ]]; then
+  git_ssh="ssh -i $runtime_home/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$runtime_home/.ssh/known_hosts"
+fi
+if [[ -d $runtime_home/git/repository/.git ]]; then
+  if [[ -n $git_ssh ]]; then
+    runuser -u "$runtime_user" -- env HOME="$runtime_home" GIT_SSH_COMMAND="$git_ssh" \
+      git -C "$runtime_home/git/repository" pull --ff-only origin "$branch"
+  else
+    runuser -u "$runtime_user" -- env HOME="$runtime_home" \
+      git -C "$runtime_home/git/repository" pull --ff-only origin "$branch"
+  fi
+else
+  if [[ -n $git_ssh ]]; then
     runuser -u "$runtime_user" -- env HOME="$runtime_home" GIT_SSH_COMMAND="$git_ssh" \
       git clone --branch "$branch" "$repo_url" "$runtime_home/git/repository"
   else
@@ -188,13 +199,21 @@ if [[ ! -d $runtime_home/git/repository/.git ]]; then
   fi
 fi
 
-load_site_config "$runtime_home/git/repository"
-timedatectl set-timezone "$TIMEZONE"
-device="/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID"
-[[ -e $device ]] || die "configured Zigbee coordinator does not exist: $device"
-device_group=$(stat -c %G "$device")
-usermod --append --groups "$device_group" "$runtime_user"
-loginctl terminate-user "$runtime_user" || true
+secrets_file="$runtime_home/git/repository/secrets/secrets.sops.yaml"
+if [[ -r $secrets_file ]] && rg -q '^sops:' "$secrets_file"; then
+  secrets_json=$(runuser -u "$runtime_user" -- env HOME="$runtime_home" \
+    sops --decrypt --output-type json "$secrets_file")
+  apply_site_config "$secrets_json"
+  unset secrets_json
+  timedatectl set-timezone "$TIMEZONE"
+  device="/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID"
+  [[ -e $device ]] || die "configured Zigbee coordinator does not exist: $device"
+  device_group=$(stat -c %G "$device")
+  usermod --append --groups "$device_group" "$runtime_user"
+  loginctl terminate-user "$runtime_user" || true
+else
+  info "encrypted secrets are not present yet; re-run bootstrap-host after init-secrets to apply timezone and Zigbee access"
+fi
 
 install -m 0644 "$root/systemd/system/caddy-https-proxy.socket" /etc/systemd/system/caddy-https-proxy.socket
 install -m 0644 "$root/systemd/system/caddy-https-proxy.service" /etc/systemd/system/caddy-https-proxy.service
@@ -210,5 +229,5 @@ firewall-cmd --permanent --zone "$firewalld_zone" --add-port=22000/udp
 firewall-cmd --reload
 
 printf 'Host post-quantum age recipient: %s\n' "$recipient"
-printf 'Add this recipient with the operator recipient using bin/init-secrets, commit, push, then run:\n'
+printf 'Add this recipient with the operator recipient using bin/init-secrets, commit, push, re-run bootstrap-host, then run:\n'
 printf 'runuser -u %s -- env HOME=%s XDG_RUNTIME_DIR=/run/user/%s %s/git/repository/bin/reconcile\n' "$runtime_user" "$runtime_home" "$(id -u "$runtime_user")" "$runtime_home"
