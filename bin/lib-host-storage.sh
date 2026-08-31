@@ -5,6 +5,8 @@
 HOMELAB_STORAGE_FSTAB_MARKER="# homelab-podman-storage"
 HOMELAB_STORAGE_FSTAB_OPTIONS="defaults,noatime,x-systemd.automount,x-systemd.device-timeout=30"
 HOMELAB_STORAGE_PROMPT_DECLINED=10
+# XFS volume labels are limited to 12 characters.
+HOMELAB_STORAGE_FS_LABEL="homelab-data"
 
 homelab_storage_path() {
   printf '%s\n' "${HOMELAB_STORAGE_PATH:-/home/homelab/.local/share/containers/storage}"
@@ -505,7 +507,8 @@ EOF
       ;;
   esac
   homelab_storage_require_device "$filesystem"
-  mkfs.xfs -f -L homelab-storage "$filesystem" >/dev/null
+  [[ ${#HOMELAB_STORAGE_FS_LABEL} -le 12 ]] || die "XFS label exceeds 12 characters: $HOMELAB_STORAGE_FS_LABEL"
+  mkfs.xfs -f -L "$HOMELAB_STORAGE_FS_LABEL" "$filesystem" >/dev/null
   printf '%s\n' "$filesystem"
 }
 

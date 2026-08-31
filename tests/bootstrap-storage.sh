@@ -287,6 +287,19 @@ cat >"$fake_bin/mkfs.xfs" <<'EOF'
 #!/usr/bin/env bash
 set -Eeuo pipefail
 printf 'mkfs.xfs %s\n' "$*" >>"${TEST_LOG}"
+args=("$@")
+i=0
+while ((i < ${#args[@]})); do
+  if [[ ${args[i]} == -L ]]; then
+    i=$((i + 1))
+    label=${args[i]}
+    if ((${#label} > 12)); then
+      printf 'Invalid value %s for -L option\n' "$label" >&2
+      exit 1
+    fi
+  fi
+  i=$((i + 1))
+done
 device=${!#}
 printf '%s\t%s\txfs\n' "$device" "33333333-3333-3333-3333-333333333333" >>"$TEST_BLKID_DB"
 EOF
@@ -418,7 +431,7 @@ touch "$dev/sdc1"
 homelab_storage_apply "$dev/sdc" true "$test_user"
 assert_file_contains "$log" 'wipefs -a' 'format wipes the selected disk'
 assert_file_contains "$log" 'sfdisk --wipe always --wipe-partitions always' 'format recreates GPT'
-assert_file_contains "$log" 'mkfs.xfs -f -L homelab-storage' 'format creates XFS'
+assert_file_contains "$log" 'mkfs.xfs -f -L homelab-data' 'format creates XFS'
 assert_file_contains "$fstab" "UUID=$format_uuid $storage_path xfs $HOMELAB_STORAGE_FSTAB_OPTIONS 0 2" \
   'formatted disk is recorded in fstab'
 
