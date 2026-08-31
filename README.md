@@ -77,9 +77,9 @@ access is enabled.
   `container-selinux`, `curl`, `diffutils`, `firewalld`, `fuse-overlayfs`,
   `gettext-envsubst`, `gawk`, `git`, `iproute`, `jq`, `libselinux-utils`,
   `openssh-clients`, `passt`, `podman`, `policycoreutils`, `python3`,
-  `ripgrep`, `shadow-utils`, `systemd`, `tar`, and `util-linux`. The script
-  also provisions valid `homelab` subordinate-ID ranges and installs the
-  SOPS RPM selected by the checksum-pinned metadata in
+  `ripgrep`, `shadow-utils`, `systemd`, `tar`, `util-linux`, and `xfsprogs`.
+  The script also provisions valid `homelab` subordinate-ID ranges and installs
+  the SOPS RPM selected by the checksum-pinned metadata in
   `config/host-tools.env`.
 - On arm64, bootstrap installs Fedora's `qemu-user-binfmt` and
   `qemu-user-static-x86` packages and enables `systemd-binfmt`. The native
@@ -197,6 +197,17 @@ Perform these steps in order. Replace every uppercase placeholder.
      /usr/bin/sops --version
    ```
 
+   On a TTY, bootstrap asks whether Podman images and named volumes should live
+   on an external disk mounted at
+   `/home/homelab/.local/share/containers/storage`. Answer `n` to keep storage
+   on the OS disk. Answer `y` to select a disk, then format it as XFS (new
+   setup) or use an existing `xfs`/`ext4` filesystem. Formatting a disk
+   requires typing `FORMAT` and the `/dev/disk/by-id/...` name. Treat that disk
+   as permanently attached; do not unplug it while services run. Scripted
+   runs can pass `--no-data-disk`, or `--data-disk /dev/disk/by-id/DEVICE` and
+   optionally `--format-data-disk`. Non-TTY runs without those flags keep
+   storage on the OS disk.
+
    Record the printed `age1pq1...` host recipient. Bootstrap creates the locked
    `homelab` account, installs Fedora's age and restic RPMs plus the
    checksum-verified SOPS RPM, clones the private repository, generates
@@ -281,7 +292,9 @@ Perform these steps in order. Replace every uppercase placeholder.
     host and are recovered by cloning the private repository.
 
     Re-run host bootstrap so it can pull the encrypted file, set the timezone,
-    and grant Zigbee device access:
+    and grant Zigbee device access. If the first run already mounted a storage
+    disk, omit the disk flags. Otherwise pass the same `--data-disk` /
+    `--format-data-disk` or `--no-data-disk` choice:
 
     ```bash
     cd ~/podman-bootstrap/source
@@ -774,8 +787,14 @@ Do not run an initial reconciliation before restoring the volumes.
      --git-key ../github-deploy-key \
      --known-hosts ../github-known-hosts \
      --host-age-key ../host-age-keys.txt \
-     --firewalld-zone public
+     --firewalld-zone public \
+     --data-disk /dev/disk/by-id/DEVICE
    ```
+
+   Add `--format-data-disk` only for an empty replacement disk. If the original
+   data disk moved with the host, omit it. Use `--no-data-disk` to keep storage
+   on the OS disk. Restore the volume archives only after
+   `/home/homelab/.local/share/containers/storage` is mounted.
 
    The printed host recipient must equal the value verified in step 1.
    `--host-age-key` refuses to overwrite a different existing host identity.

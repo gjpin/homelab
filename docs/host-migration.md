@@ -71,8 +71,16 @@ sudo ./bin/bootstrap-host \
   --git-key ../github-deploy-key \
   --known-hosts ../github-known-hosts \
   --host-age-key /SECURE/PATH/host-age-keys.txt \
-  --firewalld-zone public
+  --firewalld-zone public \
+  --data-disk /dev/disk/by-id/DEVICE
 ```
+
+Pass `--format-data-disk` only when the replacement disk is empty and should be
+wiped as XFS. If the original data disk moved with the host, omit
+`--format-data-disk` so the existing filesystem is mounted. Use
+`--no-data-disk` when Podman storage should stay on the OS disk. Confirm
+`/home/homelab/.local/share/containers/storage` is mounted before restoring
+volumes; named volumes follow that graphroot.
 
 The printed recipient must match the one checked above. Bootstrap also installs
 the fixed SOPS updater and enables its daily system timer. Attach the Zigbee

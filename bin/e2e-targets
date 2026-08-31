@@ -307,7 +307,7 @@ for path in "${changed_paths[@]}"; do
       ;;
     .sops.yaml|\
       secrets/*|bin/*|tests/e2e.sh|tests/e2e-selection.sh|tests/install-e2e-tools.sh|tests/static.sh|\
-      tests/backup.sh|tests/architecture.sh|\
+      tests/backup.sh|tests/architecture.sh|tests/bootstrap-storage.sh|\
       tests/postgres-migration.sh|tests/mariadb-migration.sh|\
       tests/postgres-migration-e2e.sh|tests/mariadb-migration-e2e.sh|\
       config/legacy-migration.env|\

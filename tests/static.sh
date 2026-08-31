@@ -26,7 +26,8 @@ rg -q 'age-keygen -pq -o' "$root/bin/bootstrap-host" || { printf 'host age ident
 for package in \
   age ca-certificates container-selinux curl diffutils firewalld fuse-overlayfs \
   gettext-envsubst gawk git iproute jq libselinux-utils openssh-clients passt \
-  podman policycoreutils python3 restic ripgrep shadow-utils systemd tar util-linux; do
+  podman policycoreutils python3 restic ripgrep shadow-utils systemd tar util-linux \
+  xfsprogs; do
   rg -q "^[[:space:]]+$package$" "$root/bin/bootstrap-host" || {
     printf 'Fedora package is missing from bootstrap: %s\n' "$package" >&2
     exit 1
@@ -107,6 +108,26 @@ rg -q 'require_subordinate_id_range /etc/subgid' "$root/bin/verify-host-security
   exit 1
 }
 rg -q '\-\-host-age-key' "$root/bin/bootstrap-host" || { printf 'host age identity cannot be restored during bootstrap\n' >&2; exit 1; }
+rg -q '\-\-no-data-disk' "$root/bin/bootstrap-host" || { printf 'bootstrap cannot skip an external storage disk\n' >&2; exit 1; }
+rg -q '\-\-data-disk' "$root/bin/bootstrap-host" || { printf 'bootstrap cannot select an external storage disk\n' >&2; exit 1; }
+rg -q '\-\-format-data-disk' "$root/bin/bootstrap-host" || { printf 'bootstrap cannot format an external storage disk\n' >&2; exit 1; }
+rg -q 'homelab_storage_setup' "$root/bin/bootstrap-host" || { printf 'bootstrap does not configure Podman storage\n' >&2; exit 1; }
+rg -q 'HOMELAB_STORAGE_FSTAB_MARKER="# homelab-podman-storage"' "$root/bin/lib-host-storage.sh" || {
+  printf 'storage fstab marker is missing\n' >&2
+  exit 1
+}
+rg -q 'x-systemd.automount' "$root/bin/lib-host-storage.sh" || {
+  printf 'storage mount is not configured to automount\n' >&2
+  exit 1
+}
+rg -q 'RequiresMountsFor=' "$root/bin/lib-host-storage.sh" || {
+  printf 'user instance does not wait for Podman storage\n' >&2
+  exit 1
+}
+rg -q 'nofail' "$root/bin/lib-host-storage.sh" && {
+  printf 'storage mount must not use nofail\n' >&2
+  exit 1
+}
 rg -q 'qemu-user-binfmt.*qemu-user-static-x86' "$root/bin/bootstrap-host" || {
   printf 'ARM64 bootstrap does not install the required QEMU packages\n' >&2
   exit 1

@@ -6,6 +6,8 @@ set -Eeuo pipefail
 root=$(cd -- "$(dirname -- "$0")/.." && pwd)
 # shellcheck source=/dev/null
 source "$root/bin/lib.sh"
+# shellcheck source=/dev/null
+source "$root/bin/lib-host-storage.sh"
 [[ $(uname -s) == Linux ]] || die "unsupported operating system: $(uname -s); this deployment requires Linux"
 # shellcheck disable=SC1091
 source /etc/os-release
@@ -20,6 +22,9 @@ firewalld_zone=public
 git_key=
 known_hosts=
 host_age_key=
+data_disk_mode=auto
+data_disk=
+format_data_disk=false
 
 while (($#)); do
   case "$1" in
@@ -29,10 +34,31 @@ while (($#)); do
     --git-key) git_key=${2:?}; shift 2 ;;
     --known-hosts) known_hosts=${2:?}; shift 2 ;;
     --host-age-key) host_age_key=${2:?}; shift 2 ;;
+    --no-data-disk)
+      [[ $data_disk_mode == auto ]] || die "conflicting data disk options"
+      data_disk_mode=skip
+      shift
+      ;;
+    --data-disk)
+      [[ $data_disk_mode == auto ]] || die "conflicting data disk options"
+      data_disk_mode=use
+      data_disk=${2:?}
+      shift 2
+      ;;
+    --format-data-disk)
+      format_data_disk=true
+      shift
+      ;;
     *) printf 'Unknown argument: %s\n' "$1" >&2; exit 1 ;;
   esac
 done
 [[ -n $repo_url ]] || { printf '%s\n' '--repo is required' >&2; exit 1; }
+if $format_data_disk; then
+  [[ $data_disk_mode == use ]] || die "--format-data-disk requires --data-disk"
+fi
+if [[ $data_disk_mode == use ]]; then
+  [[ $data_disk == /dev/* ]] || die "--data-disk must be an absolute /dev path"
+fi
 [[ -z $host_age_key || ( -f $host_age_key && -r $host_age_key ) ]] || {
   printf '%s\n' '--host-age-key must be a readable age identity backup' >&2
   exit 1
@@ -71,6 +97,7 @@ packages=(
   systemd
   tar
   util-linux
+  xfsprogs
 )
 if [[ $arch == arm64 ]]; then
   packages+=(qemu-user-binfmt qemu-user-static-x86)
@@ -150,6 +177,10 @@ ensure_subordinate_id_range() {
 }
 ensure_subordinate_id_range "$runtime_user" --add-subuids /etc/subuid
 ensure_subordinate_id_range "$runtime_user" --add-subgids /etc/subgid
+
+HOMELAB_RUNTIME_HOME=$runtime_home
+export HOMELAB_RUNTIME_HOME
+homelab_storage_setup "$data_disk_mode" "$data_disk" "$format_data_disk" "$runtime_user"
 loginctl enable-linger "$runtime_user"
 
 install -d -m 0700 -o "$runtime_user" -g "$runtime_user" "$runtime_home/.ssh" "$runtime_home/.config/sops/age" "$runtime_home/git"

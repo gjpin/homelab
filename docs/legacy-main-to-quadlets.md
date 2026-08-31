@@ -57,8 +57,15 @@ sudo ./bin/bootstrap-host \
   --branch main \
   --git-key ../github-deploy-key \
   --known-hosts ../github-known-hosts \
-  --firewalld-zone public
+  --firewalld-zone public \
+  --data-disk /dev/disk/by-id/DEVICE \
+  --format-data-disk
 ```
+
+Use `--format-data-disk` only for a new empty disk. If the disk already holds
+the intended filesystem, omit `--format-data-disk`. Use `--no-data-disk` to
+keep Podman storage on the OS disk. Restore volumes only after
+`/home/homelab/.local/share/containers/storage` is mounted.
 
 Do not run reconciliation yet. The branch intentionally has no usable
 `secrets/secrets.sops.yaml` until the recovered application credentials have
