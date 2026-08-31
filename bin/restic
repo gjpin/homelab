@@ -18,6 +18,7 @@ restic_binary=${HOMELAB_RESTIC_BIN:-/usr/bin/restic}
 secrets_file="$root/secrets/secrets.sops.yaml"
 [[ -r $secrets_file ]] || die "missing encrypted secrets: $secrets_file"
 secrets_json=$(sops --decrypt --output-type json "$secrets_file")
+apply_private_site_config "$secrets_json"
 
 AWS_ACCESS_KEY_ID=$(jq -jer '.backup.s3_access_key_id' <<<"$secrets_json")
 AWS_SECRET_ACCESS_KEY=$(jq -jer '.backup.s3_secret_access_key' <<<"$secrets_json")
@@ -26,7 +27,7 @@ RESTIC_PASSWORD=$(jq -jer '.backup.repository_password' <<<"$secrets_json")
 [[ -n $AWS_SECRET_ACCESS_KEY ]] || die "backup S3 secret access key is empty"
 [[ -n $RESTIC_PASSWORD ]] || die "restic repository password is empty"
 
-RESTIC_REPOSITORY="s3:${BACKUP_S3_ENDPOINT}/${BACKUP_S3_BUCKET}/${BACKUP_S3_PREFIX}"
+RESTIC_REPOSITORY="s3:${BACKUP_S3_ENDPOINT}/${BACKUP_S3_BUCKET}${BACKUP_S3_PREFIX:+/${BACKUP_S3_PREFIX}}"
 RESTIC_HOST="homelab-${BASE_DOMAIN}"
 RESTIC_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/restic"
 AWS_DEFAULT_REGION=$BACKUP_S3_REGION

@@ -25,22 +25,21 @@ verification.
 
 On the operator workstation, use a trusted checkout of the `main` branch.
 `bin/init-secrets` later needs the workstation tools listed in `README.md`
-(SOPS with age 1.3, `argon2`, and Python `bcrypt`). Set the real values in
+(SOPS with age 1.3, `argon2`, and Python `bcrypt`). Set the public values in
 `config/site.env` and commit them before bootstrapping:
 
 ```dotenv
-BASE_DOMAIN=your-real-domain
 TIMEZONE=Europe/Lisbon
 HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=your-stable-serial-id
 BACKUP_S3_ENDPOINT=https://s3.REGION.backblazeb2.com
 BACKUP_S3_REGION=REGION
-BACKUP_S3_BUCKET=BUCKET
-BACKUP_S3_PREFIX=homelab
 ```
 
-Use a new prefix such as `homelab` (or a fresh dedicated prefix). Do not
-initialize or write to the old Docker repository. A new Restic repository
-password is recommended; keep it separately in the operator password manager.
+`bin/init-secrets` later encrypts `BASE_DOMAIN`, the backup bucket, and the
+prefix. Use a new prefix such as `homelab` (or a fresh dedicated prefix), or
+leave it empty for the bucket root. Do not initialize or write to the old
+Docker repository. A new Restic repository password is recommended; keep it
+separately in the operator password manager.
 
 Create a new operator age identity if one is not already backed up:
 

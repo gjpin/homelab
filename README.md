@@ -127,8 +127,10 @@ Perform these steps in order. Replace every uppercase placeholder.
    git push -u origin main
    ```
 
-   Set `BASE_DOMAIN`, `TIMEZONE`, `HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID`,
-   and the four `BACKUP_S3_*` values in `config/site.env`. The GitHub
+   Set `TIMEZONE`, `HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID`,
+   `BACKUP_S3_ENDPOINT`, and `BACKUP_S3_REGION` in `config/site.env`. Keep
+   `BASE_DOMAIN`, `BACKUP_S3_BUCKET`, and `BACKUP_S3_PREFIX` out of Git
+   plaintext; `bin/init-secrets` encrypts them later. The GitHub
    repository is required on every replacement host; no separate repository
    backup is required if GitHub remains available and contains every committed
    change.
@@ -258,12 +260,13 @@ Perform these steps in order. Replace every uppercase placeholder.
     create inbound router forwards. The Cloudflare zone and token are still
     required for ACME DNS-01 certificate issuance.
 
-12. Before running secret initialization, have these values ready: the S3 key
-    ID and secret, a unique restic repository password of at least 20
-    characters, the Cloudflare token from step 10, a bookmarks password, a
-    Radicale username and password, and a Vaultwarden admin password. Save
-    the chosen application passwords and the restic password in the operator
-    password manager; application password hashes cannot be reversed. From the
+12. Before running secret initialization, have these values ready: the base
+    domain, S3 bucket name, optional S3 prefix, the S3 key ID and secret, a
+    unique restic repository password of at least 20 characters, the
+    Cloudflare token from step 10, a bookmarks password, a Radicale username
+    and password, and a Vaultwarden admin password. Save the chosen
+    application passwords and the restic password in the operator password
+    manager; application password hashes cannot be reversed. From the
     repository root on the operator workstation, initialize and push encrypted
     secrets using the host recipient printed in step 7 and the operator
     recipient printed in step 9:
@@ -563,7 +566,7 @@ all other images use the host's native architecture.
 | Item | Backup requirement | Replacement-host action |
 | --- | --- | --- |
 | Private GitHub repository | Keep all changes pushed. An independent mirror is optional. | Clone it with a read-only deploy key. |
-| `.sops.yaml` and `secrets/secrets.sops.yaml` | Required; keep them committed in the private repository. | Clone them from GitHub; the host age identity decrypts them. |
+| `.sops.yaml` and `secrets/secrets.sops.yaml` | Required; keep them committed in the private repository. They include the base domain, backup bucket, and prefix. | Clone them from GitHub; the host age identity decrypts them. |
 | `config/site.env` | Required; keep it committed in the private repository. | Clone it from GitHub. Update the Zigbee serial ID first if the replacement hardware differs. |
 | Host age identity: `/home/homelab/.config/sops/age/keys.txt` | Required; store encrypted/offline. | Restore the exact file with `--host-age-key`. Do not generate a replacement when restoring existing SOPS secrets. |
 | Operator age identity: `~/.config/sops/age/operator.txt` | Required; store encrypted/offline, separately from the host identity. | Keep it on the operator workstation. It is the recovery identity if the host copy is lost. |

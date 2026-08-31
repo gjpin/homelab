@@ -173,8 +173,11 @@ For rendered configuration or credentials:
 - Add templates under `config/templates/<workload>/` and render them from
   `bin/render-config`. Keep the rendered tree below `%t/homelab`, mode `0700`
   at its parent, and use read-only `:ro,Z` mounts into containers.
-- Add new supported site settings to `config/site.env` and the strict parser
-  in `bin/lib.sh`; do not silently accept arbitrary environment keys.
+- Add new supported public site settings to `config/site.env` and the strict
+  parser in `bin/lib.sh`; do not silently accept arbitrary environment keys.
+  Site identity that must not appear in Git plaintext (`BASE_DOMAIN`, backup
+  bucket, backup prefix) belongs in `secrets/secrets.example.yaml` and
+  `bin/init-secrets`.
 - Add the secret schema to `secrets/secrets.example.yaml`, import each
   container secret in `bin/render-config`, and extend `bin/init-secrets` when
   fresh installation must prompt for or generate the value.

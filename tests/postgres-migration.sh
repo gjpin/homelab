@@ -25,13 +25,10 @@ cp "$source_root/quadlet/applications/forgejo/forgejo-postgres.container" "$fixt
 cp "$source_root/quadlet/applications/immich/immich-postgres.container" "$fixture/quadlet/applications/immich/"
 
 cat >"$fixture/config/site.env" <<'EOF'
-BASE_DOMAIN=home.example.com
 TIMEZONE=Europe/Lisbon
 HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=test-device
 BACKUP_S3_ENDPOINT=https://s3.example.com
 BACKUP_S3_REGION=us-east-1
-BACKUP_S3_BUCKET=homelab-test
-BACKUP_S3_PREFIX=homelab
 EOF
 
 cat >"$fake_bin/systemctl" <<'EOF'

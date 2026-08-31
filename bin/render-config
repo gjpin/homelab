@@ -23,6 +23,7 @@ install -d -m 0700 "$HOME/.local/state/homelab"
 ln -sfn "/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID" "$HOME/.local/state/homelab/zigbee-router"
 
 secrets_json=$(sops --decrypt --output-type json "$secrets_file")
+apply_private_site_config "$secrets_json"
 jq -e '
   .backup.s3_access_key_id | type == "string" and length > 0
 ' <<<"$secrets_json" >/dev/null || die "backup S3 access key ID is missing"

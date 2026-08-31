@@ -101,46 +101,79 @@ load_host_tools() {
   export SOPS_ARM64_RPM_SHA256 SOPS_ARM64_BINARY_SHA256
 }
 
+validate_base_domain() {
+  local value=${1:-}
+  [[ $value != "" && $value != "example.invalid" ]] || die "site.base_domain is not configured"
+  [[ $value =~ ^[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9]$ ]] || die "site.base_domain is invalid"
+}
+
+validate_backup_s3_bucket() {
+  local value=${1:-}
+  [[ $value =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]] || die "backup.s3_bucket is invalid"
+  [[ $value != "replace-me" ]] || die "backup.s3_bucket is not configured"
+}
+
+validate_backup_s3_prefix() {
+  local value=${1:-}
+  [[ -z $value ]] && return 0
+  [[ $value =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*[A-Za-z0-9]$ ]] || die "backup.s3_prefix is invalid"
+  [[ $value != *'..'* && $value != *'//'* ]] || die "backup.s3_prefix contains an unsafe path component"
+}
+
+apply_private_site_config() {
+  local secrets_json=$1
+  BASE_DOMAIN=$(jq -r '.site.base_domain // empty' <<<"$secrets_json")
+  BACKUP_S3_BUCKET=$(jq -r '.backup.s3_bucket // empty' <<<"$secrets_json")
+  BACKUP_S3_PREFIX=$(jq -r '.backup.s3_prefix // empty' <<<"$secrets_json")
+  validate_base_domain "$BASE_DOMAIN"
+  validate_backup_s3_bucket "$BACKUP_S3_BUCKET"
+  validate_backup_s3_prefix "$BACKUP_S3_PREFIX"
+  export BASE_DOMAIN BACKUP_S3_BUCKET BACKUP_S3_PREFIX
+}
+
+load_private_site_config() {
+  local root=${1:-$(repo_root)}
+  local secrets_file="$root/secrets/secrets.sops.yaml"
+  local secrets_json
+  [[ -r $secrets_file ]] || die "missing encrypted secrets: $secrets_file"
+  require_command jq
+  require_command sops
+  secrets_json=$(sops --decrypt --output-type json "$secrets_file")
+  apply_private_site_config "$secrets_json"
+  unset secrets_json
+}
+
 load_site_config() {
   local root=${1:-$(repo_root)}
   local file="$root/config/site.env"
   local line key value
   [[ -r "$file" ]] || die "missing site configuration: $file"
-  BASE_DOMAIN=
   TIMEZONE=
   HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=
   BACKUP_S3_ENDPOINT=
   BACKUP_S3_REGION=
-  BACKUP_S3_BUCKET=
-  BACKUP_S3_PREFIX=
   while IFS= read -r line || [[ -n $line ]]; do
     [[ -z $line || $line == \#* ]] && continue
     [[ $line == *=* ]] || die "invalid site configuration line: $line"
     key=${line%%=*}
     value=${line#*=}
     case "$key" in
-      BASE_DOMAIN) BASE_DOMAIN=$value ;;
+      BASE_DOMAIN) die "BASE_DOMAIN must be stored in secrets/secrets.sops.yaml as site.base_domain" ;;
       TIMEZONE) TIMEZONE=$value ;;
       HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID) HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=$value ;;
       BACKUP_S3_ENDPOINT) BACKUP_S3_ENDPOINT=$value ;;
       BACKUP_S3_REGION) BACKUP_S3_REGION=$value ;;
-      BACKUP_S3_BUCKET) BACKUP_S3_BUCKET=$value ;;
-      BACKUP_S3_PREFIX) BACKUP_S3_PREFIX=$value ;;
+      BACKUP_S3_BUCKET) die "BACKUP_S3_BUCKET must be stored in secrets/secrets.sops.yaml as backup.s3_bucket" ;;
+      BACKUP_S3_PREFIX) die "BACKUP_S3_PREFIX must be stored in secrets/secrets.sops.yaml as backup.s3_prefix" ;;
       *) die "unknown site configuration key: $key" ;;
     esac
   done <"$file"
-  [[ ${BASE_DOMAIN:-} != "" && ${BASE_DOMAIN} != "example.invalid" ]] || die "BASE_DOMAIN is not configured"
-  [[ $BASE_DOMAIN =~ ^[A-Za-z0-9][A-Za-z0-9.-]*[A-Za-z0-9]$ ]] || die "BASE_DOMAIN is invalid"
   [[ ${TIMEZONE:-} =~ ^[A-Za-z0-9._+-]+(/[A-Za-z0-9._+-]+)+$ ]] || die "TIMEZONE is invalid"
   [[ ${HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID:-} != "" && ${HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID} != "REPLACE_ME" ]] || die "HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID is not configured"
   [[ $HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID =~ ^[A-Za-z0-9._:+-]+$ ]] || die "HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID is invalid"
   [[ ${BACKUP_S3_ENDPOINT:-} =~ ^https://[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]{1,5})?$ ]] || die "BACKUP_S3_ENDPOINT must be an HTTPS origin without a trailing slash"
   [[ $BACKUP_S3_ENDPOINT != "https://s3.example.invalid" ]] || die "BACKUP_S3_ENDPOINT is not configured"
   [[ ${BACKUP_S3_REGION:-} =~ ^[A-Za-z0-9][A-Za-z0-9-]*$ ]] || die "BACKUP_S3_REGION is invalid"
-  [[ ${BACKUP_S3_BUCKET:-} =~ ^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$ ]] || die "BACKUP_S3_BUCKET is invalid"
-  [[ $BACKUP_S3_BUCKET != "replace-me" ]] || die "BACKUP_S3_BUCKET is not configured"
-  [[ ${BACKUP_S3_PREFIX:-} =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*[A-Za-z0-9]$ ]] || die "BACKUP_S3_PREFIX is invalid"
-  [[ $BACKUP_S3_PREFIX != *'..'* && $BACKUP_S3_PREFIX != *'//'* ]] || die "BACKUP_S3_PREFIX contains an unsafe path component"
-  export BASE_DOMAIN TIMEZONE HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID
-  export BACKUP_S3_ENDPOINT BACKUP_S3_REGION BACKUP_S3_BUCKET BACKUP_S3_PREFIX
+  export TIMEZONE HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID
+  export BACKUP_S3_ENDPOINT BACKUP_S3_REGION
 }

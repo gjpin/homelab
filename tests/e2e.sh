@@ -163,13 +163,10 @@ while IFS= read -r source; do
 done < <(find "$test_root/systemd/user" -maxdepth 1 -type f \( -name '*.service' -o -name '*.target' -o -name '*.timer' \) | sort)
 
 printf '%s\n' \
-  'BASE_DOMAIN=e2e.test' \
   'TIMEZONE=Europe/Lisbon' \
   'HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=e2e-fixture' \
   'BACKUP_S3_ENDPOINT=https://s3.e2e.test' \
   'BACKUP_S3_REGION=us-east-1' \
-  'BACKUP_S3_BUCKET=homelab-e2e' \
-  'BACKUP_S3_PREFIX=e2e' \
   >"$test_root/config/site.env"
 
 cat >"$test_root/config/templates/caddy/Caddyfile" <<'EOF'
@@ -184,7 +181,11 @@ cat >"$test_root/config/templates/caddy/Caddyfile" <<'EOF'
 EOF
 
 cat >"$test_root/secrets/e2e-plaintext.yaml" <<'EOF'
+site:
+  base_domain: e2e.test
 backup:
+  s3_bucket: homelab-e2e
+  s3_prefix: e2e
   s3_access_key_id: e2e-access-key
   s3_secret_access_key: e2e-secret-key
   repository_password: e2e-repository-password-0123456789

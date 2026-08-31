@@ -12,21 +12,19 @@ state_dir="$test_home/.local/state/homelab"
 log="$test_root/commands.log"
 
 install -d "$fixture/bin" "$fixture/config" "$fixture/manifests" \
-  "$fixture/quadlet" "$fake_bin" "$runtime_dir" \
+  "$fixture/quadlet" "$fixture/secrets" "$fake_bin" "$runtime_dir" \
   "$test_home/.config/sops/age" "$state_dir"
 cp "$source_root/bin/backup" "$source_root/bin/lib.sh" "$fixture/bin/"
 cp "$source_root/manifests/applications.json" "$fixture/manifests/"
 cp -R "$source_root/quadlet/volumes" "$fixture/quadlet/"
 
 cat >"$fixture/config/site.env" <<'EOF'
-BASE_DOMAIN=home.example.com
 TIMEZONE=Europe/Lisbon
 HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID=test-device
 BACKUP_S3_ENDPOINT=https://s3.example.com
 BACKUP_S3_REGION=us-east-1
-BACKUP_S3_BUCKET=homelab-test
-BACKUP_S3_PREFIX=homelab
 EOF
+printf '{}\n' >"$fixture/secrets/secrets.sops.yaml"
 printf 'AGE-SECRET-KEY-TEST\n' >"$test_home/.config/sops/age/keys.txt"
 printf '0123456789abcdef0123456789abcdef01234567\n' >"$state_dir/deployed-commit"
 cat >"$fixture/bin/restic" <<'EOF'
@@ -93,8 +91,23 @@ cat >"$fake_bin/date" <<'EOF'
 printf '2026-08-28T03:00:00Z\n'
 EOF
 
+cat >"$fake_bin/sops" <<'EOF'
+#!/usr/bin/env bash
+jq -n --arg prefix "${TEST_S3_PREFIX-homelab}" '{
+  site: {base_domain: "home.example.com"},
+  backup: {
+    s3_bucket: "homelab-test",
+    s3_prefix: $prefix,
+    s3_access_key_id: "id",
+    s3_secret_access_key: "key",
+    repository_password: "passwordpasswordpassword"
+  }
+}'
+EOF
+
 chmod 0755 "$fixture/bin/backup" "$fixture/bin/restic" \
-  "$fake_bin/systemctl" "$fake_bin/podman" "$fake_bin/flock" "$fake_bin/date"
+  "$fake_bin/systemctl" "$fake_bin/podman" "$fake_bin/flock" "$fake_bin/date" \
+  "$fake_bin/sops"
 
 run_backup() {
   env PATH="$fake_bin:$PATH" HOME="$test_home" XDG_RUNTIME_DIR="$runtime_dir" \
@@ -177,3 +190,53 @@ if rg -q '^(restic|systemctl|podman) ' "$log"; then
 fi
 
 printf 'backup orchestration tests passed\n'
+
+restic_root="$test_root/restic-wrapper"
+install -d "$restic_root/bin" "$restic_root/config" "$restic_root/secrets"
+cp "$source_root/bin/restic" "$source_root/bin/lib.sh" "$restic_root/bin/"
+chmod 0755 "$restic_root/bin/restic"
+cp "$fixture/config/site.env" "$restic_root/config/site.env"
+printf '{}\n' >"$restic_root/secrets/secrets.sops.yaml"
+
+cat >"$fake_bin/print-restic-repository" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "${RESTIC_REPOSITORY-}"
+EOF
+chmod 0755 "$fake_bin/print-restic-repository"
+
+run_restic_wrapper() {
+  env PATH="$fake_bin:$PATH" HOMELAB_RESTIC_BIN="$fake_bin/print-restic-repository" \
+    TEST_S3_PREFIX="${1-}" \
+    "$restic_root/bin/restic"
+}
+
+# shellcheck source=/dev/null
+source "$source_root/bin/lib.sh"
+
+assert_prefix_rejected() {
+  local prefix=$1
+  if (validate_backup_s3_prefix "$prefix") >/dev/null 2>&1; then
+    printf 'backup.s3_prefix=%s unexpectedly accepted\n' "$prefix" >&2
+    exit 1
+  fi
+}
+
+validate_backup_s3_prefix ''
+[[ $(run_restic_wrapper '') == 's3:https://s3.example.com/homelab-test' ]] || {
+  printf 'empty prefix produced an unexpected restic repository URL\n' >&2
+  exit 1
+}
+
+validate_backup_s3_prefix homelab
+[[ $(run_restic_wrapper homelab) == 's3:https://s3.example.com/homelab-test/homelab' ]] || {
+  printf 'prefixed repository URL is incorrect\n' >&2
+  exit 1
+}
+
+assert_prefix_rejected '..'
+assert_prefix_rejected 'foo//bar'
+assert_prefix_rejected '/leading'
+assert_prefix_rejected 'trailing/'
+assert_prefix_rejected 'bad prefix'
+
+printf 'restic repository prefix tests passed\n'

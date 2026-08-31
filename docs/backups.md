@@ -17,20 +17,20 @@ the native B2 API endpoint or a master key. Configure the bucket lifecycle to
 keep only the latest version of each object; otherwise objects deleted by
 restic pruning remain as chargeable hidden B2 versions.
 
-Set these non-secret values in `config/site.env`:
+Set the S3 origin in `config/site.env`. The bucket name, object prefix, and
+access keys are private and belong in SOPS:
 
 ```dotenv
 BACKUP_S3_ENDPOINT=https://s3.REGION.backblazeb2.com
 BACKUP_S3_REGION=REGION
-BACKUP_S3_BUCKET=BUCKET
-BACKUP_S3_PREFIX=homelab
 ```
 
-`BACKUP_S3_ENDPOINT` must be an HTTPS origin without a trailing slash. Keep the
-prefix stable across host migrations.
+`BACKUP_S3_ENDPOINT` must be an HTTPS origin without a trailing slash.
 
-Fresh installations collect all three backup secrets through
-`bin/init-secrets`. For an existing encrypted secrets file, edit it on the
+Fresh installations collect the base domain, bucket, prefix, and backup
+secrets through `bin/init-secrets`. Leave the prefix empty to store the
+repository at the bucket root, or set a path prefix. Keep the prefix stable
+across host migrations. For an existing encrypted secrets file, edit it on the
 operator workstation:
 
 ```bash
@@ -38,10 +38,14 @@ SOPS_AGE_KEY_FILE=~/.config/sops/age/operator.txt \
   sops secrets/secrets.sops.yaml
 ```
 
-Add:
+Set:
 
 ```yaml
+site:
+  base_domain: your.real.domain
 backup:
+  s3_bucket: BUCKET
+  s3_prefix: ""
   s3_access_key_id: BACKUP_KEY_ID
   s3_secret_access_key: BACKUP_APPLICATION_KEY
   repository_password: LONG_UNIQUE_RESTIC_PASSWORD
