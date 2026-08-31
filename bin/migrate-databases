@@ -416,7 +416,7 @@ while IFS= read -r unit_path; do
       podman exec "$old_container" pg_dump -h 127.0.0.1 -U "$db_user" -d "$db_name" --format=custom --no-owner >"$dump_file"
       ;;
     mariadb)
-      podman exec "$old_container" sh -c 'mariadb-dump -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --all-databases --single-transaction --routines --events --flush-privileges' >"$dump_file"
+      podman exec "$old_container" sh -c 'mariadb-dump -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --system=users --insert-ignore && mariadb-dump -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --all-databases --ignore-database=mysql --ignore-database=sys --single-transaction --routines --events --flush-privileges' >"$dump_file"
       ;;
   esac
   [[ -s $dump_file ]] || die "$engine dump for $workload is empty: $dump_file"

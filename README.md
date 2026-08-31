@@ -465,10 +465,13 @@ Shared steps:
    restoration or verification fails, roll back from the state-dir tarball
    (not a temp directory).
 
-PostgreSQL uses a custom-format `pg_dump` / `pg_restore`. MariaDB uses
+PostgreSQL uses a custom-format `pg_dump` / `pg_restore`. MariaDB dumps
+logical users with `--system=users`, then application databases with
 `mariadb-dump --all-databases` as root via the imported
-`MYSQL_ROOT_PASSWORD` secret and does not mount `docker-entrypoint-initdb.d`
-seed SQL during the upgrade. Downgrades are refused.
+`MYSQL_ROOT_PASSWORD` secret, omitting the `mysql` and `sys` schemas so a
+major upgrade does not restore a physical `mysql.proc` table into the new
+version. It does not mount `docker-entrypoint-initdb.d` seed SQL during the
+upgrade. Downgrades are refused.
 
 The migration tool can also be run or inspected manually:
 

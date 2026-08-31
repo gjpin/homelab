@@ -85,7 +85,7 @@ done
 $ready || die "seed container failed to become ready: $seed_container"
 
 info "seeding fake data into MariaDB 11 database"
-podman exec "$seed_container" sh -c \
+podman exec -i "$seed_container" sh -c \
   'mariadb -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" supernotedb' <<'SQL'
 CREATE TABLE test_notes (
   id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -95,7 +95,14 @@ CREATE TABLE test_notes (
 INSERT INTO test_notes (owner, title) VALUES
   ('alice', 'Grocery list'),
   ('bob', 'Homelab MariaDB upgrade');
+CREATE PROCEDURE count_test_notes()
+  SELECT COUNT(*) FROM test_notes;
 SQL
+
+seeded_tables=$(podman exec "$seed_container" sh -c \
+  'mariadb -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --batch --skip-column-names --execute="SHOW TABLES FROM supernotedb"')
+seeded_tables=$(tr -d '[:space:]' <<<"$seeded_tables")
+[[ $seeded_tables == *test_notes* ]] || die "seed did not create supernotedb.test_notes"
 
 podman rm -f "$seed_container" >/dev/null
 
@@ -176,6 +183,11 @@ note_title=$(podman exec "$verify_container" sh -c \
   'mariadb -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --batch --skip-column-names --execute="SELECT title FROM supernotedb.test_notes WHERE id = 2"')
 note_title=$(tr -d '\r\n' <<<"$note_title")
 [[ $note_title == "Homelab MariaDB upgrade" ]] || die "note title mismatch: $note_title"
+
+routine_name=$(podman exec "$verify_container" sh -c \
+  'mariadb -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --batch --skip-column-names --execute="SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA='\''supernotedb'\'' AND ROUTINE_NAME='\''count_test_notes'\''"')
+routine_name=$(tr -d '[:space:]' <<<"$routine_name")
+[[ $routine_name == "count_test_notes" ]] || die "expected stored procedure count_test_notes, found ${routine_name:-missing}"
 
 podman rm -f "$verify_container" >/dev/null
 
