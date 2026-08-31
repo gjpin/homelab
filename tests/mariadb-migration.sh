@@ -200,6 +200,9 @@ grep -q 'would migrate supernote from MariaDB 11 to 12' <<<"$dry_out" || {
 : >"$log"
 TEST_NEW_VERSION=12 run_migrate --release "$fixture" --workload supernote
 grep -q 'mariadb-dump' "$log"
+grep -q -- '--system=users' "$log"
+grep -q -- '--ignore-database=mysql' "$log"
+grep -q -- '--ignore-database=sys' "$log"
 grep -q 'migration.sql' "$log"
 grep -q 'SCHEMA_NAME' "$log"
 [[ $(cat "$test_root/volumes/homelab-supernote-mariadb/mariadb_upgrade_info") == 12.3.3-MariaDB ]]
