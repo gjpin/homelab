@@ -5,7 +5,7 @@ Requires=homelab-secrets.service
 PartOf=homelab-immich.target
 
 [Container]
-Image=docker.io/valkey/valkey:9.1.1@sha256:64e361b630ecf18dff7ca4df6a88e6eafc193687eb48cff2c7e0a293ab67d29a
+Image=docker.io/valkey/valkey:9.1.2@sha256:a91d34ab33975b1054e26f1bd9995b268f7e0c507b5ded7f3d181a1a25521630
 Pull=missing
 ContainerName=immich-valkey
 User=1000:1000
