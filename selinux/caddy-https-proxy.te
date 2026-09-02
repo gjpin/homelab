@@ -1,8 +1,10 @@
 module homelab_caddy_https_proxy 1.0;
 
 require {
+	type init_t;
 	type systemd_socket_proxyd_t;
 	type http_port_t;
+	class process2 nnp_transition;
 	class tcp_socket { name_bind name_connect };
 }
 
@@ -10,3 +12,7 @@ require {
 # systemd_socket_proxyd_t. That type cannot bind Fedora's http_port_t (TCP 443)
 # or connect to Caddy on 127.0.0.1:8443 (also http_port_t) without this allow.
 allow systemd_socket_proxyd_t http_port_t:tcp_socket { name_bind name_connect };
+
+# DynamicUser=yes and NoNewPrivileges=yes set PR_SET_NO_NEW_PRIVS on the proxy service.
+# Allow systemd (init_t) to transition to systemd_socket_proxyd_t under NNP.
+allow init_t systemd_socket_proxyd_t:process2 nnp_transition;

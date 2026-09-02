@@ -18,7 +18,7 @@ runtime_user=homelab
 runtime_home=/home/homelab
 repo_url=
 branch=main
-firewalld_zone=public
+firewalld_zone=
 git_key=
 known_hosts=
 host_age_key=
@@ -157,6 +157,9 @@ rm -f -- \
   "$legacy_bin_dir/age" "$legacy_bin_dir/age-keygen" "$legacy_bin_dir/age-inspect" \
   "$legacy_bin_dir/restic" "$legacy_bin_dir/sops"
 systemctl enable --now firewalld
+if [[ -z $firewalld_zone ]]; then
+  firewalld_zone=$(firewall-cmd --get-default-zone 2>/dev/null || printf 'public')
+fi
 
 # Re-bootstrap must be able to replace the proxy this script installed.
 if systemctl is-active --quiet caddy-https-proxy.socket \

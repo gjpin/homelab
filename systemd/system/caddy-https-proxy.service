@@ -4,7 +4,7 @@ Requires=caddy-https-proxy.socket
 After=caddy-https-proxy.socket
 
 [Service]
-Type=notify
+Type=exec
 ExecStart=/usr/lib/systemd/systemd-socket-proxyd 127.0.0.1:8443
 DynamicUser=yes
 NoNewPrivileges=yes

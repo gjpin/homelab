@@ -57,7 +57,6 @@ sudo ./bin/bootstrap-host \
   --branch main \
   --git-key ../github-deploy-key \
   --known-hosts ../github-known-hosts \
-  --firewalld-zone public \
   --data-disk /dev/disk/by-id/DEVICE \
   --format-data-disk
 ```

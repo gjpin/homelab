@@ -194,8 +194,7 @@ Perform these steps in order. Replace every uppercase placeholder.
    sudo ./bin/bootstrap-host \
      --repo git@github.com:OWNER/REPOSITORY.git \
      --git-key ../github-deploy-key \
-     --known-hosts ../github-known-hosts \
-     --firewalld-zone public
+     --known-hosts ../github-known-hosts
 
    /usr/bin/restic version
    /usr/bin/age --version
@@ -217,7 +216,9 @@ Perform these steps in order. Replace every uppercase placeholder.
    `homelab` account, installs Fedora's age and restic RPMs plus the
    checksum-verified SOPS RPM, clones the private repository, generates
    `/home/homelab/.config/sops/age/keys.txt`, installs the TCP 443 proxy and
-   the daily host-tools update timer, and configures firewalld. The version
+   the daily host-tools update timer, and configures firewalld for the host's
+   active default zone (e.g. `FedoraServer` on Fedora Server or `public` on
+   Workstation; override with `--firewalld-zone`). The version
    command must report restic 0.19.1 or later. The generated `keys.txt` private
    identity is required to decrypt the existing secrets on a replacement host.
    Back it up in step 15. Never commit it.
@@ -307,8 +308,7 @@ Perform these steps in order. Replace every uppercase placeholder.
     sudo ./bin/bootstrap-host \
       --repo git@github.com:OWNER/REPOSITORY.git \
       --git-key ../github-deploy-key \
-      --known-hosts ../github-known-hosts \
-      --firewalld-zone public
+      --known-hosts ../github-known-hosts
     ```
 
 13. Run the first reconciliation on the target host and verify it:
@@ -794,7 +794,6 @@ Do not run an initial reconciliation before restoring the volumes.
      --git-key ../github-deploy-key \
      --known-hosts ../github-known-hosts \
      --host-age-key ../host-age-keys.txt \
-     --firewalld-zone public \
      --data-disk /dev/disk/by-id/DEVICE
    ```
 

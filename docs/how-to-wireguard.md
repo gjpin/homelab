@@ -100,11 +100,24 @@ nmcli connection show wg0
 
 ## Configure firewalld (optional)
 
-If services on this host should be accessible across the WireGuard tunnel,
-assign the `wg0` interface to an appropriate firewalld zone:
+By default, NetworkManager assigns the `wg0` interface to your host's default
+firewalld zone (such as `FedoraServer` on Fedora Server, or `public`). Because
+`bin/bootstrap-host` already opened TCP 443 (HTTPS) and Syncthing TCP/UDP 22000
+in that default zone, no additional firewalld changes are usually required. You
+can verify active zones with:
+
+```bash
+sudo firewall-cmd --get-active-zones
+```
+
+If you prefer to move `wg0` into a dedicated firewalld zone (such as `internal`),
+ensure you also explicitly permit the necessary homelab services:
 
 ```bash
 sudo firewall-cmd --permanent --zone=internal --add-interface=wg0
+sudo firewall-cmd --permanent --zone=internal --add-service=https
+sudo firewall-cmd --permanent --zone=internal --add-port=22000/tcp
+sudo firewall-cmd --permanent --zone=internal --add-port=22000/udp
 sudo firewall-cmd --reload
 ```
 

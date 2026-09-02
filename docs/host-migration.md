@@ -71,7 +71,6 @@ sudo ./bin/bootstrap-host \
   --git-key ../github-deploy-key \
   --known-hosts ../github-known-hosts \
   --host-age-key /SECURE/PATH/host-age-keys.txt \
-  --firewalld-zone public \
   --data-disk /dev/disk/by-id/DEVICE
 ```
 
