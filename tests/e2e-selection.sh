@@ -112,6 +112,28 @@ make_commit
 assert_scope gamma 'new workload'
 reset_fixture
 
+git -C "$fixture" rm -rq quadlet/applications/beta
+cat >"$fixture/manifests/applications.json" <<'EOF'
+{
+  "alpha": {"units": ["alpha.service"], "secrets": []},
+  "caddy": {"units": ["caddy.service", "caddy-build.service"], "secrets": []}
+}
+EOF
+cat >"$fixture/tests/e2e-readiness.json" <<'EOF'
+{
+  "version": 1,
+  "containers": {
+    "alpha": {"mode": "running"},
+    "caddy": {"mode": "running"}
+  }
+}
+EOF
+make_commit
+assert_scope none 'removed workload'
+assert_ci 'removed workload' \
+  'e2e_mode=none' 'e2e_workloads=' 'build_images=' 'host_tools=false'
+reset_fixture
+
 sed -i 's/"alpha": {"mode": "running"}/"alpha": {"mode": "tcp", "network": "alpha", "port": 1}/' \
   "$fixture/tests/e2e-readiness.json"
 make_commit

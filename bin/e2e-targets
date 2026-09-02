@@ -88,7 +88,9 @@ load_known_images() {
 
 add_build_image() {
   local image=$1
-  [[ ${known_images[$image]:-false} == true ]] && build_images[$image]=true
+  if [[ ${known_images[$image]:-false} == true ]]; then
+    build_images[$image]=true
+  fi
 }
 
 add_all_build_images() {
@@ -180,7 +182,9 @@ done
 
 add_workload() {
   local workload=$1
-  [[ ${head_workload_set[$workload]:-false} == true ]] && selected[$workload]=true
+  if [[ ${head_workload_set[$workload]:-false} == true ]]; then
+    selected[$workload]=true
+  fi
 }
 
 workload_for_build() {
@@ -334,7 +338,9 @@ mapfile -t manifest_workloads < <(
 for workload in "${manifest_workloads[@]}"; do
   base_value=$(jq -c --arg workload "$workload" '.[$workload] // null' "$work_dir/base-manifest.json")
   head_value=$(jq -c --arg workload "$workload" '.[$workload] // null' "$work_dir/head-manifest.json")
-  [[ $base_value == "$head_value" ]] || add_workload "$workload"
+  if [[ $base_value != "$head_value" ]]; then
+    add_workload "$workload"
+  fi
 done
 
 mapfile -t readiness_containers < <(
@@ -343,7 +349,9 @@ mapfile -t readiness_containers < <(
 for container in "${readiness_containers[@]}"; do
   base_value=$(jq -c --arg container "$container" '.containers[$container] // null' "$work_dir/base-readiness.json")
   head_value=$(jq -c --arg container "$container" '.containers[$container] // null' "$work_dir/head-readiness.json")
-  [[ $base_value == "$head_value" ]] && continue
+  if [[ $base_value == "$head_value" ]]; then
+    continue
+  fi
   if workload=$(container_owner "$head_ref" "$work_dir/head-manifest.json" "$container"); then
     add_workload "$workload"
   elif workload=$(container_owner "$base_ref" "$work_dir/base-manifest.json" "$container"); then
