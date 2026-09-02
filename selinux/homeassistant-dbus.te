@@ -1,0 +1,14 @@
+module homelab_homeassistant_dbus 1.0;
+
+require {
+	type container_t;
+	type system_dbusd_t;
+	type system_dbusd_var_run_t;
+	class sock_file write;
+	class unix_stream_socket connectto;
+}
+
+# Home Assistant binds /run/dbus read-only to discover Bluetooth adapters via BlueZ.
+# Allow container_t to connect to the host system D-Bus socket.
+allow container_t system_dbusd_var_run_t:sock_file write;
+allow container_t system_dbusd_t:unix_stream_socket connectto;

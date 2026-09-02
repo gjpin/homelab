@@ -1,6 +1,8 @@
 [Unit]
 Description=Home Assistant
+After=homelab-secrets.service
 After=homeassistant-mosquitto.container
+Requires=homelab-secrets.service
 Requires=homeassistant-mosquitto.container
 PartOf=homelab-homeassistant.target
 

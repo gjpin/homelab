@@ -27,6 +27,20 @@ rg -q 'typeattribute container_device_t container_net_domain;' \
   printf 'Zigbee2MQTT SELinux policy does not grant container_net_domain\n' >&2
   exit 1
 }
+rg -q '^module homelab_homeassistant_dbus 1\.0;$' "$root/selinux/homeassistant-dbus.te" || {
+  printf 'SELinux policy module name is not homelab_homeassistant_dbus 1.0\n' >&2
+  exit 1
+}
+rg -q 'allow container_t system_dbusd_var_run_t:sock_file write;' \
+  "$root/selinux/homeassistant-dbus.te" || {
+  printf 'Home Assistant D-Bus SELinux policy does not allow socket write\n' >&2
+  exit 1
+}
+rg -q 'allow container_t system_dbusd_t:unix_stream_socket connectto;' \
+  "$root/selinux/homeassistant-dbus.te" || {
+  printf 'Home Assistant D-Bus SELinux policy does not allow connectto\n' >&2
+  exit 1
+}
 
 if ! command -v checkmodule >/dev/null 2>&1; then
   printf 'checkmodule unavailable; skipped policy compile\n' >&2

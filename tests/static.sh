@@ -376,6 +376,16 @@ rg -q 'typeattribute container_device_t container_net_domain;' \
   printf 'Zigbee2MQTT SELinux module does not grant container_net_domain\n' >&2
   exit 1
 }
+rg -q 'allow container_t system_dbusd_var_run_t:sock_file write;' \
+  "$root/selinux/homeassistant-dbus.te" || {
+  printf 'Home Assistant D-Bus SELinux module does not allow socket write\n' >&2
+  exit 1
+}
+rg -q 'allow container_t system_dbusd_t:unix_stream_socket connectto;' \
+  "$root/selinux/homeassistant-dbus.te" || {
+  printf 'Home Assistant D-Bus SELinux module does not allow connectto\n' >&2
+  exit 1
+}
 if rg -n 'permissive |unconfined_|spc_t' "$root/selinux"; then
   printf 'SELinux policy must not add permissive or unconfined exceptions\n' >&2
   exit 1
