@@ -19,7 +19,7 @@ runtime_root="${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/homelab"
 rendered="$runtime_root/rendered"
 install -d -m 0700 "$runtime_root" "$HOME/.local/state/homelab"
 rm -rf -- "$rendered"
-install -d -m 0700 "$rendered" "$rendered/caddy" "$rendered/homeassistant" "$rendered/radicale" "$rendered/searxng" "$rendered/supernote"
+install -d -m 0700 "$rendered" "$rendered/caddy" "$rendered/homeassistant" "$rendered/radicale" "$rendered/searxng"
 
 secrets_json=$(sops --decrypt --output-type json "$secrets_file")
 apply_site_config "$secrets_json"
@@ -49,9 +49,6 @@ replace_secret caddy-cloudflare-api-token '.caddy.cloudflare_api_token'
 replace_secret caddy-bookmarks-password-hash '.caddy.bookmarks_password_hash'
 replace_secret forgejo-database-password '.forgejo.database_password'
 replace_secret immich-database-password '.immich.database_password'
-replace_secret supernote-database-root-password '.supernote.database_root_password'
-replace_secret supernote-database-user-password '.supernote.database_user_password'
-replace_secret supernote-valkey-password '.supernote.valkey_password'
 replace_secret vaultwarden-admin-token '.vaultwarden.admin_token_hash'
 replace_secret homeassistant-mosquitto-password '.homeassistant.mosquitto_password'
 
@@ -60,7 +57,6 @@ export BASE_DOMAIN HOMEASSISTANT_TRUSTED_PROXY_SUBNET
 {
   printf 'BASE_DOMAIN=%s\n' "$BASE_DOMAIN"
   printf 'TZ=%s\n' "$TIMEZONE"
-  printf 'DOMAIN_NAME=supernote.%s\n' "$BASE_DOMAIN"
 } >"$rendered/site.env"
 # shellcheck disable=SC2016
 envsubst '${HOMEASSISTANT_TRUSTED_PROXY_SUBNET}' <"$root/config/templates/homeassistant/configuration.yaml" >"$rendered/homeassistant/configuration.yaml"
@@ -84,12 +80,7 @@ export SEARXNG_SECRET_KEY
 # shellcheck disable=SC2016
 envsubst '${BASE_DOMAIN} ${SEARXNG_SECRET_KEY}' <"$root/config/templates/searxng/settings.yml" >"$rendered/searxng/settings.yml"
 
-SUPERNOTE_VALKEY_PASSWORD=$(secret_value '.supernote.valkey_password')
-export SUPERNOTE_VALKEY_PASSWORD
-# shellcheck disable=SC2016
-envsubst '${SUPERNOTE_VALKEY_PASSWORD}' <"$root/config/templates/supernote/valkey.conf" >"$rendered/supernote/valkey.conf"
-
 # The parent runtime directory is 0700. Files are read-only but world-readable
 # inside their explicitly selected container so non-root image users can open them.
 find "$rendered" -type f -exec chmod 0444 {} +
-unset secrets_json HOMEASSISTANT_MOSQUITTO_PASSWORD SEARXNG_SECRET_KEY SUPERNOTE_VALKEY_PASSWORD
+unset secrets_json HOMEASSISTANT_MOSQUITTO_PASSWORD SEARXNG_SECRET_KEY

@@ -20,8 +20,8 @@ install -d "$fixture/bin" "$fixture/manifests" \
 cp "$source_root/bin/migrate-databases" "$source_root/bin/migrate-mariadb" \
   "$source_root/bin/lib.sh" "$fixture/bin/"
 cp "$source_root/manifests/applications.json" "$fixture/manifests/"
-cp "$source_root/quadlet/volumes/supernote-mariadb.volume" "$fixture/quadlet/volumes/"
-cp "$source_root/quadlet/applications/supernote/supernote-mariadb.container" \
+cp "$source_root/incubator/supernote/quadlet/supernote-mariadb.volume" "$fixture/quadlet/volumes/"
+cp "$source_root/incubator/supernote/quadlet/supernote-mariadb.container" \
   "$fixture/quadlet/applications/supernote/"
 
 cat >"$fake_bin/systemctl" <<'EOF'

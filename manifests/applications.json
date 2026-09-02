@@ -23,10 +23,6 @@
     "units": ["searxng-valkey.service", "searxng-core.service"],
     "secrets": ["searxng-secret-key"]
   },
-  "supernote": {
-    "units": ["supernote-valkey.service", "supernote-mariadb.service", "supernote-notelib.service", "supernote-service.service"],
-    "secrets": ["supernote-database-root-password", "supernote-database-user-password", "supernote-valkey-password"]
-  },
   "syncthing": {
     "units": ["syncthing.service"],
     "secrets": []

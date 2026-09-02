@@ -24,8 +24,6 @@ change; take a backup before deploying to a host with existing data.
 | Immich server, ML, PostgreSQL, and Valkey | `1000:1000` | Immich publishes a rootless compose configuration using this user for all four services. The cache uses the official Valkey image from that configuration. |
 | Radicale | `radicale:radicale` | Local image declares this user. |
 | SearXNG | `977:977` | The image’s `searxng` account is UID 977; matching it avoids the image’s cache ownership mismatch. `FORCE_OWNERSHIP=false` is safe here because the volume is aligned with `:U`. |
-| Supernote MariaDB | `mysql:mysql` | The official MariaDB image contains the `mysql` user and its non-root entrypoint path; the data volume is aligned with `:U`. |
-| Supernote Valkey | `1000:1000` | Valkey is run directly as a non-root service user; its writable volume is aligned with `:U`. |
 | Syncthing | `1000:1000` | Syncthing documents UID/GID 1000 as its container default. |
 | Vaultwarden | `1000:1000` | Vaultwarden documents non-root operation with an explicit UID/GID; its Rocket listener is moved to 8080. |
 
@@ -39,9 +37,6 @@ the exact image and persistent-data contract used here:
   model and also integrates with host D-Bus; a non-root variant is not
   published for this image. The unit sets `RunInit=false` because s6-overlay must
   be PID 1; injecting catatonit makes the entrypoint exit 100.
-- `supernote-notelib` and `supernote-service`: the vendor images have no
-  rootless variants or documented non-root contract, and their startup/data
-  layout is application-specific.
 
 The exceptions are root inside their containers only. They still run under
 the rootless `homelab` Podman service, with dropped capabilities, read-only

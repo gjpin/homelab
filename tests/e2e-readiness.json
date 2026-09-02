@@ -56,20 +56,6 @@
     "searxng-valkey": {
       "mode": "health"
     },
-    "supernote-mariadb": {
-      "mode": "health"
-    },
-    "notelib": {
-      "mode": "running"
-    },
-    "supernote-valkey": {
-      "mode": "health"
-    },
-    "supernote-service": {
-      "mode": "tcp",
-      "network": "homelab-supernote",
-      "port": 8080
-    },
     "syncthing": {
       "mode": "tcp",
       "network": "homelab-syncthing",

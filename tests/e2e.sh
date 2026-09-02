@@ -122,9 +122,6 @@ cleanup() {
     immich-database-password \
     radicale-htpasswd-record \
     searxng-secret-key \
-    supernote-database-root-password \
-    supernote-database-user-password \
-    supernote-valkey-password \
     vaultwarden-admin-token; do
     podman secret rm -f "$secret" >/dev/null 2>&1
   done
@@ -201,10 +198,6 @@ radicale:
   htpasswd_record: 'admin:$2y$05$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy'
 searxng:
   secret_key: e2e-searxng-secret-key
-supernote:
-  database_root_password: e2e-supernote-root-password
-  database_user_password: e2e-supernote-user-password
-  valkey_password: e2e-supernote-valkey-password
 vaultwarden:
   admin_token_hash: e2e-vaultwarden-admin-token
 EOF
@@ -231,10 +224,6 @@ sops --encrypt \
   >"$test_root/secrets/secrets.sops.yaml"
 rm -f -- "$test_root/secrets/e2e-plaintext.yaml"
 
-mkdir -p "$test_root/assets/supernote"
-[[ -e "$test_root/assets/supernote/supernotedb.sql" ]] && \
-  chmod u+w -- "$test_root/assets/supernote/supernotedb.sql"
-: >"$test_root/assets/supernote/supernotedb.sql"
 sed -i \
   -e 's#^Image=.*#Image=localhost/homelab/e2e-zigbee2mqtt#' \
   -e '/^AddDevice=/d' \
@@ -352,8 +341,7 @@ check_no_egress() {
   for name in "${expected_names[@]}"; do
     while IFS= read -r network; do
       case "$network" in
-        homelab-radicale|homelab-syncthing|homelab-vaultwarden|\
-        homelab-supernote-edge|homelab-supernote-notelib-egress)
+        homelab-radicale|homelab-syncthing|homelab-vaultwarden)
           blocked_networks+=("$network")
           ;;
       esac
@@ -409,13 +397,9 @@ done
 if [[ $selector_mode == all ]]; then
   "$test_root/bin/security-audit"
   "$test_root/tests/postgres-migration-e2e.sh"
-  "$test_root/tests/mariadb-migration-e2e.sh"
 else
   if [[ " ${selected_workloads[*]} " =~ " forgejo " || " ${selected_workloads[*]} " =~ " immich " ]]; then
     "$test_root/tests/postgres-migration-e2e.sh"
-  fi
-  if [[ " ${selected_workloads[*]} " =~ " supernote " ]]; then
-    "$test_root/tests/mariadb-migration-e2e.sh"
   fi
 fi
 printf 'real Podman E2E passed: %s container(s)\n' "${#expected_names[@]}"

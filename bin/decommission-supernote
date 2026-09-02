@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+if [[ -f "$(dirname -- "$0")/lib.sh" ]]; then
+  # shellcheck source=/dev/null
+  source "$(dirname -- "$0")/lib.sh"
+else
+  info() { printf '==> %s\n' "$*" >&2; }
+  die() { printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+fi
+
+dry_run=false
+
+usage() {
+  cat <<'EOF'
+Usage: bin/decommission-supernote [--dry-run]
+
+Gracefully decommission the Supernote workload on the current homelab host.
+Stops and disables Supernote systemd services and targets, and cleans up active
+containers and networks. Named volumes (homelab-supernote-*) and secrets are
+preserved intact.
+
+Options:
+  -n, --dry-run   Show actions without modifying systemd or container state
+  -h, --help      Show this help message and exit
+EOF
+}
+
+while (($#)); do
+  case "$1" in
+    -n|--dry-run) dry_run=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) die "unknown argument: $1" ;;
+  esac
+done
+
+if command -v systemctl >/dev/null 2>&1; then
+  supernote_units=(
+    homelab-supernote.target
+    supernote-service.service
+    supernote-notelib.service
+    supernote-mariadb.service
+    supernote-valkey.service
+  )
+
+  for unit in "${supernote_units[@]}"; do
+    if systemctl --user is-active --quiet "$unit" 2>/dev/null; then
+      if $dry_run; then
+        info "[dry-run] would stop systemd unit: $unit"
+      else
+        info "stopping systemd unit: $unit"
+        systemctl --user stop "$unit" || true
+      fi
+    fi
+  done
+
+  if $dry_run; then
+    info "[dry-run] would disable homelab-supernote.target"
+  else
+    systemctl --user disable homelab-supernote.target >/dev/null 2>&1 || true
+  fi
+
+  for link in "$HOME/.config/systemd/user/homelab-supernote.target" \
+    "$HOME/.config/systemd/user/supernote-"*.service; do
+    if [[ -L $link ]]; then
+      if $dry_run; then
+        info "[dry-run] would remove user unit symlink: $link"
+      else
+        info "removing user unit symlink: $link"
+        rm -f -- "$link"
+      fi
+    fi
+  done
+
+  if ! $dry_run; then
+    systemctl --user daemon-reload >/dev/null 2>&1 || true
+  fi
+fi
+
+if command -v podman >/dev/null 2>&1; then
+  supernote_containers=(
+    supernote-service
+    notelib
+    supernote-mariadb
+    supernote-valkey
+  )
+
+  for container in "${supernote_containers[@]}"; do
+    if podman container exists "$container" 2>/dev/null; then
+      if $dry_run; then
+        info "[dry-run] would remove container: $container"
+      else
+        info "removing container: $container"
+        podman rm -f "$container" >/dev/null 2>&1 || true
+      fi
+    fi
+  done
+
+  supernote_networks=(
+    homelab-supernote-edge
+    homelab-supernote-notelib-egress
+    homelab-supernote
+  )
+
+  for network in "${supernote_networks[@]}"; do
+    if podman network exists "$network" 2>/dev/null; then
+      if $dry_run; then
+        info "[dry-run] would remove network: $network"
+      else
+        info "removing network: $network"
+        podman network rm -f "$network" >/dev/null 2>&1 || true
+      fi
+    fi
+  done
+
+  preserved_volumes=()
+  mapfile -t preserved_volumes < <(podman volume ls --filter 'name=^homelab-supernote-' --format '{{.Name}}' 2>/dev/null || true)
+  if ((${#preserved_volumes[@]} > 0)); then
+    info "preserved persistent named volumes (${#preserved_volumes[@]}):"
+    for vol in "${preserved_volumes[@]}"; do
+      info "  - $vol"
+    done
+  fi
+fi
+
+if $dry_run; then
+  info "dry-run completed; no changes were made"
+else
+  info "Supernote workload successfully decommissioned on this host"
+  info "Named volumes (homelab-supernote-*) and credentials remain preserved intact"
+fi

@@ -28,9 +28,9 @@ if [[ $arch == arm64 ]]; then
   require_command qemu-x86_64-static
   binfmt_registration=/proc/sys/fs/binfmt_misc/qemu-x86_64
   [[ -r $binfmt_registration ]] || \
-    die "ARM64 host cannot run Supernote: qemu-x86_64 binfmt registration is unavailable"
+    die "ARM64 host qemu-x86_64 binfmt registration is unavailable"
   grep -q '^enabled$' "$binfmt_registration" || \
-    die "ARM64 host cannot run Supernote: qemu-x86_64 binfmt registration is disabled"
+    die "ARM64 host qemu-x86_64 binfmt registration is disabled"
 fi
 
 info "host container security prerequisites passed"

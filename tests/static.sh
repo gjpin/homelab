@@ -162,17 +162,6 @@ rg -q 'qemu-x86_64-static' "$root/bin/verify-host-security" || {
   printf 'host security verification does not validate QEMU on ARM64\n' >&2
   exit 1
 }
-for unit in supernote-notelib supernote-service; do
-  rg -q '^PodmanArgs=--arch=amd64 --image-volume=ignore$' \
-    "$containers/supernote/$unit.container" || {
-    printf 'Supernote unit does not force amd64: %s\n' "$unit" >&2
-    exit 1
-  }
-done
-rg -q 'podman pull --arch=amd64' "$root/bin/reconcile" || {
-  printf 'reconciliation has no ARM64 Supernote pull override\n' >&2
-  exit 1
-}
 rg -q 'require_pq_age_recipient "--host-recipient"' "$root/bin/init-secrets" || { printf 'host recipient is not checked as post-quantum\n' >&2; exit 1; }
 rg -q 'require_pq_age_recipient "--operator-recipient"' "$root/bin/init-secrets" || { printf 'operator recipient is not checked as post-quantum\n' >&2; exit 1; }
 rg -qF 'sops --config /dev/null --age' "$root/bin/init-secrets" || {
@@ -279,13 +268,13 @@ while IFS= read -r reference; do
   rg -q "replace_secret ${reference} " "$root/bin/render-config" || { printf 'secret is not provisioned: %s\n' "$reference" >&2; exit 1; }
 done < <(rg --no-filename '^Secret=' "$containers" | cut -d= -f2 | cut -d, -f1 | sort -u)
 
-[[ $(rg -l '^NoNewPrivileges=true$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must set NoNewPrivileges=true\n' >&2; exit 1; }
-[[ $(rg -l '^DropCapability=all$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must drop the default capability set\n' >&2; exit 1; }
-[[ $(rg -l '^ReadOnly=true$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must use a read-only root filesystem\n' >&2; exit 1; }
-[[ $(rg -l '^ReadOnlyTmpfs=true$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must explicitly enable read-only tmpfs support\n' >&2; exit 1; }
-[[ $(rg -l '^PodmanArgs=.*--image-volume=ignore$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must reject implicit anonymous image volumes\n' >&2; exit 1; }
-[[ $(rg -l '^PidsLimit=1024$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must set the approved PID limit\n' >&2; exit 1; }
-[[ $(rg -l '^RunInit=true$' "$containers" | wc -l | tr -d ' ') == 17 ]] || { printf 'every compatible container must set RunInit=true\n' >&2; exit 1; }
+[[ $(rg -l '^NoNewPrivileges=true$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must set NoNewPrivileges=true\n' >&2; exit 1; }
+[[ $(rg -l '^DropCapability=all$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must drop the default capability set\n' >&2; exit 1; }
+[[ $(rg -l '^ReadOnly=true$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must use a read-only root filesystem\n' >&2; exit 1; }
+[[ $(rg -l '^ReadOnlyTmpfs=true$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must explicitly enable read-only tmpfs support\n' >&2; exit 1; }
+[[ $(rg -l '^PodmanArgs=.*--image-volume=ignore$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must reject implicit anonymous image volumes\n' >&2; exit 1; }
+[[ $(rg -l '^PidsLimit=1024$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must set the approved PID limit\n' >&2; exit 1; }
+[[ $(rg -l '^RunInit=true$' "$containers" | wc -l | tr -d ' ') == 13 ]] || { printf 'every compatible container must set RunInit=true\n' >&2; exit 1; }
 rg -q '^RunInit=false$' "$containers/homeassistant/homeassistant.container" || {
   printf 'homeassistant must set RunInit=false so s6-overlay stays PID 1\n' >&2
   exit 1
@@ -298,7 +287,7 @@ rg -q '^GroupAdd=keep-groups$' "$containers/homeassistant/homeassistant-zigbee2m
   printf 'zigbee2mqtt must keep host groups for coordinator access\n' >&2
   exit 1
 }
-[[ $(rg -l '^PartOf=homelab-.*\.target$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must belong to an application target\n' >&2; exit 1; }
+[[ $(rg -l '^PartOf=homelab-.*\.target$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must belong to an application target\n' >&2; exit 1; }
 
 rootless_units=(
   caddy/caddy.container
@@ -313,8 +302,6 @@ rootless_units=(
   radicale/radicale.container
   searxng/searxng-core.container
   searxng/searxng-valkey.container
-  supernote/supernote-valkey.container
-  supernote/supernote-mariadb.container
   syncthing/syncthing.container
   vaultwarden/vaultwarden.container
 )
@@ -452,7 +439,7 @@ done < <(find "$root/quadlet/builds" -name '*.build' -type f | sort)
 [[ -x "$root/bin/backup" && -x "$root/bin/restic" && -x "$root/bin/install-sops" && \
   -x "$root/bin/install-selinux-policy" && -x "$root/bin/install-zigbee-udev" && \
   -x "$root/bin/migrate-databases" && -x "$root/bin/migrate-postgres" && \
-  -x "$root/bin/migrate-mariadb" ]] || {
+  -x "$root/bin/migrate-mariadb" && -x "$root/bin/decommission-supernote" ]] || {
   printf 'required executables are not executable\n' >&2
   exit 1
 }
@@ -543,12 +530,12 @@ rg -q '/home/homelab/current/bin/restic init' "$root/README.md" || {
 }
 
 network_count=$(find "$root/quadlet/networks" -name '*.network' -type f | wc -l | tr -d ' ')
-[[ $network_count == 15 ]] || { printf 'expected 15 networks, found %s\n' "$network_count" >&2; exit 1; }
-[[ $(rg -l '^Options=isolate=true$' "$root/quadlet/networks" | wc -l | tr -d ' ') == 15 ]] || {
+[[ $network_count == 12 ]] || { printf 'expected 12 networks, found %s\n' "$network_count" >&2; exit 1; }
+[[ $(rg -l '^Options=isolate=true$' "$root/quadlet/networks" | wc -l | tr -d ' ') == 12 ]] || {
   printf 'every network must explicitly use bridge isolation\n' >&2
   exit 1
 }
-for backend in forgejo homeassistant immich searxng supernote; do
+for backend in forgejo homeassistant immich searxng; do
   rg -q '^Internal=true$' "$root/quadlet/networks/$backend.network" || {
     printf 'backend network is not internal: %s\n' "$backend" >&2
     exit 1
@@ -563,7 +550,7 @@ for backend in forgejo homeassistant immich searxng supernote; do
   }
 done
 
-for blocked_network in radicale syncthing vaultwarden supernote-edge supernote-notelib-egress; do
+for blocked_network in radicale syncthing vaultwarden; do
   rg -q '^Internal=true$' "$root/quadlet/networks/$blocked_network.network" || {
     printf 'network must block external access: %s\n' "$blocked_network" >&2
     exit 1
@@ -584,11 +571,6 @@ fi
 rg -q '^Network=immich-ml-egress.network$' \
   "$containers/immich/immich-machine-learning.container" || {
   printf 'Immich machine learning is missing its dedicated egress network\n' >&2
-  exit 1
-}
-rg -q '^Network=supernote-notelib-egress.network$' \
-  "$containers/supernote/supernote-notelib.container" || {
-  printf 'Supernote notelib is missing its dedicated egress network\n' >&2
   exit 1
 }
 

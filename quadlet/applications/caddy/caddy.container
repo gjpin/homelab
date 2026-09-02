@@ -13,7 +13,6 @@ Network=homeassistant-edge.network
 Network=immich-edge.network
 Network=radicale.network
 Network=searxng-edge.network
-Network=supernote-edge.network
 Network=syncthing.network
 Network=vaultwarden.network
 PublishPort=127.0.0.1:8443:443/tcp

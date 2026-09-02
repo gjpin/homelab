@@ -22,7 +22,7 @@ if [[ -f "$source_root/config/legacy-migration.env" ]]; then
   [[ -n $configured ]] && mariadb11_image=$configured
 fi
 
-target_unit="$source_root/quadlet/applications/supernote/supernote-mariadb.container"
+target_unit="$source_root/incubator/supernote/quadlet/supernote-mariadb.container"
 [[ -f $target_unit ]] || die "target unit not found: $target_unit"
 mariadb12_image=$(sed -n 's/^Image=//p' "$target_unit")
 [[ -n $mariadb12_image ]] || die "missing Image in $target_unit"

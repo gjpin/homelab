@@ -12,8 +12,7 @@ volumes have been restored.
 
 On arm64, `bootstrap-host` installs `qemu-user-binfmt` and
 `qemu-user-static-x86`, enables `systemd-binfmt`, and verifies the enabled
-`qemu-x86_64` binfmt registration. Supernote's amd64-only `notelib` and
-`supernote-service` images run through that emulation; all other images use
+`qemu-x86_64` binfmt registration. Native multi-architecture images use
 the native host architecture. If the distribution cannot provide the required
 packages or registration, bootstrap and reconciliation stop before activation.
 

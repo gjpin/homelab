@@ -5,8 +5,6 @@ umask 077
 # shellcheck source=/dev/null
 source "$(dirname -- "$0")/lib.sh"
 
-host_arch_name=$(host_arch)
-
 require_command flock
 require_command git
 require_command jq
@@ -83,12 +81,7 @@ mapfile -t images < <(rg --no-filename '^Image=' "$release/quadlet/applications"
 for image in "${images[@]}"; do
   if ! podman image exists "$image"; then
     info "pulling $image"
-    if [[ $host_arch_name == arm64 && $image == docker.io/supernote/notelib:* ||
-      $host_arch_name == arm64 && $image == docker.io/supernote/supernote-service:* ]]; then
-      podman pull --arch=amd64 "$image" >/dev/null
-    else
-      podman pull "$image" >/dev/null
-    fi
+    podman pull "$image" >/dev/null
   fi
 done
 

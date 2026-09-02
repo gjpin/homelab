@@ -50,21 +50,20 @@ done < <(find "$containers" -name '*.container' -type f | sort)
 
 caddy_networks=$(podman inspect caddy | jq -r '.[0].NetworkSettings.Networks | keys[]')
 for forbidden in \
-  homelab-forgejo homelab-homeassistant homelab-immich homelab-searxng homelab-supernote; do
+  homelab-forgejo homelab-homeassistant homelab-immich homelab-searxng; do
   if grep -Fxq "$forbidden" <<<"$caddy_networks"; then
     die "Caddy is attached to backend network $forbidden"
   fi
 done
 
 for internal in \
-  homelab-forgejo homelab-homeassistant homelab-immich homelab-searxng homelab-supernote \
-  homelab-radicale homelab-syncthing homelab-vaultwarden \
-  homelab-supernote-edge homelab-supernote-notelib-egress; do
+  homelab-forgejo homelab-homeassistant homelab-immich homelab-searxng \
+  homelab-radicale homelab-syncthing homelab-vaultwarden; do
   podman network inspect "$internal" | jq -e '.[0].internal == true' >/dev/null || \
     die "network is not internal: $internal"
 done
 
-for name in radicale syncthing vaultwarden notelib supernote-service; do
+for name in radicale syncthing vaultwarden; do
   while IFS= read -r network; do
     podman network inspect "$network" | jq -e '.[0].internal == true' >/dev/null || \
       die "$name has external access through non-internal network $network"

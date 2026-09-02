@@ -151,8 +151,7 @@ For a UI or HTTP API, update all applicable items:
    network, while keeping the service's backend network separate.
 3. Handle application-specific websocket, notification, upload-size, host,
    forwarded-header, or trusted-proxy requirements explicitly. Vaultwarden's
-   notification routes and Supernote's forwarded headers are reference
-   patterns.
+   notification routes are reference patterns.
 4. Add the hostname to the DNS/hostname list in `README.md` and document any
    LAN-only or public exposure decision.
 
@@ -188,8 +187,7 @@ For rendered configuration or credentials:
 
 For seeded data, migration files, or downloaded assets, add the checked-in
 checksum/metadata and update `bin/fetch-assets` when the source must be
-retrieved during reconciliation. Supernote's checked SQL seed is the current
-example. Ensure the data is mounted read-only when it is deployment-owned.
+retrieved during reconciliation. Ensure the data is mounted read-only when it is deployment-owned.
 
 ### 5. Add real E2E coverage
 
@@ -288,7 +286,6 @@ authoritative detailed configuration.
 | `immich` | Rootless server, PostgreSQL, Valkey, and ML service | Backend plus server edge; dedicated ML egress; `photos` route | Multiple durable volumes; database secret; ML outbound isolation |
 | `radicale` | Custom rootless image with rendered config | Internal Radicale network; `contacts` route; no Internet egress | Bcrypt htpasswd secret; custom build and rendered user/config files |
 | `searxng` | Rootless SearXNG plus Valkey | Backend plus SearXNG edge; `search` route | Rendered secret-key settings and cache volume; Valkey remains backend-only |
-| `supernote` | MariaDB, Valkey, notelib, and service | Internal backend plus internal service edge and internal notelib network; `supernote` route; no Internet egress | Seeded SQL asset; multiple durable volumes; amd64/QEMU exception; narrowly allowlisted `CHOWN`/`NET_BIND_SERVICE`; notelib network retains a historical `egress` name without a documented outbound dependency |
 | `syncthing` | Rootless single service | Internal Syncthing network; `syncthing` UI route; TCP/UDP `22000` direct; no Internet egress | Durable data volume; direct protocol exposure is documented and firewalled; Internet discovery/relay and outbound peer sessions are unavailable |
 | `vaultwarden` | Rootless single service | Internal Vaultwarden network; `vault` UI, websocket, and notification routes; no Internet egress | Durable data volume; admin token secret; websocket routing must remain tested |
 
@@ -296,9 +293,10 @@ Inactive bundles under `incubator/` are useful reference implementations but
 are not active workload inventory entries. AnythingLLM demonstrates a simple
 rootless service with one isolated network and multiple volumes. Docs MCP
 demonstrates a multi-container workload with shared volumes, secrets,
-dependency ordering, a native health check, and multiple Caddy routes. Before
-moving either bundle into the active deployment, apply this entire checklist
-and add a new inventory record.
+dependency ordering, a native health check, and multiple Caddy routes.
+Supernote demonstrates a multi-tier application stack with MariaDB, Valkey,
+and specialized network isolation. Before moving any bundle into the active
+deployment, apply this entire checklist and add a new inventory record.
 
 ## Useful references
 

@@ -16,7 +16,6 @@ and a root-owned socket proxy that forwards TCP 443 to rootless Caddy on
 | [Immich](https://github.com/immich-app/immich) | photos.${BASE_DOMAIN} | Photo and video backup solution | Yes |
 | [Radicale](https://github.com/Kozea/Radicale) | contacts.${BASE_DOMAIN} | CardDAV (contact) server | No |
 | [SearXNG](https://github.com/searxng/searxng) | search.${BASE_DOMAIN} | Internet metasearch engine | Yes |
-| [Supernote Private Cloud](https://support.supernote.com/setting-up-your-own-supernote-private-cloud-beta) | supernote.${BASE_DOMAIN} | Private Cloud for Supernote | No |
 | [Syncthing](https://github.com/syncthing/syncthing) | syncthing.${BASE_DOMAIN} | Continuous file synchronization | No |
 | [Vaultwarden](https://github.com/dani-garcia/vaultwarden) | vault.${BASE_DOMAIN} | Unofficial Bitwarden-compatible server | No |
 
@@ -27,12 +26,6 @@ of its attached Podman networks are internal. Inbound public access is still
 limited to the Caddy HTTPS proxy, plus Syncthing's documented TCP/UDP 22000
 protocol ports.
 
-Supernote's `notelib` retains a separate network for service-specific
-isolation. It is now internal as well; the repository history does not record
-an upstream dependency that requires Internet access, so the historical
-`egress` name should not be interpreted as an exception to the no-egress
-policy.
-
 ## Security model
 
 - All containers run under the dedicated, password-locked `homelab` account.
@@ -40,7 +33,7 @@ policy.
 - Only TCP 443 and Syncthing TCP/UDP 22000 are exposed externally.
 - Application networks use strictly isolated deterministic `/24` ranges within
   `10.200.0.0/16`. Caddy joins edge networks only; database, cache, and MQTT
-  networks are internal. Radicale, Supernote, Syncthing, and Vaultwarden have
+  networks are internal. Radicale, Syncthing, and Vaultwarden have
   no Internet egress; their application networks are internal while remaining
   reachable from Caddy or, for Syncthing, through its published protocol
   ports.
@@ -86,9 +79,8 @@ access is enabled.
   the SOPS RPM selected by the checksum-pinned metadata in
   `config/host-tools.env`.
 - On arm64, bootstrap installs Fedora's `qemu-user-binfmt` and
-  `qemu-user-static-x86` packages and enables `systemd-binfmt`. The native
-  multi-architecture images follow the host; Supernote's amd64-only `notelib`
-  and `supernote-service` images run under QEMU. Bootstrap fails if the
+  `qemu-user-static-x86` packages and enables `systemd-binfmt`. Native
+  multi-architecture images follow the host. Bootstrap fails if the
   distribution cannot provide the required emulation packages or registration.
 - Operator workstation with Bash 4 or later, Git, OpenSSH client tools,
   `rsync`, `jq`, `ripgrep`, GNU `sha256sum`, age 1.3.0 or later, a SOPS release
@@ -262,7 +254,7 @@ Perform these steps in order. Replace every uppercase placeholder.
     The token is shown once and will be encrypted by step 12.
 
 11. Configure name resolution for every Caddy hostname: `bookmarks`, `git`,
-    `home`, `home-zigbee`, `photos`, `contacts`, `search`, `supernote`,
+    `home`, `home-zigbee`, `photos`, `contacts`, `search`,
     `syncthing`, and `vault`, all below
     `BASE_DOMAIN`.
 
@@ -366,8 +358,7 @@ Perform these steps in order. Replace every uppercase placeholder.
     to the backup inventory below; the installed copy remains under the
     `homelab` account.
 
-The first deployment checksum-verifies the vendored Supernote database
-bootstrap SQL, builds the two custom images, pulls every upstream image, and
+The first deployment builds the two custom images, pulls every upstream image, and
 starts all application targets. It creates empty application state.
 
 Complete the required Vaultwarden setup immediately:
@@ -511,7 +502,7 @@ The migration tool can also be run or inspected manually:
 ~/current/bin/migrate-databases --check
 ~/current/bin/migrate-databases --dry-run
 ~/current/bin/migrate-postgres --workload forgejo
-~/current/bin/migrate-mariadb --workload supernote
+~/current/bin/migrate-postgres --workload immich
 ```
 
 ### Hardening an existing host
@@ -584,11 +575,9 @@ The first run uploads all selected data; later runs upload only new chunks
 while remaining complete point-in-time snapshots.
 
 When migrating between hosts, amd64 hosts remain native. An arm64 replacement
-host must complete the QEMU setup during `bootstrap-host` before the first
-reconciliation; the reconciliation and security checks refuse to start the
-Supernote stack unless `qemu-x86_64-static` and its enabled x86_64 binfmt
-registration are available. The two Supernote units explicitly select amd64;
-all other images use the host's native architecture.
+host completes the QEMU setup during `bootstrap-host` before the first
+reconciliation, and native multi-architecture images follow the host's native
+architecture.
 
 ## Backup inventory
 
