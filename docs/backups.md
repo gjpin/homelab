@@ -136,7 +136,8 @@ forgets it immediately; a failed cleanup is recorded locally, shown by
 The private Git repository, operator age identity, and plaintext repository
 password remain independent recovery prerequisites. Releases, images,
 rendered configuration, caches outside named volumes, and host firewall units
-are recreated rather than backed up.
+are recreated rather than backed up. For operator workstation backup and host
+migration workflows, see [the host migration and restore guide](host-migration.md).
 
 Volumes belonging to inactive incubator bundles are intentionally outside this
 backup inventory.
