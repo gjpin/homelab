@@ -255,16 +255,21 @@ run_legacy_dump() {
   podman volume exists "$volume" && die "temporary migration volume already exists: $volume"
   podman volume create "$volume" >/dev/null
   mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$volume")
-  podman unshare tar --acls --xattrs --selinux --numeric-owner \
+  # Do not replay Debian ACLs or SELinux xattrs into the Fedora volume; those
+  # labels make the cluster unreadable to container_t after a host-side copy.
+  podman unshare tar --numeric-owner \
     --directory "$staging_dir/data/containers/${old_data_paths[$workload]}" --create --file - . |
-    podman unshare tar --acls --xattrs --selinux --numeric-owner \
+    podman unshare tar --numeric-owner \
       --directory "$mountpoint" --extract --file -
+  podman unshare test -s "$mountpoint/PG_VERSION" || \
+    die "legacy PostgreSQL data is missing PG_VERSION after copy: $mountpoint"
+  podman unshare chmod 0700 "$mountpoint"
   printf '%s=%s\n%s=%s\n%s=%s\nPGDATA=/var/lib/postgresql/data\nPOSTGRES_HOST_AUTH_METHOD=trust\n' \
     POSTGRES_PASSWORD "${old_passwords[$workload]}" \
     POSTGRES_USER "${db_users[$workload]}" \
     POSTGRES_DB "${db_names[$workload]}" >"$env_file"
   chmod 0600 "$env_file"
-  dump_args=(podman run --detach --name "$container" --network none)
+  dump_args=(podman run --detach --name "$container" --network none --image-volume=ignore)
   dump_args+=(--user "${current_users[$workload]}")
   dump_args+=(--read-only --read-only-tmpfs)
   dump_args+=(--cap-drop all --security-opt=no-new-privileges --pids-limit 1024)
@@ -272,6 +277,8 @@ run_legacy_dump() {
   dump_args+=(--tmpfs "/run/postgresql:rw,noexec,nosuid,nodev")
   dump_args+=(--tmpfs "/var/run/postgresql:rw,noexec,nosuid,nodev")
   dump_args+=(--env-file "$env_file")
+  # Do not privately relabel with :Z; that stamps the migration container MCS
+  # onto the volume and the runtime unit cannot read it.
   dump_args+=(--volume "$volume:/var/lib/postgresql/data:U")
   if [[ $workload == immich ]]; then
     legacy_config_volume="homelab-legacy-${workload}-config-$$"
@@ -309,7 +316,7 @@ run_current_restore() {
     podman volume exists "$config_volume" || die "target PostgreSQL config volume does not exist: $config_volume"
   fi
   chmod 0600 "$env_file"
-  run_args=(podman run --detach --name "$container" --network none)
+  run_args=(podman run --detach --name "$container" --network none --image-volume=ignore)
   run_args+=(--user "${current_users[$workload]}")
   run_args+=(--read-only --read-only-tmpfs)
   run_args+=(--cap-drop all --security-opt=no-new-privileges --pids-limit 1024)

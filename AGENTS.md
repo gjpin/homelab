@@ -38,7 +38,9 @@ changes.
   `ReadOnlyTmpfs=true`, `PodmanArgs=--image-volume=ignore`, and
   `PidsLimit=1024`. Keep `LogDriver=journald`, `Restart=always`,
   `RestartSec=5s`, and `TimeoutStartSec=900` consistent with existing units.
-  Use `RunInit=true` where the image is compatible.
+  Use `RunInit=true` where the image is compatible. Set `RunInit=false`
+  explicitly when the image must be PID 1 (Home Assistant s6-overlay) or when a
+  non-root user cannot execute `/run/podman-init` (Zigbee2MQTT).
 - Add capabilities only when a demonstrated application requirement needs
   them. The current allowlist is `NET_BIND_SERVICE`, `CHOWN`,
   `DAC_OVERRIDE`, `FOWNER`, `SETGID`, and `SETUID`; justify every exception in
@@ -224,7 +226,8 @@ and its declared dependencies, verify readiness, and keep those containers
 running through the stability check. A global change must use `./bin/e2e`
 which starts every declared container and passes the runtime security audit.
 The CI workflow uses `bin/e2e-targets` to select this scope from the Git diff.
-Documentation, incubator, GitHub workflow, and `renovate.json` changes do not
+Documentation, incubator, GitHub workflow, `renovate.json`, encrypted
+deployment secrets, Home Assistant automations, and validate-only tests do not
 start a Podman machine, build custom images, or run host-tool tests. Custom
 image and host-tool jobs no-op unless those trees changed.
 
@@ -279,9 +282,9 @@ authoritative detailed configuration.
 
 | Workload | Runtime and dependency pattern | Networks / UI / external exposure | State, secrets, and special security notes |
 | --- | --- | --- | --- |
-| `caddy` | Custom build; reverse-proxy entrypoint | All active edge networks; `*.BASE_DOMAIN`; loopback `127.0.0.1:8443` only | Caddy user; Cloudflare and bookmarks secrets; `NET_BIND_SERVICE`; never joins backend networks |
+| `caddy` | Custom build; reverse-proxy entrypoint | All active edge networks; `*.BASE_DOMAIN`; loopback `127.0.0.1:8443` only | Caddy user; Cloudflare and bookmarks secrets; `NET_BIND_SERVICE`; never joins backend networks; host `systemd-socket-proxyd` SELinux module for TCP 443/`http_port_t` |
 | `forgejo` | Rootless Forgejo plus PostgreSQL | Backend plus Forgejo edge; `git` route | Rootless UIDs; Forgejo and PostgreSQL volumes; database secret |
-| `homeassistant` | Home Assistant, Mosquitto, and Zigbee2MQTT | Backend plus Home Assistant edge; `home` and `home-zigbee` routes | Zigbee device fixture and `container_device_t` exception; D-Bus read-only bind; MQTT Podman secret plus `ZIGBEE2MQTT_CONFIG_*` GitOps env; writable Zigbee2MQTT data volume |
+| `homeassistant` | Home Assistant, Mosquitto, and Zigbee2MQTT | Backend plus Home Assistant edge; `home` and `home-zigbee` routes | Zigbee device fixture and `container_device_t` exception plus host SELinux module adding `container_net_domain` so MQTT/DNS work; D-Bus read-only bind; MQTT Podman secret plus `ZIGBEE2MQTT_CONFIG_*` GitOps env; writable Zigbee2MQTT data volume; `RunInit=false` on Home Assistant (s6 PID 1) and Zigbee2MQTT (non-root cannot exec `/run/podman-init`); host udev rule pins the coordinator to `dialout` `0660` and strips `uaccess` |
 | `immich` | Rootless server, PostgreSQL, Valkey, and ML service | Backend plus server edge; dedicated ML egress; `photos` route | Multiple durable volumes; database secret; ML outbound isolation |
 | `radicale` | Custom rootless image with rendered config | Internal Radicale network; `contacts` route; no Internet egress | Bcrypt htpasswd secret; custom build and rendered user/config files |
 | `searxng` | Rootless SearXNG plus Valkey | Backend plus SearXNG edge; `search` route | Rendered secret-key settings and cache volume; Valkey remains backend-only |

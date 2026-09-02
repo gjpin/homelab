@@ -1,0 +1,12 @@
+module homelab_caddy_https_proxy 1.0;
+
+require {
+	type systemd_socket_proxyd_t;
+	type http_port_t;
+	class tcp_socket { name_bind name_connect };
+}
+
+# caddy-https-proxy.service uses systemd-socket-proxyd, so (sd-listen) inherits
+# systemd_socket_proxyd_t. That type cannot bind Fedora's http_port_t (TCP 443)
+# or connect to Caddy on 127.0.0.1:8443 (also http_port_t) without this allow.
+allow systemd_socket_proxyd_t http_port_t:tcp_socket { name_bind name_connect };

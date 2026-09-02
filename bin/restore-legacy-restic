@@ -11,7 +11,7 @@ Usage: bin/restore-legacy-restic \
   --snapshot SNAPSHOT_ID \
   --legacy-env FILE \
   --staging-dir DIRECTORY \
-  [--restic-bin PATH] [--dry-run]
+  [--restic-bin PATH] [--dry-run] [--from-staging]
 
        bin/restore-legacy-restic \
   --list-snapshots \
@@ -24,7 +24,8 @@ named volumes. The legacy Restic repository is never written.
 
 --list-snapshots contacts the legacy repository and prints snapshot id, time,
 and hostname for snapshots that contain /data/containers. --dry-run does not
-contact the repository.
+contact the repository. --from-staging skips Restic and copies an already
+restored staging tree into empty Quadlet volumes.
 EOF
 }
 
@@ -34,6 +35,7 @@ staging_dir=
 restic_binary=${LEGACY_RESTIC_BIN:-/usr/bin/restic}
 dry_run=false
 list_snapshots=false
+from_staging=false
 
 while (($#)); do
   case "$1" in
@@ -43,6 +45,7 @@ while (($#)); do
     --restic-bin) restic_binary=${2:?}; shift 2 ;;
     --dry-run) dry_run=true; shift ;;
     --list-snapshots) list_snapshots=true; shift ;;
+    --from-staging) from_staging=true; shift ;;
     --help|-h) usage; exit 0 ;;
     *) die "unknown argument: $1" ;;
   esac
@@ -63,7 +66,7 @@ load_legacy_env() {
   local mode
   mode=$(stat -c '%a' "$file") || die "cannot inspect legacy environment file: $file"
   [[ $mode =~ ^[0-7]+$ ]] || die "legacy environment file mode is invalid: $file"
-  (( (10#$mode & 077) == 0 )) || die "legacy environment file must not be group/world accessible: $file"
+  (( (8#$mode & 077) == 0 )) || die "legacy environment file must not be group/world accessible: $file"
 
   AWS_ACCESS_KEY_ID=
   AWS_SECRET_ACCESS_KEY=
@@ -111,18 +114,27 @@ fi
 
 [[ $snapshot =~ ^[0-9a-f]{64}$ ]] || die "snapshot must be a 64-character lowercase hexadecimal ID"
 [[ -n $staging_dir ]] || die "--staging-dir is required"
+if $from_staging; then
+  $list_snapshots && die "--from-staging cannot be combined with --list-snapshots"
+fi
 require_command podman
 require_command tar
 
 staging_dir=$(realpath -m -- "$staging_dir")
 [[ $staging_dir != / && $staging_dir != "$HOME" ]] || die "refusing unsafe staging directory: $staging_dir"
-if [[ -e $staging_dir ]]; then
-  [[ -d $staging_dir ]] || die "staging path is not a directory: $staging_dir"
-  [[ -z $(find "$staging_dir" -mindepth 1 -print -quit) ]] || {
-    die "staging directory must be empty: $staging_dir"$'\n'"remove it with: rm -rf -- $(printf '%q' "$staging_dir")"
-  }
+if $from_staging; then
+  [[ -d $staging_dir ]] || die "staging directory is missing: $staging_dir"
+  [[ -d $staging_dir/data/containers ]] || \
+    die "staging directory does not contain a Restic restore: $staging_dir/data/containers"
 else
-  $dry_run || install -d -m 0700 "$staging_dir"
+  if [[ -e $staging_dir ]]; then
+    [[ -d $staging_dir ]] || die "staging path is not a directory: $staging_dir"
+    [[ -z $(find "$staging_dir" -mindepth 1 -print -quit) ]] || {
+      die "staging directory must be empty: $staging_dir"$'\n'"remove it with: rm -rf -- $(printf '%q' "$staging_dir")"
+    }
+  else
+    $dry_run || install -d -m 0700 "$staging_dir"
+  fi
 fi
 
 if [[ -n $(podman ps --quiet) ]]; then
@@ -188,17 +200,20 @@ if $dry_run; then
   exit 0
 fi
 
-install -d -m 0700 "$staging_dir" "$RESTIC_CACHE_DIR"
-info "verifying legacy Restic repository"
-"$restic_binary" snapshots "$snapshot" >/dev/null
-"$restic_binary" check >/dev/null
-
-info "restoring /data/containers into staging"
-"$restic_binary" restore "$snapshot" \
-  --target "$staging_dir" \
-  --include /data/containers >/dev/null
-
 legacy_root="$staging_dir/data/containers"
+if $from_staging; then
+  info "reusing existing staging directory; skipping Restic restore"
+else
+  install -d -m 0700 "$staging_dir" "$RESTIC_CACHE_DIR"
+  info "verifying legacy Restic repository"
+  "$restic_binary" snapshots "$snapshot" >/dev/null
+  "$restic_binary" check >/dev/null
+
+  info "restoring /data/containers into staging"
+  "$restic_binary" restore "$snapshot" \
+    --target "$staging_dir" \
+    --include /data/containers >/dev/null
+fi
 [[ -d $legacy_root ]] || die "Restic restore did not produce $legacy_root"
 for volume in "${!legacy_paths[@]}"; do
   source_path="$legacy_root/${legacy_paths[$volume]}"
@@ -216,9 +231,11 @@ copy_tree() {
   [[ -d $mountpoint && $mountpoint != / && $mountpoint != "$HOME" ]] || {
     die "unsafe or unavailable mountpoint for $volume: $mountpoint"
   }
-  podman unshare tar --acls --xattrs --selinux --numeric-owner \
+  # Replay file data and numeric owners only. Docker SELinux/ACL xattrs deny
+  # the rootless container user even after :U remaps Unix ownership.
+  podman unshare tar --numeric-owner \
     --directory "$source_path" --create --file - . |
-    podman unshare tar --acls --xattrs --selinux --numeric-owner \
+    podman unshare tar --numeric-owner \
     --directory "$mountpoint" --extract --file -
 }
 

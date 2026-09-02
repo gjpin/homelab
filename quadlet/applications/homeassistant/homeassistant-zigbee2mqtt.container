@@ -28,7 +28,8 @@ ReadOnly=true
 ReadOnlyTmpfs=true
 PodmanArgs=--image-volume=ignore
 PidsLimit=1024
-RunInit=true
+# Non-root + read-only cannot exec /run/podman-init (Permission denied).
+RunInit=false
 
 [Service]
 Restart=always

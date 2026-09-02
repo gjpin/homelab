@@ -76,8 +76,27 @@ rg -q -- 'ROOT = /var/lib/gitea/git/repositories$' "$forgejo_tree/custom/conf/ap
 
 rg -q -- '--include /data/containers' "$restic_restore"
 rg -q -- '--list-snapshots' "$restic_restore"
+rg -q -- '--from-staging' "$restic_restore"
 rg -q -- '--path /data/containers' "$restic_restore"
-rg -q -- 'podman unshare tar --acls --xattrs --selinux --numeric-owner' "$restic_restore"
+rg -Fq -- '(( (8#$mode & 077) == 0 ))' "$restic_restore" || {
+  printf 'legacy env mode check does not treat stat %%a as octal\n' >&2
+  exit 1
+}
+mode=600
+(( (8#$mode & 077) == 0 )) || {
+  printf 'mode 600 must be treated as owner-only\n' >&2
+  exit 1
+}
+mode=640
+(( (8#$mode & 077) == 0 )) && {
+  printf 'mode 640 must be rejected as group-readable\n' >&2
+  exit 1
+}
+rg -q -- 'podman unshare tar --numeric-owner' "$restic_restore"
+if rg -n 'tar --acls --xattrs --selinux' "$restic_restore"; then
+  printf 'legacy volume copy must not replay foreign SELinux xattrs or ACLs\n' >&2
+  exit 1
+fi
 rg -q -- 'podman volume create --label' "$restic_restore"
 rg -q -- 'legacy repository is never written|legacy Restic repository' "$restic_restore"
 rg -Fq -- 'rewrite_legacy_forgejo_tree' "$restic_restore"
@@ -119,6 +138,10 @@ rg -q -- 'migrate_forgejo_layout' "$restic_restore"
 rg -q -- 'custom/conf/app.ini' "$root/bin/lib.sh"
 
 rg -q -- '--network none' "$postgres_restore"
+rg -Fq -- '--image-volume=ignore' "$postgres_restore" || {
+  printf 'PostgreSQL restore does not ignore image volumes\n' >&2
+  exit 1
+}
 rg -Fq -- '--user "${current_users[$workload]}"' "$postgres_restore"
 rg -q -- '--cap-drop all' "$postgres_restore"
 rg -q -- '--security-opt=no-new-privileges' "$postgres_restore"
@@ -128,6 +151,7 @@ rg -q -- '--format=custom --no-owner --no-privileges' "$postgres_restore"
 rg -q -- 'pg_restore' "$postgres_restore"
 rg -q -- '--clean --if-exists --no-owner --no-privileges --exit-on-error' "$postgres_restore"
 rg -q -- 'target PostgreSQL volume is not empty' "$postgres_restore"
+rg -q -- 'legacy PostgreSQL data is missing PG_VERSION after copy' "$postgres_restore"
 rg -q -- 'remove it with: rm -rf --' "$postgres_restore"
 rg -q -- 'recreate only that empty volume with: podman volume rm' "$postgres_restore"
 rg -q -- 'remove it with: rm -rf --' "$restic_restore"
@@ -136,6 +160,14 @@ rg -q -- 'LEGACY_FORGEJO_POSTGRES_IMAGE\|LEGACY_IMMICH_POSTGRES_IMAGE\|LEGACY_SU
   "$postgres_restore"
 rg -Fq -- 'legacy_config_volume="homelab-legacy-${workload}-config-$$"' "$postgres_restore"
 rg -Fq -- '--volume "$legacy_config_volume:/etc/postgresql:U"' "$postgres_restore"
+if rg -n 'tar --acls --xattrs --selinux' "$postgres_restore"; then
+  printf 'PostgreSQL dump copy must not replay foreign SELinux xattrs\n' >&2
+  exit 1
+fi
+if rg -n ':U,Z' "$postgres_restore"; then
+  printf 'PostgreSQL restore must not privately relabel volumes with :Z\n' >&2
+  exit 1
+fi
 if ! awk '
   /^run_legacy_dump\(\)/ { in_dump=1 }
   /^run_current_restore\(\)/ { in_dump=0 }

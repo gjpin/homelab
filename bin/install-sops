@@ -109,4 +109,4 @@ installed_version=$(rpm -q --queryformat '%{VERSION}\n' sops) || die "SOPS RPM i
 installed_release=$(rpm -q --queryformat '%{RELEASE}\n' sops) || die "SOPS RPM metadata is unavailable"
 [[ $installed_version == "$version" && $installed_release == 1 ]] || \
   die "installed SOPS is ${installed_version}-${installed_release}, expected ${version}-1"
-/usr/bin/sops --version >/dev/null
+/usr/bin/sops --version --disable-version-check >/dev/null

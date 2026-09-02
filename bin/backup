@@ -148,7 +148,20 @@ systemctl --user stop homelab.target
 for app in "${apps[@]}"; do
   systemctl --user stop "homelab-$app.target"
 done
-[[ -z $(podman ps --quiet) ]] || die "a container is still running; cold backup refused"
+while IFS= read -r unit; do
+  systemctl --user stop "$unit" || true
+done < <(jq -r '.[] .units[] | select(endswith("-build.service") | not)' \
+  "$root/manifests/applications.json")
+podman stop --all >/dev/null || true
+deadline=$((SECONDS + 60))
+while [[ -n $(podman ps --quiet) ]]; do
+  if ((SECONDS >= deadline)); then
+    printf 'still running:\n' >&2
+    podman ps --format '{{.Names}}\t{{.Status}}' >&2 || true
+    die "a container is still running; cold backup refused"
+  fi
+  sleep 1
+done
 
 install -d -m 0700 "$metadata_dir"
 install -m 0600 "$work_dir/expected-volumes" "$metadata_dir/volume-list.txt"

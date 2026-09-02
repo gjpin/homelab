@@ -56,7 +56,11 @@ policy.
   considerations are listed in [the rootless image policy](docs/rootless-images.md).
 - SELinux must remain enforcing. Normal containers use `container_t` with
   per-container MCS separation. Only Zigbee2MQTT uses `container_device_t`, and
-  the global `container_use_devices` boolean remains off.
+  the global `container_use_devices` boolean remains off. A host module adds
+  `container_net_domain` to that type so Zigbee2MQTT can resolve MQTT. The host
+  HTTPS socket proxy installs a targeted module so `systemd-socket-proxyd` can
+  bind `http_port_t` (TCP 443) and connect to rootless Caddy on
+  `127.0.0.1:8443`.
 - Deployment-owned static bind mounts are read-only and privately relabeled.
 - Images use explicit versions and digest pins. Renovate is configured to open
   reviewed version-and-digest updates without automerge.
@@ -74,7 +78,7 @@ access is enabled.
 - Fedora 44 or Fedora 45 Linux host on amd64 or arm64 with cgroup v2 and
   SELinux enforcing. `bin/bootstrap-host` installs this host package baseline:
   `age` (at least 1.3.0), `restic` (at least 0.19.1), `ca-certificates`,
-  `container-selinux`, `curl`, `diffutils`, `firewalld`, `fuse-overlayfs`,
+  `checkpolicy`, `container-selinux`, `curl`, `diffutils`, `firewalld`, `fuse-overlayfs`,
   `gettext-envsubst`, `gawk`, `git`, `iproute`, `jq`, `libselinux-utils`,
   `openssh-clients`, `passt`, `podman`, `policycoreutils`, `python3`,
   `ripgrep`, `shadow-utils`, `systemd`, `tar`, `util-linux`, and `xfsprogs`.
@@ -192,9 +196,10 @@ Perform these steps in order. Replace every uppercase placeholder.
      --git-key ../github-deploy-key \
      --known-hosts ../github-known-hosts \
      --firewalld-zone public
-     /usr/bin/restic version
-     /usr/bin/age --version
-     /usr/bin/sops --version
+
+   /usr/bin/restic version
+   /usr/bin/age --version
+   /usr/bin/sops --version --disable-version-check
    ```
 
    On a TTY, bootstrap asks whether Podman images and named volumes should live
@@ -292,9 +297,10 @@ Perform these steps in order. Replace every uppercase placeholder.
     host and are recovered by cloning the private repository.
 
     Re-run host bootstrap so it can pull the encrypted file, set the timezone,
-    and grant Zigbee device access. If the first run already mounted a storage
-    disk, omit the disk flags. Otherwise pass the same `--data-disk` /
-    `--format-data-disk` or `--no-data-disk` choice:
+    and install the Zigbee udev rule (`dialout` `0660`, no `uaccess`). If the
+    first run already mounted a storage disk, omit the disk flags. Otherwise
+    pass the same `--data-disk` / `--format-data-disk` or `--no-data-disk`
+    choice:
 
     ```bash
     cd ~/podman-bootstrap/source
@@ -422,13 +428,14 @@ exposed to pull-request code.
 
 Require the `validate`, `host-tools (amd64)`, `host-tools (arm64)`, and `e2e`
 checks in the `main` branch protection rule. A `select` job maps the Git diff
-onto those checks: CI, docs, incubator, and Renovate-workflow changes skip
-Podman, custom image builds, and host-tool tests, so `e2e` can pass in
-seconds. Workload changes run only the affected workloads. Custom image
-Containerfiles build only the matching image. Host-tool metadata runs the
-architecture tests and the complete Podman suite. Global deployment changes
-still run the complete real Podman E2E suite. Keep approval and merge
-manual; passing checks do not automatically merge an update.
+onto those checks: CI, docs, incubator, Renovate-workflow, encrypted-secret,
+Home Assistant automation, and validate-only test changes skip Podman, custom
+image builds, and host-tool tests, so `e2e` can pass in seconds. Workload
+changes run only the affected workloads. Custom image Containerfiles build
+only the matching image. Host-tool metadata runs the architecture tests and
+the complete Podman suite. Global deployment changes still run the complete
+real Podman E2E suite. Keep approval and merge manual; passing checks do not
+automatically merge an update.
 
 The included `renovate.json` understands Quadlet `Image=` entries and the
 custom image build inputs. Its Docker digest pinning and `currentDigest`
@@ -924,7 +931,10 @@ sudo systemctl daemon-reload
 sudo systemctl restart caddy-https-proxy.socket
 ```
 
-The fixed host-tool helper and socket proxy are the only host-root integration
-points. The Git reconciler still has no sudo access, and the host-tool helper
-accepts only release metadata for the fixed SOPS upstream rather than running
-repository scripts as root.
+SELinux policy under `selinux/` is compiled and loaded by `bootstrap-host`.
+Re-run that command after a policy change. The Git reconciler does not apply it.
+
+The fixed host-tool helper, socket proxy, and that SELinux module are the only
+host-root integration points. The Git reconciler still has no sudo access, and
+the host-tool helper accepts only release metadata for the fixed SOPS upstream
+rather than running repository scripts as root.

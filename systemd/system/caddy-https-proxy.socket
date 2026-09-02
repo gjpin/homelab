@@ -2,6 +2,8 @@
 Description=Public HTTPS socket for rootless Caddy
 
 [Socket]
+# (sd-listen) inherits systemd_socket_proxyd_t from the associated service.
+# selinux/caddy-https-proxy.te allows name_bind on http_port_t (TCP 443).
 ListenStream=0.0.0.0:443
 ListenStream=[::]:443
 BindIPv6Only=ipv6-only

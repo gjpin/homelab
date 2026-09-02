@@ -20,7 +20,7 @@ PublishPort=127.0.0.1:8443:443/tcp
 EnvironmentFile=%t/homelab/rendered/site.env
 Secret=caddy-cloudflare-api-token,type=env,target=CADDY_CLOUDFLARE_TOKEN
 Secret=caddy-bookmarks-password-hash,type=env,target=CADDY_HASHED_PASSWORD
-Volume=%h/current/config/templates/caddy/Caddyfile:/etc/caddy/Caddyfile:ro,Z
+Volume=%t/homelab/rendered/caddy/Caddyfile:/etc/caddy/Caddyfile:ro,Z
 Volume=caddy-data.volume:/data/caddy:U
 Volume=caddy-config.volume:/config/caddy:U
 Volume=caddy-bookmarks.volume:/data/bookmarks:U

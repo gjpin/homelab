@@ -234,6 +234,9 @@ for path in "${changed_paths[@]}"; do
       workload=${path#quadlet/applications/}
       add_workload "${workload%%/*}"
       ;;
+    config/templates/homeassistant/automations.yaml)
+      # Application content; HA startup config remains workload-scoped below.
+      ;;
     config/templates/*/*)
       workload=${path#config/templates/}
       add_workload "${workload%%/*}"
@@ -305,16 +308,19 @@ for path in "${changed_paths[@]}"; do
       add_all_build_images
       host_tools_needed=true
       ;;
-    .sops.yaml|\
-      secrets/*|bin/*|tests/e2e.sh|tests/e2e-selection.sh|tests/install-e2e-tools.sh|tests/static.sh|\
-      tests/backup.sh|tests/architecture.sh|tests/bootstrap-storage.sh|\
-      tests/postgres-migration.sh|tests/mariadb-migration.sh|\
+    bin/*|tests/e2e.sh|tests/install-e2e-tools.sh|\
       tests/postgres-migration-e2e.sh|tests/mariadb-migration-e2e.sh|\
       config/legacy-migration.env|\
       systemd/user/*|quadlet/networks/*|quadlet/volumes/*)
       global_change=true
       ;;
-    .github/*|README.md|docs/*|incubator/*|AGENTS.md|renovate.json)
+    .sops.yaml|secrets/*|\
+      tests/static.sh|tests/e2e-selection.sh|tests/backup.sh|\
+      tests/architecture.sh|tests/bootstrap-storage.sh|\
+      tests/postgres-migration.sh|tests/mariadb-migration.sh|\
+      tests/legacy-restore.sh|tests/selinux-policy.sh|tests/zigbee-udev.sh|\
+      selinux/*|\
+      .github/*|README.md|docs/*|incubator/*|AGENTS.md|renovate.json)
       ;;
     *)
       global_change=true

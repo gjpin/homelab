@@ -68,6 +68,7 @@ case "${1:-} ${2:-}" in
     printf '%s\n' "$mountpoint"
     ;;
   'ps --quiet') exit 0 ;;
+  'stop --all') exit 0 ;;
   unshare\ *) shift; exec "$@" ;;
   *) exit 2 ;;
 esac
@@ -127,6 +128,7 @@ rg -q '^restic backup .*--tag homelab --tag automatic --json$' "$log"
 rg -q '^restic forget .*--keep-daily 2 --keep-weekly 4 --keep-monthly 2 --prune$' "$log"
 rg -q '^restic check$' "$log"
 rg -q '^systemctl stop homelab-reconcile.timer homelab-backup.timer$' "$log"
+rg -q '^podman stop --all$' "$log"
 rg -q '^systemctl start homelab.target$' "$log"
 rg -q '^systemctl start homelab-reconcile.timer$' "$log"
 rg -q '^systemctl start homelab-backup.timer$' "$log"

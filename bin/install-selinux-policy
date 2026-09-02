@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+[[ ${EUID} -eq 0 ]] || { printf 'Run this command as root.\n' >&2; exit 1; }
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+te=${1:?usage: install-selinux-policy POLICY.te}
+[[ -f $te && -r $te ]] || die "SELinux policy source is not readable: $te"
+require_command checkmodule
+require_command semodule_package
+require_command semodule
+
+module=$(awk '/^module[[:space:]]/{print $2; exit}' "$te")
+[[ $module =~ ^[a-z][a-z0-9_]*$ ]] || die "SELinux policy module name is invalid: ${module:-<empty>}"
+
+workdir=$(mktemp -d)
+trap 'rm -rf -- "$workdir"' EXIT
+checkmodule -M -m -o "$workdir/$module.mod" "$te"
+semodule_package -o "$workdir/$module.pp" -m "$workdir/$module.mod"
+semodule -i "$workdir/$module.pp"
+semodule -l | awk '{print $1}' | grep -Fxq "$module" || \
+  die "SELinux policy module did not load: $module"
+info "Installed SELinux policy module $module"

@@ -10,6 +10,8 @@ source "$root/bin/lib.sh"
 require_command jq
 
 "$root/tests/architecture.sh"
+"$root/tests/selinux-policy.sh"
+"$root/tests/zigbee-udev.sh"
 
 load_host_tools "$root/config/host-tools.env"
 [[ -f "$root/config/host-tools.env" ]] || { printf 'host tools metadata is missing\n' >&2; exit 1; }
@@ -24,7 +26,7 @@ done
 
 rg -q 'age-keygen -pq -o' "$root/bin/bootstrap-host" || { printf 'host age identity is not post-quantum\n' >&2; exit 1; }
 for package in \
-  age ca-certificates container-selinux curl diffutils firewalld fuse-overlayfs \
+  age ca-certificates checkpolicy container-selinux curl diffutils firewalld fuse-overlayfs \
   gettext-envsubst gawk git iproute jq libselinux-utils openssh-clients passt \
   podman policycoreutils python3 restic ripgrep shadow-utils systemd tar util-linux \
   xfsprogs; do
@@ -56,6 +58,18 @@ rg -q 'rpm -qip' "$root/bin/install-sops" || { printf 'SOPS RPM metadata is not 
 rg -q 'dnf install -y "\$tmp_rpm"' "$root/bin/install-sops" || { printf 'SOPS RPM is not installed through DNF\n' >&2; exit 1; }
 rg -q 'installed_version=.*%\{VERSION\}' "$root/bin/install-sops" || { printf 'installed SOPS version is not checked\n' >&2; exit 1; }
 rg -q 'refusing to downgrade SOPS' "$root/bin/install-sops" || { printf 'SOPS installer does not reject downgrades\n' >&2; exit 1; }
+rg -q 'sops --version --disable-version-check' "$root/bin/install-sops" || {
+  printf 'SOPS installer must not let sops --version phone home\n' >&2
+  exit 1
+}
+rg -q 'sops --version --disable-version-check' "$root/bin/status" || {
+  printf 'status must not let sops --version phone home\n' >&2
+  exit 1
+}
+rg -q 'sops --version --disable-version-check' "$root/tests/install-e2e-tools.sh" || {
+  printf 'E2E SOPS install must not let sops --version phone home\n' >&2
+  exit 1
+}
 rg -q 'install -m 0755 "\$root/bin/install-sops" /usr/local/libexec/homelab-install-sops' "$root/bin/bootstrap-host" || {
   printf 'bootstrap does not install the fixed SOPS updater\n' >&2
   exit 1
@@ -161,6 +175,14 @@ rg -q 'podman pull --arch=amd64' "$root/bin/reconcile" || {
 }
 rg -q 'require_pq_age_recipient "--host-recipient"' "$root/bin/init-secrets" || { printf 'host recipient is not checked as post-quantum\n' >&2; exit 1; }
 rg -q 'require_pq_age_recipient "--operator-recipient"' "$root/bin/init-secrets" || { printf 'operator recipient is not checked as post-quantum\n' >&2; exit 1; }
+rg -qF 'sops --config /dev/null --age' "$root/bin/init-secrets" || {
+  printf 'init-secrets PQ probe uses the repository .sops.yaml\n' >&2
+  exit 1
+}
+rg -qF 'sops --config /dev/null --age "$recipients"' "$root/bin/init-secrets" || {
+  printf 'init-secrets encrypt uses the repository .sops.yaml\n' >&2
+  exit 1
+}
 rg -q 'fedora:44@sha256:[0-9a-f]{64}' "$root/.github/workflows/validate.yml" || {
   printf 'validation must use a digest-pinned Fedora 44 image\n' >&2
   exit 1
@@ -263,7 +285,19 @@ done < <(rg --no-filename '^Secret=' "$containers" | cut -d= -f2 | cut -d, -f1 |
 [[ $(rg -l '^ReadOnlyTmpfs=true$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must explicitly enable read-only tmpfs support\n' >&2; exit 1; }
 [[ $(rg -l '^PodmanArgs=.*--image-volume=ignore$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must reject implicit anonymous image volumes\n' >&2; exit 1; }
 [[ $(rg -l '^PidsLimit=1024$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must set the approved PID limit\n' >&2; exit 1; }
-[[ $(rg -l '^RunInit=true$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must set RunInit=true\n' >&2; exit 1; }
+[[ $(rg -l '^RunInit=true$' "$containers" | wc -l | tr -d ' ') == 17 ]] || { printf 'every compatible container must set RunInit=true\n' >&2; exit 1; }
+rg -q '^RunInit=false$' "$containers/homeassistant/homeassistant.container" || {
+  printf 'homeassistant must set RunInit=false so s6-overlay stays PID 1\n' >&2
+  exit 1
+}
+rg -q '^RunInit=false$' "$containers/homeassistant/homeassistant-zigbee2mqtt.container" || {
+  printf 'zigbee2mqtt must set RunInit=false; non-root cannot exec /run/podman-init\n' >&2
+  exit 1
+}
+rg -q '^GroupAdd=keep-groups$' "$containers/homeassistant/homeassistant-zigbee2mqtt.container" || {
+  printf 'zigbee2mqtt must keep host groups for coordinator access\n' >&2
+  exit 1
+}
 [[ $(rg -l '^PartOf=homelab-.*\.target$' "$containers" | wc -l | tr -d ' ') == 19 ]] || { printf 'every container must belong to an application target\n' >&2; exit 1; }
 
 rootless_units=(
@@ -325,6 +359,40 @@ rg -q 'setsebool -P container_use_devices off' "$root/bin/bootstrap-host" || {
   printf 'bootstrap does not disable the global container device boolean\n' >&2
   exit 1
 }
+rg -q 'install-selinux-policy' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not install the Caddy HTTPS proxy SELinux module\n' >&2
+  exit 1
+}
+rg -q 'selinux/\*\.te' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not install every SELinux module in selinux/\n' >&2
+  exit 1
+}
+rg -q 'install-zigbee-udev' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not install the Zigbee coordinator udev rule\n' >&2
+  exit 1
+}
+rg -q 'gpasswd --delete "\$runtime_user" root' "$root/bin/install-zigbee-udev" || {
+  printf 'Zigbee udev installer does not drop accidental root-group membership\n' >&2
+  exit 1
+}
+rg -q 'systemctl stop caddy-https-proxy.service caddy-https-proxy.socket' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap cannot replace an already-installed Caddy HTTPS proxy\n' >&2
+  exit 1
+}
+rg -q 'allow systemd_socket_proxyd_t http_port_t:tcp_socket \{ name_bind name_connect \};' \
+  "$root/selinux/caddy-https-proxy.te" || {
+  printf 'Caddy HTTPS proxy SELinux module does not allow 443 bind and 8443 connect\n' >&2
+  exit 1
+}
+rg -q 'typeattribute container_device_t container_net_domain;' \
+  "$root/selinux/zigbee2mqtt-network.te" || {
+  printf 'Zigbee2MQTT SELinux module does not grant container_net_domain\n' >&2
+  exit 1
+}
+if rg -n 'permissive |unconfined_|spc_t' "$root/selinux"; then
+  printf 'SELinux policy must not add permissive or unconfined exceptions\n' >&2
+  exit 1
+fi
 if rg -n 'setsebool .*container_use_devices (1|on)' "$root/bin"; then
   printf 'global container device access must never be enabled\n' >&2
   exit 1
@@ -349,8 +417,40 @@ rg -q 'restore_prior_release' "$root/bin/reconcile" || {
   printf 'reconciliation must restore the prior current symlink on activation failure\n' >&2
   exit 1
 }
+rg -Fq 'tar -x -p -C "$release"' "$root/bin/reconcile" || {
+  printf 'release extract must preserve Git file modes for non-root bind mounts\n' >&2
+  exit 1
+}
+[[ $(rg -F --count '.[$app].units[] | select(endswith("-build.service") | not)' "$root/bin/reconcile") == 2 ]] || {
+  printf 'reconciliation must ignore oneshot image builds in repair and activation checks\n' >&2
+  exit 1
+}
+rg -q '^Volume=%t/homelab/rendered/caddy/Caddyfile:' "$containers/caddy/caddy.container" || {
+  printf 'Caddy must mount a rendered Caddyfile readable by the non-root image user\n' >&2
+  exit 1
+}
+rg -Fq 'cp -- "$root/config/templates/caddy/Caddyfile" "$rendered/caddy/Caddyfile"' \
+  "$root/bin/render-config" || {
+  printf 'render-config must install the Caddyfile next to other rendered files\n' >&2
+  exit 1
+}
+rg -Fq 'find "$rendered" -type f -exec chmod 0444 {} +' "$root/bin/render-config" || {
+  printf 'rendered files must be world-readable for non-root container users\n' >&2
+  exit 1
+}
+rg -Fq 'rm -rf -- "$rendered"' "$root/bin/render-config" || {
+  printf 'render-config must replace the 0444 rendered tree on each run\n' >&2
+  exit 1
+}
+while IFS= read -r build; do
+  rg -q '^RemainAfterExit=yes$' "$build" || {
+    printf 'image build unit must remain active after a successful build: %s\n' "$build" >&2
+    exit 1
+  }
+done < <(find "$root/quadlet/builds" -name '*.build' -type f | sort)
 
 [[ -x "$root/bin/backup" && -x "$root/bin/restic" && -x "$root/bin/install-sops" && \
+  -x "$root/bin/install-selinux-policy" && -x "$root/bin/install-zigbee-udev" && \
   -x "$root/bin/migrate-databases" && -x "$root/bin/migrate-postgres" && \
   -x "$root/bin/migrate-mariadb" ]] || {
   printf 'required executables are not executable\n' >&2

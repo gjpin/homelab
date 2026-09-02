@@ -49,4 +49,4 @@ printf '%s  %s\n' "$sops_sha256" "$tmp_dir/$sops_binary" | sha256sum --check --s
 install -m 0755 "$tmp_dir/$sops_binary" "$tool_dir/sops"
 
 age-keygen --version
-sops --version
+sops --version --disable-version-check

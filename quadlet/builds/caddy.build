@@ -3,3 +3,6 @@ ImageTag=localhost/homelab/caddy
 File=%h/current/images/caddy/Containerfile
 SetWorkingDirectory=file
 Pull=always
+
+[Service]
+RemainAfterExit=yes

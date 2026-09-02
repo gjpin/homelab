@@ -17,12 +17,16 @@ secrets_file="$root/secrets/secrets.sops.yaml"
 [[ -r $secrets_file ]] || die "missing encrypted secrets: $secrets_file"
 runtime_root="${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/homelab"
 rendered="$runtime_root/rendered"
-install -d -m 0700 "$runtime_root" "$rendered" "$rendered/homeassistant" "$rendered/radicale" "$rendered/searxng" "$rendered/supernote"
-install -d -m 0700 "$HOME/.local/state/homelab"
+install -d -m 0700 "$runtime_root" "$HOME/.local/state/homelab"
+rm -rf -- "$rendered"
+install -d -m 0700 "$rendered" "$rendered/caddy" "$rendered/homeassistant" "$rendered/radicale" "$rendered/searxng" "$rendered/supernote"
 
 secrets_json=$(sops --decrypt --output-type json "$secrets_file")
 apply_site_config "$secrets_json"
 ln -sfn "/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID" "$HOME/.local/state/homelab/zigbee-router"
+if command -v restorecon >/dev/null 2>&1; then
+  restorecon -F "$HOME/.local/state/homelab/zigbee-router" >/dev/null 2>&1 || true
+fi
 jq -e '
   .backup.s3_access_key_id | type == "string" and length > 0
 ' <<<"$secrets_json" >/dev/null || die "backup S3 access key ID is missing"
@@ -69,6 +73,8 @@ cp -- "$root/config/templates/homeassistant/mosquitto.conf" "$rendered/homeassis
 
 HOMEASSISTANT_MOSQUITTO_PASSWORD=$(secret_value '.homeassistant.mosquitto_password')
 printf '%s' "$HOMEASSISTANT_MOSQUITTO_PASSWORD" | "$root/bin/mosquitto-password" >"$rendered/homeassistant/mosquitto-passwords"
+
+cp -- "$root/config/templates/caddy/Caddyfile" "$rendered/caddy/Caddyfile"
 
 printf '%s\n' "$(secret_value '.radicale.htpasswd_record')" >"$rendered/radicale/users"
 cp -- "$root/config/templates/radicale/config" "$rendered/radicale/config"

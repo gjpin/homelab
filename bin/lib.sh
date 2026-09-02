@@ -118,6 +118,26 @@ validate_zigbee_serial() {
   [[ $value =~ ^[A-Za-z0-9._:+-]+$ ]] || die "site.homeassistant_zigbee_router_serial_id is invalid"
 }
 
+# Map a /dev/serial/by-id basename to udev's ID_SERIAL.
+zigbee_udev_id_serial() {
+  local by_id=${1:-} serial
+  validate_zigbee_serial "$by_id"
+  serial=$by_id
+  [[ $serial == usb-* ]] && serial=${serial#usb-}
+  if [[ $serial =~ ^(.+)-if[0-9]+(-port[0-9]+)?$ ]]; then
+    serial=${BASH_REMATCH[1]}
+  fi
+  [[ $serial != "" ]] || die "cannot derive udev ID_SERIAL from $by_id"
+  printf '%s\n' "$serial"
+}
+
+zigbee_udev_rule() {
+  local id_serial
+  id_serial=$(zigbee_udev_id_serial "${1:-}")
+  printf 'ACTION=="add|change", SUBSYSTEM=="tty", ENV{ID_SERIAL}=="%s", MODE="0660", GROUP="dialout", TAG-="uaccess"\n' \
+    "$id_serial"
+}
+
 validate_backup_s3_endpoint() {
   local value=${1:-}
   [[ $value =~ ^https://[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]{1,5})?$ ]] || \

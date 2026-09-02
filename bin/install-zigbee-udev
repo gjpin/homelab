@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+print_rule=false
+if [[ ${1:-} == --print-rule ]]; then
+  print_rule=true
+  shift
+fi
+
+by_id=${1:?usage: install-zigbee-udev [--print-rule] SERIAL_BY_ID [RUNTIME_USER]}
+runtime_user=${2:-homelab}
+[[ $runtime_user =~ ^[a-z_][a-z0-9_-]*$ ]] || die "runtime user is invalid: $runtime_user"
+
+rule=$(zigbee_udev_rule "$by_id")
+if $print_rule; then
+  printf '%s\n' "$rule"
+  exit 0
+fi
+
+[[ ${EUID} -eq 0 ]] || { printf 'Run this command as root.\n' >&2; exit 1; }
+require_command udevadm
+require_command usermod
+require_command gpasswd
+require_command install
+
+rules_file=/etc/udev/rules.d/99-homelab-zigbee.rules
+workdir=$(mktemp -d)
+trap 'rm -rf -- "$workdir"' EXIT
+printf '%s\n' \
+  '# Managed by homelab bootstrap. Do not edit.' \
+  "$rule" >"$workdir/99-homelab-zigbee.rules"
+install -m 0644 "$workdir/99-homelab-zigbee.rules" "$rules_file"
+
+udevadm control --reload-rules
+udevadm trigger --action=add --subsystem-match=tty
+
+usermod --append --groups dialout "$runtime_user"
+if id -nG "$runtime_user" | tr ' ' '\n' | grep -Fxq root; then
+  gpasswd --delete "$runtime_user" root
+fi
+
+device="/dev/serial/by-id/$by_id"
+if [[ -e $device ]]; then
+  chgrp dialout "$device"
+  chmod 0660 "$device"
+else
+  info "Zigbee coordinator is not present yet: $device"
+fi
+
+info "Installed Zigbee udev rule for $runtime_user"

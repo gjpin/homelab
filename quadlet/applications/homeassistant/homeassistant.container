@@ -22,7 +22,9 @@ ReadOnly=true
 ReadOnlyTmpfs=true
 PodmanArgs=--image-volume=ignore
 PidsLimit=1024
-RunInit=true
+# s6-overlay must be PID 1. Set false explicitly so containers.conf init=true
+# cannot inject catatonit (HA then exits 100).
+RunInit=false
 
 [Service]
 Restart=always

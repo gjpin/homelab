@@ -50,7 +50,9 @@ if [[ $target_commit == "$deployed_commit" && -e $current_link ]]; then
         needs_restart=true
         break
       fi
-    done < <(jq -r --arg app "$app" '.[$app].units[]' "$current_link/manifests/applications.json")
+    done < <(jq -r --arg app "$app" \
+      '.[$app].units[] | select(endswith("-build.service") | not)' \
+      "$current_link/manifests/applications.json")
     if $needs_restart; then
       info "repairing inactive $app application target"
       systemctl --user restart "homelab-$app.target"
@@ -65,7 +67,7 @@ fi
 release="$releases_dir/$target_commit"
 if [[ ! -d $release ]]; then
   install -d -m 0700 "$release"
-  git -C "$repo_dir" archive "$target_commit" | tar -x -C "$release"
+  git -C "$repo_dir" archive "$target_commit" | tar -x -p -C "$release"
 fi
 
 "$release/bin/validate" --deployment
@@ -200,7 +202,9 @@ for app in "${apps[@]}"; do
   while IFS= read -r unit; do
     systemctl --user is-active --quiet "$unit" || \
       restore_prior_release "$app unit failed health/activation checks: $unit. Named-volume major migrations already applied are not reversed."
-  done < <(jq -r --arg app "$app" '.[$app].units[]' "$release/manifests/applications.json")
+  done < <(jq -r --arg app "$app" \
+    '.[$app].units[] | select(endswith("-build.service") | not)' \
+    "$release/manifests/applications.json")
 done
 "$release/bin/security-audit"
 printf '%s\n' "$target_commit" >"$state_dir/deployed-commit"

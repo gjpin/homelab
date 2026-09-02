@@ -75,6 +75,7 @@ esac
 packages=(
   age
   ca-certificates
+  checkpolicy
   container-selinux
   curl
   diffutils
@@ -157,6 +158,11 @@ rm -f -- \
   "$legacy_bin_dir/restic" "$legacy_bin_dir/sops"
 systemctl enable --now firewalld
 
+# Re-bootstrap must be able to replace the proxy this script installed.
+if systemctl is-active --quiet caddy-https-proxy.socket \
+  || systemctl is-enabled --quiet caddy-https-proxy.socket 2>/dev/null; then
+  systemctl stop caddy-https-proxy.service caddy-https-proxy.socket || true
+fi
 if ss -H -ltn 'sport = :443' | grep -q .; then
   printf 'TCP port 443 is already in use; stop the existing listener first.\n' >&2
   exit 1
@@ -184,6 +190,7 @@ homelab_storage_setup "$data_disk_mode" "$data_disk" "$format_data_disk" "$runti
 loginctl enable-linger "$runtime_user"
 
 install -d -m 0700 -o "$runtime_user" -g "$runtime_user" "$runtime_home/.ssh" "$runtime_home/.config/sops/age" "$runtime_home/git"
+chown "$runtime_user:$runtime_user" "$runtime_home/.config"
 if [[ -n $git_key ]]; then
   install -m 0600 -o "$runtime_user" -g "$runtime_user" "$git_key" "$runtime_home/.ssh/id_ed25519"
 fi
@@ -239,13 +246,15 @@ if [[ -r $secrets_file ]] && rg -q '^sops:' "$secrets_file"; then
   timedatectl set-timezone "$TIMEZONE"
   device="/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID"
   [[ -e $device ]] || die "configured Zigbee coordinator does not exist: $device"
-  device_group=$(stat -c %G "$device")
-  usermod --append --groups "$device_group" "$runtime_user"
+  "$root/bin/install-zigbee-udev" "$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID" "$runtime_user"
   loginctl terminate-user "$runtime_user" || true
 else
   info "encrypted secrets are not present yet; re-run bootstrap-host after init-secrets to apply timezone and Zigbee access"
 fi
 
+for te in "$root"/selinux/*.te; do
+  "$root/bin/install-selinux-policy" "$te"
+done
 install -m 0644 "$root/systemd/system/caddy-https-proxy.socket" /etc/systemd/system/caddy-https-proxy.socket
 install -m 0644 "$root/systemd/system/caddy-https-proxy.service" /etc/systemd/system/caddy-https-proxy.service
 install -m 0644 "$root/systemd/system/homelab-host-tools-update.service" /etc/systemd/system/homelab-host-tools-update.service

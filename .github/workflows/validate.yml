@@ -69,7 +69,7 @@ jobs:
             --volume "$GITHUB_WORKSPACE:/src:ro" \
             --workdir /src \
             fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
-            bash -lc 'dnf install -y git jq podman ripgrep ShellCheck >/dev/null && ./bin/validate && ./tests/static.sh && ./tests/e2e-selection.sh && ./tests/backup.sh && ./tests/bootstrap-storage.sh && ./tests/legacy-restore.sh && ./tests/postgres-migration.sh && ./tests/mariadb-migration.sh && ln -s /src /root/current && systemd-analyze verify systemd/user/homelab-backup.service systemd/user/homelab-backup.timer'
+            bash -lc 'dnf install -y git jq podman ripgrep ShellCheck checkpolicy policycoreutils >/dev/null && ./bin/validate && ./tests/static.sh && ./tests/e2e-selection.sh && ./tests/backup.sh && ./tests/bootstrap-storage.sh && ./tests/legacy-restore.sh && ./tests/postgres-migration.sh && ./tests/mariadb-migration.sh && ln -s /src /root/current && systemd-analyze verify systemd/user/homelab-backup.service systemd/user/homelab-backup.timer'
 
       - name: Build custom images
         if: needs.select.outputs.build_images != ''

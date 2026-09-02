@@ -190,4 +190,49 @@ assert_ci 'host-tools metadata change' \
   'e2e_mode=all' 'e2e_workloads=' 'build_images=caddy' 'host_tools=true'
 reset_fixture
 
+printf 'creation_rules: []\n' >"$fixture/.sops.yaml"
+make_commit
+assert_scope none 'sops recipient change'
+assert_ci 'sops recipient change' \
+  'e2e_mode=none' 'e2e_workloads=' 'build_images=' 'host_tools=false'
+reset_fixture
+
+mkdir -p "$fixture/secrets"
+printf 'site: {}\n' >"$fixture/secrets/secrets.sops.yaml"
+make_commit
+assert_scope none 'encrypted secrets change'
+assert_ci 'encrypted secrets change' \
+  'e2e_mode=none' 'e2e_workloads=' 'build_images=' 'host_tools=false'
+reset_fixture
+
+mkdir -p "$fixture/config/templates/homeassistant"
+printf '[]\n' >"$fixture/config/templates/homeassistant/automations.yaml"
+make_commit
+assert_scope none 'homeassistant automations change'
+assert_ci 'homeassistant automations change' \
+  'e2e_mode=none' 'e2e_workloads=' 'build_images=' 'host_tools=false'
+reset_fixture
+
+mkdir -p "$fixture/config/templates/caddy"
+printf ':443 {\n}\n' >"$fixture/config/templates/caddy/Caddyfile"
+make_commit
+assert_scope caddy 'caddy template change'
+assert_ci 'caddy template change' \
+  'e2e_mode=workloads' 'e2e_workloads=caddy' 'build_images=' 'host_tools=false'
+reset_fixture
+
+printf 'static\n' >"$fixture/tests/static.sh"
+make_commit
+assert_scope none 'static test change'
+assert_ci 'static test change' \
+  'e2e_mode=none' 'e2e_workloads=' 'build_images=' 'host_tools=false'
+reset_fixture
+
+printf 'e2e harness\n' >"$fixture/tests/e2e.sh"
+make_commit
+assert_scope all 'e2e harness change'
+assert_ci 'e2e harness change' \
+  'e2e_mode=all' 'e2e_workloads=' 'build_images=caddy' 'host_tools=true'
+reset_fixture
+
 printf 'E2E selection tests passed\n'

@@ -581,16 +581,35 @@ homelab_storage_resolve_existing() {
   esac
 }
 
-homelab_storage_assert_device_matches_configured() {
+homelab_storage_uuids_provided_by() {
   local device=$1
-  local configured filesystem uuid
+  local inv
   homelab_storage_require_device "$device"
   device=$(homelab_storage_canonical "$device")
-  filesystem=$(homelab_storage_resolve_existing "$device" false)
-  uuid=$(homelab_storage_uuid "$filesystem")
+  inv=$(homelab_storage_inventory)
+  jq -r --arg n "$device" '
+    .[]
+    | select(.name == $n or .pkname == $n)
+    | select(.fstype == "xfs" or .fstype == "ext4")
+    | select(.uuid != null and .uuid != "")
+    | .uuid
+  ' <<<"$inv"
+}
+
+homelab_storage_assert_device_matches_configured() {
+  local device=$1
+  local configured uuid found=false
+  homelab_storage_require_device "$device"
+  device=$(homelab_storage_canonical "$device")
+  homelab_storage_assert_not_os_device "$device"
   configured=$(homelab_storage_managed_uuid)
-  [[ $uuid == "$configured" ]] || \
-    die "selected data disk UUID $uuid does not match the configured storage disk $configured"
+  while IFS= read -r uuid; do
+    [[ $uuid == "$configured" ]] || continue
+    found=true
+    break
+  done < <(homelab_storage_uuids_provided_by "$device")
+  [[ $found == true ]] || \
+    die "selected data disk does not provide the configured storage UUID $configured"
 }
 
 homelab_storage_apply() {
@@ -690,14 +709,18 @@ homelab_storage_setup() {
 
   if homelab_storage_fstab_is_managed; then
     [[ $format == false ]] || die "refusing to format the configured Podman storage disk"
+    if homelab_storage_already_mounted_correctly; then
+      if [[ $mode == use ]]; then
+        homelab_storage_assert_device_matches_configured "$device"
+      fi
+      homelab_storage_write_user_dropin "$user"
+      info "Podman storage disk already mounted at $(homelab_storage_path)"
+      return 0
+    fi
     if [[ $mode == use ]]; then
       homelab_storage_assert_device_matches_configured "$device"
     fi
     homelab_storage_write_user_dropin "$user"
-    if homelab_storage_already_mounted_correctly; then
-      info "Podman storage disk already mounted at $(homelab_storage_path)"
-      return 0
-    fi
     info "Mounting the configured Podman storage disk"
     homelab_storage_prepare_mountpoint "$user"
     homelab_storage_activate_mount

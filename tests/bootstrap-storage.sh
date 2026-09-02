@@ -443,6 +443,8 @@ assert_fails 'format is refused for a live storage disk' \
   homelab_storage_setup use "$dev/sdb1" true "$test_user"
 assert_fails 'conflicting UUID is refused' \
   homelab_storage_setup use "$dev/sdd1" false "$test_user"
+assert_ok 'parent disk matches a mounted storage partition' \
+  homelab_storage_setup use "$dev/sdb" false "$test_user"
 
 reset_state
 install -d -m 0700 "$storage_path"

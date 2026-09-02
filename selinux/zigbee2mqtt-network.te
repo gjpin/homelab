@@ -1,0 +1,11 @@
+module homelab_zigbee2mqtt_network 1.0;
+
+require {
+	type container_device_t;
+	attribute container_net_domain;
+}
+
+# Fedora's container_device_t can open USB serial nodes but is not in
+# container_net_domain (container_t is). Zigbee2MQTT still needs DNS, MQTT,
+# and its frontend listener; without this, Node getaddrinfo returns EACCES.
+typeattribute container_device_t container_net_domain;

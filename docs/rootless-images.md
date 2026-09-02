@@ -20,7 +20,7 @@ change; take a backup before deploying to a host with existing data.
 | Forgejo | `1000:1000` | Forgejo’s documented `16.0.3-rootless` image; its data mount is `/var/lib/gitea` and its embedded SSH port is 2222. This deployment does not publish Forgejo SSH. |
 | Forgejo PostgreSQL | `postgres:postgres` | The official PostgreSQL image supports a baked-in non-root `postgres` user; the volume is aligned before the entrypoint initializes it. |
 | Mosquitto | `1883:1883` | Eclipse Mosquitto documents this UID/GID for the broker. |
-| Zigbee2MQTT | `1000:1000` | The image entrypoint only execs the application; the data volume and rendered files are made usable by the explicit non-root user. `GroupAdd=keep-groups` preserves coordinator access. |
+| Zigbee2MQTT | `1000:1000` | The image entrypoint only execs the application; the data volume and rendered files are made usable by the explicit non-root user. `GroupAdd=keep-groups` preserves coordinator access through the host `dialout` group. Bootstrap installs a udev rule that keeps the coordinator at `0660` `dialout` and removes `uaccess`, so an SSH seat cannot take exclusive ownership after the device is released. |
 | Immich server, ML, PostgreSQL, and Valkey | `1000:1000` | Immich publishes a rootless compose configuration using this user for all four services. The cache uses the official Valkey image from that configuration. |
 | Radicale | `radicale:radicale` | Local image declares this user. |
 | SearXNG | `977:977` | The image’s `searxng` account is UID 977; matching it avoids the image’s cache ownership mismatch. `FORCE_OWNERSHIP=false` is safe here because the volume is aligned with `:U`. |
@@ -37,7 +37,8 @@ the exact image and persistent-data contract used here:
 
 - `homeassistant`: the upstream image relies on its root s6 initialization
   model and also integrates with host D-Bus; a non-root variant is not
-  published for this image.
+  published for this image. The unit sets `RunInit=false` because s6-overlay must
+  be PID 1; injecting catatonit makes the entrypoint exit 100.
 - `supernote-notelib` and `supernote-service`: the vendor images have no
   rootless variants or documented non-root contract, and their startup/data
   layout is application-specific.
