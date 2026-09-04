@@ -79,15 +79,6 @@ podman machine init \
   "$machine"
 machine_created=true
 
-if ! podman machine ssh "$machine" grep -q '^core:' /etc/subuid; then
-  podman machine ssh "$machine" \
-    sudo usermod --add-subuids 100000-165535 core
-fi
-if ! podman machine ssh "$machine" grep -q '^core:' /etc/subgid; then
-  podman machine ssh "$machine" \
-    sudo usermod --add-subgids 100000-165535 core
-fi
-podman machine ssh "$machine" podman system migrate
-
+podman machine ssh "$machine" "$guest_root/tests/prepare-e2e-machine.sh"
 podman machine ssh "$machine" "$guest_root/tests/install-e2e-tools.sh"
 podman machine ssh "$machine" "$guest_root/tests/e2e.sh" "${args[@]}"
