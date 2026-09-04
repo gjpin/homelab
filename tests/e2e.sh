@@ -91,7 +91,16 @@ cleanup() {
   if ((status != 0)); then
     printf '\nE2E failed; collecting runtime diagnostics\n' >&2
     podman ps -a --format 'table {{.Names}}\t{{.Status}}' >&2
-    for unit in "${expected_units[@]}"; do
+    diagnostic_units=(
+      homelab-selinux-guard.service
+      homelab-secrets.service
+      "${start_units[@]}"
+      "${expected_units[@]}"
+    )
+    mapfile -t diagnostic_units < <(
+      printf '%s\n' "${diagnostic_units[@]}" | sed '/^$/d' | sort -u
+    )
+    for unit in "${diagnostic_units[@]}"; do
       systemctl --user status --no-pager "$unit" >&2
       journalctl --user -u "$unit" -n 80 --no-pager >&2
     done
@@ -296,6 +305,7 @@ while IFS= read -r unit; do
 done < <(printf '%s\n' "${expected_units[@]}")
 
 systemctl --user daemon-reload
+systemctl --user start homelab-secrets.service
 systemctl --user start --no-block "${start_units[@]}"
 
 probe_image=docker.io/alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
