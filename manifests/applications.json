@@ -3,6 +3,10 @@
     "units": ["caddy-build.service", "caddy.service"],
     "secrets": ["caddy-cloudflare-api-token", "caddy-bookmarks-password-hash"]
   },
+  "changedetection": {
+    "units": ["changedetection.service"],
+    "secrets": []
+  },
   "forgejo": {
     "units": ["forgejo-postgres.service", "forgejo.service"],
     "secrets": ["forgejo-database-password"]

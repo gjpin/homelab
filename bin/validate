@@ -9,7 +9,7 @@ deployment=false
 [[ ${1:-} == --deployment ]] && deployment=true
 
 require_command jq
-jq -e 'type == "object" and length == 8' "$root/manifests/applications.json" >/dev/null
+jq -e 'type == "object" and length == 9' "$root/manifests/applications.json" >/dev/null
 
 sops_age_line=$(sed -n 's/^[[:space:]]*age:[[:space:]]*//p' "$root/.sops.yaml")
 [[ -n $sops_age_line && $sops_age_line != *$'\n'* ]] || die ".sops.yaml must contain exactly one age recipient rule"
@@ -28,7 +28,7 @@ if rg -n --glob '!incubator/**' --glob '!secrets.example.yaml' --glob '!*.sops.y
   die "possible plaintext secret found"
 fi
 
-for subnet in {3..7} {9..15}; do
+for subnet in {3..7} {9..15} 18; do
   rg -q "Subnet=10\.200\.${subnet}\.0/24" "$root/quadlet/networks" || die "missing network subnet 10.200.$subnet.0/24"
 done
 

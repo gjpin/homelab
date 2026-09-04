@@ -1,0 +1,4 @@
+[Unit]
+Description=changedetection application stack
+Wants=changedetection.service
+After=homelab-secrets.service

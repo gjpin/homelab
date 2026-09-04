@@ -268,13 +268,13 @@ while IFS= read -r reference; do
   rg -q "replace_secret ${reference} " "$root/bin/render-config" || { printf 'secret is not provisioned: %s\n' "$reference" >&2; exit 1; }
 done < <(rg --no-filename '^Secret=' "$containers" | cut -d= -f2 | cut -d, -f1 | sort -u)
 
-[[ $(rg -l '^NoNewPrivileges=true$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must set NoNewPrivileges=true\n' >&2; exit 1; }
-[[ $(rg -l '^DropCapability=all$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must drop the default capability set\n' >&2; exit 1; }
-[[ $(rg -l '^ReadOnly=true$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must use a read-only root filesystem\n' >&2; exit 1; }
-[[ $(rg -l '^ReadOnlyTmpfs=true$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must explicitly enable read-only tmpfs support\n' >&2; exit 1; }
-[[ $(rg -l '^PodmanArgs=.*--image-volume=ignore$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must reject implicit anonymous image volumes\n' >&2; exit 1; }
-[[ $(rg -l '^PidsLimit=1024$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must set the approved PID limit\n' >&2; exit 1; }
-[[ $(rg -l '^RunInit=true$' "$containers" | wc -l | tr -d ' ') == 13 ]] || { printf 'every compatible container must set RunInit=true\n' >&2; exit 1; }
+[[ $(rg -l '^NoNewPrivileges=true$' "$containers" | wc -l | tr -d ' ') == 16 ]] || { printf 'every container must set NoNewPrivileges=true\n' >&2; exit 1; }
+[[ $(rg -l '^DropCapability=all$' "$containers" | wc -l | tr -d ' ') == 16 ]] || { printf 'every container must drop the default capability set\n' >&2; exit 1; }
+[[ $(rg -l '^ReadOnly=true$' "$containers" | wc -l | tr -d ' ') == 16 ]] || { printf 'every container must use a read-only root filesystem\n' >&2; exit 1; }
+[[ $(rg -l '^ReadOnlyTmpfs=true$' "$containers" | wc -l | tr -d ' ') == 16 ]] || { printf 'every container must explicitly enable read-only tmpfs support\n' >&2; exit 1; }
+[[ $(rg -l '^PodmanArgs=.*--image-volume=ignore$' "$containers" | wc -l | tr -d ' ') == 16 ]] || { printf 'every container must reject implicit anonymous image volumes\n' >&2; exit 1; }
+[[ $(rg -l '^PidsLimit=1024$' "$containers" | wc -l | tr -d ' ') == 16 ]] || { printf 'every container must set the approved PID limit\n' >&2; exit 1; }
+[[ $(rg -l '^RunInit=true$' "$containers" | wc -l | tr -d ' ') == 14 ]] || { printf 'every compatible container must set RunInit=true\n' >&2; exit 1; }
 rg -q '^RunInit=false$' "$containers/homeassistant/homeassistant.container" || {
   printf 'homeassistant must set RunInit=false so s6-overlay stays PID 1\n' >&2
   exit 1
@@ -287,10 +287,11 @@ rg -q '^GroupAdd=keep-groups$' "$containers/homeassistant/homeassistant-zigbee2m
   printf 'zigbee2mqtt must keep host groups for coordinator access\n' >&2
   exit 1
 }
-[[ $(rg -l '^PartOf=homelab-.*\.target$' "$containers" | wc -l | tr -d ' ') == 15 ]] || { printf 'every container must belong to an application target\n' >&2; exit 1; }
+[[ $(rg -l '^PartOf=homelab-.*\.target$' "$containers" | wc -l | tr -d ' ') == 16 ]] || { printf 'every container must belong to an application target\n' >&2; exit 1; }
 
 rootless_units=(
   caddy/caddy.container
+  changedetection/changedetection.container
   forgejo/forgejo.container
   forgejo/forgejo-postgres.container
   homeassistant/homeassistant-mosquitto.container
@@ -540,8 +541,8 @@ rg -q '/home/homelab/current/bin/restic init' "$root/README.md" || {
 }
 
 network_count=$(find "$root/quadlet/networks" -name '*.network' -type f | wc -l | tr -d ' ')
-[[ $network_count == 12 ]] || { printf 'expected 12 networks, found %s\n' "$network_count" >&2; exit 1; }
-[[ $(rg -l '^Options=isolate=true$' "$root/quadlet/networks" | wc -l | tr -d ' ') == 12 ]] || {
+[[ $network_count == 13 ]] || { printf 'expected 13 networks, found %s\n' "$network_count" >&2; exit 1; }
+[[ $(rg -l '^Options=isolate=true$' "$root/quadlet/networks" | wc -l | tr -d ' ') == 13 ]] || {
   printf 'every network must explicitly use bridge isolation\n' >&2
   exit 1
 }

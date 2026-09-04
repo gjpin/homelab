@@ -6,6 +6,11 @@
       "network": "homelab-forgejo-edge",
       "port": 443
     },
+    "changedetection": {
+      "mode": "tcp",
+      "network": "homelab-changedetection-edge",
+      "port": 5000
+    },
     "forgejo": {
       "mode": "tcp",
       "network": "homelab-forgejo",

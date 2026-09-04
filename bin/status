@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 printf '%-28s %s\n' UNIT STATE
-for target in homelab-{caddy,forgejo,homeassistant,immich,radicale,searxng,syncthing,vaultwarden}.target; do
+for target in homelab-{caddy,changedetection,forgejo,homeassistant,immich,radicale,searxng,syncthing,vaultwarden}.target; do
   printf '%-28s %s\n' "$target" "$(systemctl --user is-active "$target" 2>/dev/null || true)"
 done
 printf '\nContainers:\n'

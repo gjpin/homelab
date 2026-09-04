@@ -10,6 +10,7 @@ and a root-owned socket proxy that forwards TCP 443 to rootless Caddy on
 | Name | URL | Description | Access to internet |
 | --- | --- | --- | --- |
 | [Caddy](https://github.com/caddyserver/caddy) | bookmarks.${BASE_DOMAIN} | Authenticated bookmarks and WebDAV service | Yes |
+| [changedetection.io](https://github.com/dgtlmoon/changedetection.io) | changedetection.${BASE_DOMAIN} | Website change detection and notification | Yes |
 | [Forgejo](https://codeberg.org/forgejo/forgejo) | git.${BASE_DOMAIN} | Git server / DevOps platform | Yes |
 | [Home Assistant](https://github.com/home-assistant/core) | home.${BASE_DOMAIN} | Home automation | Yes |
 | [Zigbee2MQTT](https://github.com/Koenkk/zigbee2mqtt) | home-zigbee.${BASE_DOMAIN} | Zigbee to MQTT bridge | Yes |

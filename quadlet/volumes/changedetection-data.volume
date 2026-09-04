@@ -1,0 +1,3 @@
+[Volume]
+VolumeName=homelab-changedetection-data
+Label=io.containers.systemd.application=changedetection

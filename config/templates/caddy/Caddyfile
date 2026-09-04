@@ -28,6 +28,12 @@ bookmarks.{$BASE_DOMAIN} {
 	webdav
 }
 
+changedetection.{$BASE_DOMAIN} {
+	import default-header
+	encode gzip
+	reverse_proxy changedetection:5000
+}
+
 git.{$BASE_DOMAIN} {
 	import default-header
 	encode gzip

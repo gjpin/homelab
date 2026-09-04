@@ -17,6 +17,7 @@ change; take a backup before deploying to a host with existing data.
 | Service | Container user | Image or upstream basis |
 | --- | ---: | --- |
 | Caddy | `caddy:caddy` | Final custom image creates a fixed UID/GID 1000 user; the build stage still needs build tooling as root. |
+| Changedetection | `1000:1000` | Upstream official image `ghcr.io/dgtlmoon/changedetection.io`; Python Flask application running as non-root; datastore volume aligned with `:U`. |
 | Forgejo | `1000:1000` | Forgejo’s documented `16.0.3-rootless` image; its data mount is `/var/lib/gitea` and its embedded SSH port is 2222. This deployment does not publish Forgejo SSH. |
 | Forgejo PostgreSQL | `postgres:postgres` | The official PostgreSQL image supports a baked-in non-root `postgres` user; the volume is aligned before the entrypoint initializes it. |
 | Mosquitto | `1883:1883` | Eclipse Mosquitto documents this UID/GID for the broker. |
