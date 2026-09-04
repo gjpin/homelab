@@ -47,6 +47,7 @@ done
 require_command jq
 require_command podman
 root=$(repo_root)
+guest_root=/home/core/src
 
 mapfile -t active_machines < <(
   podman machine list --format json | jq -r '.[] | select(.Running == true) | .Name'
@@ -73,10 +74,10 @@ podman machine init \
   --memory 8192 \
   --disk-size 60 \
   --rootful=false \
-  --volume "$root:/src:ro" \
+  --volume "$root:$guest_root:ro" \
   --now \
   "$machine"
 machine_created=true
 
-podman machine ssh "$machine" /src/tests/install-e2e-tools.sh
-podman machine ssh "$machine" /src/tests/e2e.sh "${args[@]}"
+podman machine ssh "$machine" "$guest_root/tests/install-e2e-tools.sh"
+podman machine ssh "$machine" "$guest_root/tests/e2e.sh" "${args[@]}"
