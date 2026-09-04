@@ -6,6 +6,12 @@ source_root=$(cd -- "$(dirname -- "$0")/.." && pwd)
 source "$source_root/bin/lib.sh"
 load_host_tools "$source_root/config/host-tools.env"
 
+if ! command -v python3 >/dev/null 2>&1; then
+  info "installing Fedora Python runtime for the E2E renderer"
+  sudo rpm-ostree install --apply-live python3
+fi
+require_command python3
+
 tool_dir="$HOME/.local/bin"
 tmp_dir=$(mktemp -d)
 trap 'rm -rf -- "$tmp_dir"' EXIT
