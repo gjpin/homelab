@@ -27,6 +27,7 @@ host_age_key=
 data_disk_mode=auto
 data_disk=
 format_data_disk=false
+defer_forgejo_runner=false
 
 while (($#)); do
   case "$1" in
@@ -49,6 +50,10 @@ while (($#)); do
       ;;
     --format-data-disk)
       format_data_disk=true
+      shift
+      ;;
+    --defer-forgejo-runner)
+      defer_forgejo_runner=true
       shift
       ;;
     *) printf 'Unknown argument: %s\n' "$1" >&2; exit 1 ;;
@@ -220,6 +225,11 @@ systemctl start "user@${runner_uid}.service"
 runner_systemctl=(runuser -u "$runner_user" -- env \
   HOME="$runner_home" XDG_RUNTIME_DIR="/run/user/$runner_uid" \
   DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$runner_uid/bus" systemctl --user)
+if $defer_forgejo_runner; then
+  "${runner_systemctl[@]}" disable --now \
+    forgejo-runner.service forgejo-runner-prune.timer podman.socket >/dev/null 2>&1 || true
+  "${runner_systemctl[@]}" stop podman.service >/dev/null 2>&1 || true
+fi
 
 HOMELAB_RUNTIME_HOME=$runtime_home
 export HOMELAB_RUNTIME_HOME
@@ -349,9 +359,22 @@ if [[ -v FORGEJO_RUNNER_UUID && -n "$FORGEJO_RUNNER_UUID" && -v FORGEJO_RUNNER_S
   chown "$runner_user:$runner_user" "$runner_config_tmp"
   chmod 0600 "$runner_config_tmp"
   mv -fT "$runner_config_tmp" "$runner_config_dir/config.yaml"
-  "${runner_systemctl[@]}" enable --now forgejo-runner.service
-  "${runner_systemctl[@]}" is-active --quiet forgejo-runner.service || \
-    die "Forgejo Runner service did not become active"
+  if ! $defer_forgejo_runner; then
+    "${runner_systemctl[@]}" enable --now forgejo-runner.service
+    "${runner_systemctl[@]}" is-active --quiet forgejo-runner.service || \
+      die "Forgejo Runner service did not become active"
+  fi
+fi
+
+if $defer_forgejo_runner; then
+  "${runner_systemctl[@]}" disable --now \
+    forgejo-runner.service forgejo-runner-prune.timer podman.socket >/dev/null
+  "${runner_systemctl[@]}" stop podman.service >/dev/null 2>&1 || true
+  for runner_unit in forgejo-runner.service forgejo-runner-prune.timer podman.socket; do
+    ! "${runner_systemctl[@]}" is-active --quiet "$runner_unit" || \
+      die "$runner_unit remained active while Forgejo Runner activation was deferred"
+  done
+  info "Forgejo Runner activation deferred until bootstrap is run without --defer-forgejo-runner"
 fi
 
 firewall-cmd --permanent --zone "$firewalld_zone" --add-service=https

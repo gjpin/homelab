@@ -290,6 +290,24 @@ rg -Fq 'systemctl start "user@${runtime_uid}.service"' "$root/bin/bootstrap-host
   printf 'bootstrap must restart the homelab user manager after terminating it\n' >&2
   exit 1
 }
+rg -Fq -- '--defer-forgejo-runner)' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap must support deferring Forgejo Runner activation during migration\n' >&2
+  exit 1
+}
+rg -Fq 'Forgejo Runner activation deferred until bootstrap is run without --defer-forgejo-runner' \
+  "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not leave the Forgejo Runner disabled when activation is deferred\n' >&2
+  exit 1
+}
+rg -Fq -- '--defer-forgejo-runner' "$root/docs/host-migration.md" || {
+  printf 'host migration does not defer Forgejo Runner activation\n' >&2
+  exit 1
+}
+rg -Fq 'Never operate both copies of the' \
+  "$root/docs/host-migration.md" || {
+  printf 'host migration does not prevent duplicate persistent runner activation\n' >&2
+  exit 1
+}
 rg -q 'scope must be a Forgejo owner name; repository and global scopes are forbidden' \
   "$root/bin/register-forgejo-runner" || {
   printf 'runner registration must require owner-wide scope and reject global scope\n' >&2
