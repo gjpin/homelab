@@ -82,7 +82,7 @@ curl -fsS --user e2e:e2e-forgejo-runner-password \
   -H 'Content-Type: application/json' -d '{"name":"runner","private":true,"auto_init":true}' \
   http://127.0.0.1:3000/api/v1/user/repos >/dev/null
 uuid=$(printf '%s' "$runner_secret" | "${production_podman[@]}" exec -i forgejo \
-  forgejo forgejo-cli actions register --name homelab-runner --scope e2e/runner --secret-stdin true | tr -d '\r\n')
+  forgejo forgejo-cli actions register --name homelab-runner --scope e2e --secret-stdin true | tr -d '\r\n')
 validate_forgejo_runner_uuid "$uuid"
 
 runner_config="$runner_home/.config/forgejo-runner/config.yaml"

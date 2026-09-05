@@ -286,6 +286,15 @@ rg -q 'must run as the homelab account' "$root/bin/register-forgejo-runner" || {
   printf 'runner registration does not enforce the production operator account\n' >&2
   exit 1
 }
+rg -q 'scope must be a Forgejo owner name; repository and global scopes are forbidden' \
+  "$root/bin/register-forgejo-runner" || {
+  printf 'runner registration must require owner-wide scope and reject global scope\n' >&2
+  exit 1
+}
+rg -q -- '--scope e2e --secret-stdin true' "$root/tests/forgejo-runner-e2e.sh" || {
+  printf 'Forgejo Runner E2E must register an owner-scoped runner\n' >&2
+  exit 1
+}
 [[ -x "$root/tests/forgejo-runner-e2e.sh" ]] || { printf 'missing executable Forgejo Runner E2E\n' >&2; exit 1; }
 rg -q 'forgejo-runner-e2e.sh' "$root/tests/e2e.sh" || { printf 'main E2E does not execute runner coverage\n' >&2; exit 1; }
 for fixture in isolation.yml forbidden-volume.yml; do

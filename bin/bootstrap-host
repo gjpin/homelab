@@ -277,7 +277,8 @@ fi
 secrets_file="$runtime_home/git/repository/secrets/secrets.sops.yaml"
 if [[ -r $secrets_file ]] && rg -q '^sops:' "$secrets_file"; then
   secrets_json=$(runuser -u "$runtime_user" -- env HOME="$runtime_home" \
-    sops --decrypt --output-type json "$secrets_file")
+    sops --config "$runtime_home/git/repository/.sops.yaml" \
+      --decrypt --output-type json "$secrets_file")
   apply_site_config "$secrets_json"
   unset secrets_json
   timedatectl set-timezone "$TIMEZONE"
