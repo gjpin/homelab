@@ -589,7 +589,7 @@ architecture.
 | Item | Backup requirement | Replacement-host action |
 | --- | --- | --- |
 | Private GitHub repository | Keep all changes pushed. An independent mirror is optional. | Clone it with a read-only deploy key. |
-| `.sops.yaml` and `secrets/secrets.sops.yaml` | Required; keep them committed in the private repository. They include the domain, timezone, Zigbee serial ID, and backup location. | Clone them from GitHub; the host age identity decrypts them. Update the Zigbee serial ID through SOPS first if the replacement hardware differs. |
+| `.sops.yaml` and `secrets/secrets.sops.yaml` | Required; keep them committed in the private repository. They include the domain, timezone, Zigbee serial ID, backup location, and owner-scoped Forgejo Runner secret/UUID. | Clone them from GitHub; the host age identity decrypts them. Update the Zigbee serial ID through SOPS first if the replacement hardware differs. Reuse the committed runner registration and never run it concurrently on the old and replacement hosts. |
 | Host age identity: `/home/homelab/.config/sops/age/keys.txt` | Required; store encrypted/offline. | Restore the exact file with `--host-age-key`. Do not generate a replacement when restoring existing SOPS secrets. |
 | Operator age identity: `~/.config/sops/age/operator.txt` | Required; store encrypted/offline, separately from the host identity. | Keep it on the operator workstation. It is the recovery identity if the host copy is lost. |
 | GitHub deploy private key | Optional. It is an unencrypted secret. | Prefer a new key and a new read-only GitHub deploy-key entry. Restore the old key only if intentionally retaining it. |
@@ -600,6 +600,7 @@ architecture.
 | S3 access key and restic repository password | Required in SOPS and the operator password manager. | Decrypt them with the offline operator identity to access backups after host loss. |
 | Deployed Git commit | Included in every restic snapshot. | Verify that it exists in Git and is an ancestor of the revision being deployed. |
 | Active `homelab-*` Podman named volumes | Included in every restic snapshot. | Create empty named volumes and restore their snapshot subtrees before first reconciliation. Inactive incubator volumes are outside this inventory. |
+| Forgejo Runner account, graphroot, containers, and `/var/lib/homelab/forgejo-runner-storage.xfs` | No; CI execution state is disposable and must not cross hosts. | Run bootstrap with `--defer-forgejo-runner` during restoration. Bootstrap creates a fresh bounded graphroot; rerun it without the option only at final cutover. |
 | Releases, rendered configs, installed binaries, systemd links, firewall rules, and the `zigbee-router` symlink | No. | `bootstrap-host` and `reconcile` recreate them. |
 
 Application accounts and settings created through a UI are stored in the named

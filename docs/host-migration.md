@@ -29,6 +29,30 @@ On arm64, `bootstrap-host` installs `qemu-user-binfmt` and
 the native host architecture. If the distribution cannot provide the required
 packages or registration, bootstrap and reconciliation stop before activation.
 
+## Forgejo Runner migration rules
+
+The owner-scoped Forgejo Runner UUID and secret are deployment state committed
+inside `secrets/secrets.sops.yaml`. A replacement host reuses that registration;
+do not register a second runner or allow the source and replacement hosts to run
+the same UUID concurrently.
+
+Runner containers and images are disposable. Do not copy `/home/forgejo-runner`
+or `/var/lib/homelab/forgejo-runner-storage.xfs`. Bootstrap recreates the locked
+account, subordinate IDs, 20 GiB XFS graphroot, user slice, Podman socket,
+nftables policy, configuration, and systemd units.
+
+Every replacement-host bootstrap before final cutover must include
+`--defer-forgejo-runner`. This renders the registered configuration but leaves
+`forgejo-runner.service`, `forgejo-runner-prune.timer`, and `podman.socket`
+disabled and stopped. After storage restoration and DNS cutover, run bootstrap
+once without that option to regenerate the Forgejo IP exception and activate
+the runner immediately before reconciliation.
+
+The replacement host must provide at least four usable CPU cores and enough
+memory for the runner's 16 GiB ceiling in addition to production workload
+headroom. Its root filesystem must accommodate the separate 20 GiB runner
+storage image.
+
 ## Freeze and verify the source
 
 On the source host, create a protected final snapshot and leave applications and
@@ -44,6 +68,20 @@ snapshot=$(<~/.local/state/homelab/last-backup-snapshot)
 ~/current/bin/restic snapshots "$snapshot"
 printf 'Migration snapshot: %s\n' "$snapshot"
 exit
+```
+
+Stop and disable the source host's runner after the production snapshot. This
+prevents it from returning after a user-manager restart and guarantees that the
+replacement host is the only machine using the committed runner UUID:
+
+```bash
+runner_uid=$(id -u forgejo-runner)
+sudo systemctl start "user@${runner_uid}.service"
+sudo runuser -u forgejo-runner -- env HOME=/home/forgejo-runner \
+  XDG_RUNTIME_DIR="/run/user/$runner_uid" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$runner_uid/bus" \
+  systemctl --user disable --now \
+    forgejo-runner.service forgejo-runner-prune.timer podman.socket
 ```
 
 If the command fails, it restarts the source deployment. Resolve the error and
@@ -179,7 +217,8 @@ sudo ./bin/bootstrap-host \
   --git-key /home/pi/homelab-restore/.ssh/id_ed25519 \
   --known-hosts /home/pi/homelab-restore/.ssh/known_hosts \
   --host-age-key /home/pi/homelab-restore/.config/sops/age/keys.txt \
-  --data-disk /dev/disk/by-id/DEVICE
+  --data-disk /dev/disk/by-id/DEVICE \
+  --defer-forgejo-runner
 ```
 
 Confirm that `/home/homelab/.local/share/containers/storage` is mounted before proceeding.
@@ -218,7 +257,8 @@ exit
 
 ### Step 6: Clean up staging files
 
-Remove temporary files on the new host:
+Keep these trusted inputs until the final non-deferred bootstrap in the cutover
+section has succeeded. Then remove the temporary files on the new host:
 
 ```bash
 rm -rf /home/pi/homelab-restore ~/homelab-repo
@@ -262,7 +302,8 @@ sudo ./bin/bootstrap-host \
   --known-hosts ../github-known-hosts \
   --host-age-key /SECURE/PATH/host-age-keys.txt \
   --data-disk /dev/disk/by-id/DEVICE \
-  --format-data-disk
+  --format-data-disk \
+  --defer-forgejo-runner
 ```
 
 Pass `--format-data-disk` to initialize the disk as XFS, or `--no-data-disk`
@@ -316,7 +357,15 @@ sops --decrypt secrets/secrets.sops.yaml >/dev/null
 
 ## Activate and cut over
 
-After either migration workflow finishes:
+After either restore workflow finishes, move DNS and router forwarding to the
+replacement host while the source deployment and runner remain stopped. Wait
+until `git.BASE_DOMAIN` resolves to the replacement host from that host. Then
+rerun the same trusted bootstrap command without `--defer-forgejo-runner` so
+the nftables policy captures the replacement Forgejo address and the runner is
+enabled. On a disk formatted earlier in the disaster-recovery workflow, also
+remove `--format-data-disk`; never format it twice.
+
+Activate and verify the deployment:
 
 ```bash
 sudo -iu homelab
@@ -324,8 +373,27 @@ export XDG_RUNTIME_DIR="/run/user/$(id -u)"
 ~/git/repository/bin/reconcile
 ~/current/bin/status
 ~/current/bin/restic check
+~/current/bin/security-audit
 exit
 ```
+
+Verify the runner independently:
+
+```bash
+runner_uid=$(id -u forgejo-runner)
+sudo runuser -u forgejo-runner -- env HOME=/home/forgejo-runner \
+  XDG_RUNTIME_DIR="/run/user/$runner_uid" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$runner_uid/bus" \
+  systemctl --user is-active \
+    podman.socket forgejo-runner.service forgejo-runner-prune.timer
+sudo systemctl show "user-${runner_uid}.slice" \
+  -p MemoryMax -p CPUQuotaPerSecUSec -p TasksMax
+sudo systemctl is-active homelab-forgejo-runner-egress.service
+```
+
+Confirm in Forgejo that `homelab-runner` is online at the intended owner scope,
+then run a real workflow using `runs-on: forgejo-ci`. Production Podman must not
+list its job container, and runner Podman must not list production containers.
 
 1. Verify application data and logins.
 2. Check recent SELinux denials (`sudo ausearch -m avc -ts recent` or `sudo journalctl -t setroubleshoot`).
@@ -334,3 +402,8 @@ exit
 5. Verify HTTPS access, websocket functionality, and Syncthing connectivity.
 6. Remove temporary bootstrap and recovery files on both the operator machine and the host.
 7. Keep the old host powered off until the migration has been verified in production.
+
+If rolling back to the source host, first disable and stop the replacement
+runner using the source-freeze command above. Only then run bootstrap without
+`--defer-forgejo-runner` on the source host. Never operate both copies of the
+same persistent runner UUID concurrently.
