@@ -39,6 +39,7 @@ while IFS= read -r line || [[ -n $line ]]; do
     SOPS_ARM64_RPM_SHA256) [[ -z $arm64_rpm_sha256 ]] || die "duplicate host tools metadata key: $key"; arm64_rpm_sha256=$value ;;
     SOPS_AMD64_BINARY_SHA256) [[ -z $amd64_binary_sha256 ]] || die "duplicate host tools metadata key: $key"; amd64_binary_sha256=$value ;;
     SOPS_ARM64_BINARY_SHA256) [[ -z $arm64_binary_sha256 ]] || die "duplicate host tools metadata key: $key"; arm64_binary_sha256=$value ;;
+    FORGEJO_RUNNER_RELEASE_TAG|FORGEJO_RUNNER_AMD64_BINARY_SHA256|FORGEJO_RUNNER_ARM64_BINARY_SHA256) ;;
     *) die "unknown host tools metadata key: $key" ;;
   esac
 done <"$config_file"

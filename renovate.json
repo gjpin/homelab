@@ -92,6 +92,30 @@
       "depNameTemplate": "getsops/sops",
       "datasourceTemplate": "github-release-attachments",
       "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the Forgejo Runner host-tool release",
+      "managerFilePatterns": ["/^config\\/host-tools\\.env$/"],
+      "matchStrings": [
+        "FORGEJO_RUNNER_RELEASE_TAG=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
+      ],
+      "autoReplaceStringTemplate": "FORGEJO_RUNNER_RELEASE_TAG={{{newValue}}}",
+      "depNameTemplate": "forgejo/runner",
+      "packageNameTemplate": "https://code.forgejo.org/forgejo/runner",
+      "registryUrlTemplate": "https://code.forgejo.org",
+      "datasourceTemplate": "forgejo-releases",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Update digest-pinned default image in Forgejo runner config template",
+      "managerFilePatterns": ["/^config\\/templates\\/forgejo-runner\\/config\\.yaml$/"],
+      "matchStrings": [
+        "- \"forgejo-ci:docker://(?<depName>[^\\s@]+?):(?<currentValue>[^\\s@]+)@(?<currentDigest>sha256:[0-9a-f]{64})\""
+      ],
+      "datasourceTemplate": "docker",
+      "versioningTemplate": "docker"
     }
   ],
   "packageRules": [
@@ -139,6 +163,19 @@
       "ignoreUnstable": true,
       "minimumReleaseAge": "3 days",
       "automerge": false
+    },
+    {
+      "description": "Keep the Forgejo Runner host-tool release and checksums together",
+      "matchPackageNames": ["forgejo/runner"],
+      "groupName": "forgejo-runner-host-tools",
+      "ignoreUnstable": true,
+      "minimumReleaseAge": "3 days",
+      "automerge": false,
+      "postUpgradeTasks": {
+        "commands": ["./bin/update-forgejo-runner-checksums {{{newValue}}}"],
+        "fileFilters": ["config/host-tools.env"],
+        "executionMode": "update"
+      }
     }
   ]
 }

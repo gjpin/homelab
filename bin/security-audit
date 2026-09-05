@@ -3,6 +3,8 @@ set -Eeuo pipefail
 
 # shellcheck source=/dev/null
 source "$(dirname -- "$0")/lib.sh"
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib-forgejo-runner-host.sh"
 
 root=$(repo_root)
 containers="$root/quadlet/applications"
@@ -69,5 +71,44 @@ for name in radicale syncthing vaultwarden; do
       die "$name has external access through non-internal network $network"
   done < <(podman inspect "$name" | jq -r '.[0].NetworkSettings.Networks | keys[]')
 done
+
+runner_user=forgejo-runner
+id "$runner_user" >/dev/null 2>&1 || die "$runner_user account is missing"
+runner_groups=$(id -Gn "$runner_user")
+for forbidden_group in wheel root adm sudo docker homelab; do
+  [[ " $runner_groups " != *" $forbidden_group "* ]] || \
+    die "$runner_user has forbidden group membership: $forbidden_group"
+done
+require_matching_subordinate_id_ranges "$(id -un)"
+require_matching_subordinate_id_ranges "$runner_user"
+require_nonoverlapping_subordinate_id_ranges "$(id -un)" "$runner_user" /etc/subuid
+require_nonoverlapping_subordinate_id_ranges "$(id -un)" "$runner_user" /etc/subgid
+[[ -f /var/lib/systemd/linger/$runner_user ]] || die "linger is not enabled for $runner_user"
+[[ -f /etc/nftables/homelab-forgejo-runner-egress.nft ]] || die "$runner_user egress policy is not installed"
+systemctl is-active --quiet homelab-forgejo-runner-egress.service || die "$runner_user egress policy is not active"
+
+runner_uid=$(id -u "$runner_user")
+systemctl is-active --quiet "user@${runner_uid}.service" || die "$runner_user systemd user manager is not active"
+grep -Fq "/run/user/$runner_uid/podman/podman.sock" /proc/net/unix || die "$runner_user Podman socket is not listening"
+pgrep -u "$runner_uid" -x forgejo-runner >/dev/null || die "Forgejo Runner daemon is not running as $runner_user"
+forgejo_runner_verify_storage /home/forgejo-runner
+
+runner_slice="user-${runner_uid}.slice"
+[[ $(systemctl show "$runner_slice" -p MemoryMax --value) == 17179869184 ]] || die "$runner_slice MemoryMax is not 16G"
+[[ $(systemctl show "$runner_slice" -p CPUQuotaPerSecUSec --value) == 4s ]] || die "$runner_slice CPUQuota is not 400%"
+[[ $(systemctl show "$runner_slice" -p TasksMax --value) == 2048 ]] || die "$runner_slice TasksMax is not 2048"
+
+if [[ $EUID -eq 0 ]]; then
+  passwd -S "$runner_user" | awk '$2 == "L" || $2 == "LK" { found=1 } END { exit(found ? 0 : 1) }' || die "$runner_user password is not locked"
+  runner_socket="/run/user/$runner_uid/podman/podman.sock"
+  [[ -S $runner_socket && $(stat -c %U "$runner_socket") == "$runner_user" ]] || die "$runner_user Podman socket owner is invalid"
+  # shellcheck disable=SC2016
+  runner_names=$(runuser -u "$runner_user" -- \
+    env HOME=/home/forgejo-runner XDG_RUNTIME_DIR="/run/user/$runner_uid" \
+    bash -c 'cd "$HOME"; exec podman ps -a --format "{{.Names}}"')
+  while IFS= read -r production_name; do
+    ! grep -Fxq "$production_name" <<<"$runner_names" || die "production container is visible in runner Podman: $production_name"
+  done < <(sed -n 's/^ContainerName=//p' "$containers"/*/*.container)
+fi
 
 info "runtime container security audit passed"

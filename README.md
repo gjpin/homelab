@@ -47,6 +47,11 @@ protocol ports.
 - Rootless/non-root image users are selected explicitly wherever the upstream
   image supports them; documented exceptions and the required data-volume
   considerations are listed in [the rootless image policy](docs/rootless-images.md).
+- CI workloads for Forgejo Actions execute under a dedicated, password-locked
+  `forgejo-runner` account with separate subordinate UID/GID mappings
+  (`200000-265535`), independent rootless Podman storage, host nftables egress
+  isolation blocking internal RFC1918 networks, and strictly no access to
+  production containers, sockets, secrets, or storage.
 - SELinux must remain enforcing. Normal containers use `container_t` with
   per-container MCS separation. Only Zigbee2MQTT uses `container_device_t`, and
   the global `container_use_devices` boolean remains off. A host module adds
@@ -73,11 +78,11 @@ access is enabled.
   `age` (at least 1.3.0), `restic` (at least 0.19.1), `ca-certificates`,
   `checkpolicy`, `container-selinux`, `curl`, `diffutils`, `firewalld`, `fuse-overlayfs`,
   `gettext-envsubst`, `gawk`, `git`, `iproute`, `jq`, `libselinux-utils`,
-  `openssh-clients`, `passt`, `podman`, `policycoreutils`, `python3`,
+  `nftables`, `openssh-clients`, `passt`, `podman`, `policycoreutils`, `python3`,
   `ripgrep`, `shadow-utils`, `systemd`, `tar`, `util-linux`, and `xfsprogs`.
-  The script also provisions valid `homelab` subordinate-ID ranges and installs
-  the SOPS RPM selected by the checksum-pinned metadata in
-  `config/host-tools.env`.
+  The script also provisions valid `homelab` and `forgejo-runner` subordinate-ID
+  ranges and installs the SOPS RPM and Forgejo Runner binary selected by the
+  checksum-pinned metadata in `config/host-tools.env`.
 - On arm64, bootstrap installs Fedora's `qemu-user-binfmt` and
   `qemu-user-static-x86` packages and enables `systemd-binfmt`. Native
   multi-architecture images follow the host. Bootstrap fails if the
@@ -886,29 +891,34 @@ secrets cannot be recovered and must be replaced.
 
 ## Host-managed updates
 
-SOPS is a manually fetched host tool, so its release tag and amd64/arm64
-checksums are committed in `config/host-tools.env`. Renovate checks the
-upstream stable release daily and opens a pull request. After the pull request
-passes the required host-tool tests and the affected-workload E2E suite (or the
-full suite for global changes) and is merged,
-`homelab-reconcile.timer` publishes the new metadata through `current`.
+SOPS and Forgejo Runner are manually fetched host tools, so their release tags
+and amd64/arm64 checksums are committed in `config/host-tools.env`. Renovate
+checks the upstream stable releases daily and opens pull requests. After the pull
+request passes the required host-tool tests and the affected-workload E2E suite
+(or the full suite for global changes) and is merged, `homelab-reconcile.timer`
+publishes the new metadata through `current`.
 
 `homelab-host-tools-update.timer` then runs daily at 02:00 in the host timezone
-with a persistent catch-up run. Its root-owned helper is installed by
-`bootstrap-host`; the helper reads only validated metadata and derives the
-fixed SOPS GitHub URL and artifact name. It never executes code from the
+with a persistent catch-up run. Its root-owned helpers are installed by
+`bootstrap-host`; the helpers read only validated metadata and derive the fixed
+upstream download URLs and artifact names. They never execute code from the
 mutable Git checkout. A failed download, checksum, metadata, or installation
-leaves the previously installed SOPS version in place. Inspect it with:
+leaves the previously installed version in place. Forgejo Runner updates use
+the upstream release's architecture-specific checksum files, replace the binary
+atomically, and restart the runner service only after a successful update.
+Upstream releases are therefore proposed automatically but remain review-gated;
+there is no unattended update directly from an upstream release. Inspect them with:
 
 ```bash
 systemctl status homelab-host-tools-update.timer
 systemctl status homelab-host-tools-update.service
 rpm -q sops
+forgejo-runner --version
 ```
 
 For an existing host that predates this timer, rerun the reviewed `bootstrap-host`
 command from the initial-installation procedure once. This installs the fixed
-helper and timer; it does not grant the Git reconciler root access.
+helpers and timer; it does not grant the Git reconciler root access.
 
 The socket proxy is also intentionally outside rootless GitOps. After reviewing
 a change under `systemd/system`, reinstall it explicitly:
@@ -922,7 +932,106 @@ sudo systemctl restart caddy-https-proxy.socket
 SELinux policy under `selinux/` is compiled and loaded by `bootstrap-host`.
 Re-run that command after a policy change. The Git reconciler does not apply it.
 
-The fixed host-tool helper, socket proxy, and that SELinux module are the only
+The fixed host-tool helpers, socket proxy, and that SELinux module are the only
 host-root integration points. The Git reconciler still has no sudo access, and
-the host-tool helper accepts only release metadata for the fixed SOPS upstream
-rather than running repository scripts as root.
+the host-tool helpers accept only release metadata for the fixed upstream
+releases rather than running repository scripts as root.
+
+## Forgejo Actions runner
+
+Forgejo Actions allows running CI/CD workflows triggered by Git events in Forgejo.
+Because CI workflows execute arbitrary code, they are strictly quarantined from
+production workloads.
+
+### Security boundary and isolation model
+
+1. **Dedicated Host Account**: The runner executes under a dedicated system user
+   account `forgejo-runner` with a locked password and no login credentials.
+   It has no sudo access or group memberships in `wheel`, `root`, or `homelab`.
+2. **Subordinate UID/GID Segregation**: Subordinate IDs are allocated from
+   `200000-265535`, strictly non-overlapping with the `homelab` production range
+   (`100000-165535`).
+3. **Independent Podman Runtime & Storage**: The runner uses its own rootless
+   Podman instance (`/home/forgejo-runner/.local/share/containers/storage`) and
+   systemd user manager. It has no access to the `homelab` account's Podman socket
+   (`/run/user/<HUID>/podman/podman.sock`), storage, secrets, or rendered configs.
+   Its graphroot is a dedicated 20 GiB XFS filesystem backed by
+   `/var/lib/homelab/forgejo-runner-storage.xfs`, preventing CI from filling the
+   production filesystem without a fixed ceiling.
+4. **Hardened Runner Configuration**:
+   - `capacity: 1` limits concurrent execution to a single job.
+   - `docker_host: "-"` blocks jobs from mounting or accessing the runner's own
+     Podman daemon socket.
+   - `privileged: false` enforces unprivileged container execution.
+   - `valid_volumes: []` blocks jobs from mounting arbitrary host paths.
+   - `cache.enabled: false` prevents cache poisoning between workflow runs.
+   - the Node 26 Trixie job image is digest-pinned, forcibly refreshed before
+     use, and old unused resources are pruned weekly by the runner-only user timer.
+5. **Network & Egress Isolation**: The host service `homelab-forgejo-runner-egress.service`
+   loads nftables egress rules matching `meta skuid "forgejo-runner"`. DNS is
+   allowed only to resolvers listed by the host. The resolved Forgejo addresses
+   receive a TCP 443 exception; all other outbound traffic destined for
+   RFC1918 private subnets (`10.0.0.0/8`, `172.16.0.0/12`,
+   `192.168.0.0/16`), loopback (`127.0.0.0/8`, `::1/128`), and IPv6 ULAs (`fc00::/7`).
+   The runner communicates with Forgejo exclusively over HTTPS via `git.${BASE_DOMAIN}`.
+6. **Resource Limits**: Both the daemon and the complete `user-<RUID>.slice`
+   enforce `MemoryMax=16G`, `CPUQuota=400%`, and `TasksMax=2048`. The user-slice
+   limit covers the Podman API service, job containers, service containers, and
+   the runner daemon together. Each job container is additionally limited to four
+   CPUs, 16 GiB of memory, and 1024 PIDs.
+
+### Registration and operation
+
+Runners are registered at repository scope rather than globally.
+
+1. **Register the runner**:
+   On the host or management environment with access to the running `forgejo` container:
+
+   ```bash
+   ./bin/register-forgejo-runner --scope OWNER/REPO
+   ```
+
+   This executes an offline registration via `forgejo-cli` inside the Forgejo container
+   using the secret passed via stdin (`--secret-stdin`). `bin/init-secrets`
+   generated the secret; registration records the returned UUID securely in
+   `secrets/secrets.sops.yaml`.
+
+2. **Commit and deploy**:
+   Commit the updated `secrets/secrets.sops.yaml` and deploy to the host.
+
+3. **Apply and start the runner**:
+   Run `sudo ./bin/bootstrap-host ...`. Bootstrap renders the runner configuration
+   at `/home/forgejo-runner/.config/forgejo-runner/config.yaml`, registers the systemd
+   user service, and starts `forgejo-runner.service`.
+
+4. **Verify status**:
+
+   ```bash
+   runner_uid=$(id -u forgejo-runner)
+   sudo runuser -u forgejo-runner -- env HOME=/home/forgejo-runner \
+     XDG_RUNTIME_DIR=/run/user/$runner_uid \
+     DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$runner_uid/bus \
+     systemctl --user status podman.socket forgejo-runner.service
+   systemctl status homelab-forgejo-runner-egress.service
+   sudo runuser -u forgejo-runner -- env HOME=/home/forgejo-runner \
+     XDG_RUNTIME_DIR=/run/user/$runner_uid bash -c 'cd "$HOME"; exec podman ps -a'
+   ```
+
+Runner configuration, job-image, nftables, user-slice, or storage-policy changes
+are host-integration changes. Re-run the reviewed `bootstrap-host` command after
+merging them. Binary-only Forgejo Runner updates are installed by the daily
+host-tools timer and restart the daemon automatically.
+
+To disable and roll back Actions execution without changing Forgejo data:
+
+```bash
+runner_uid=$(id -u forgejo-runner)
+sudo runuser -u forgejo-runner -- env HOME=/home/forgejo-runner \
+  XDG_RUNTIME_DIR=/run/user/$runner_uid \
+  DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$runner_uid/bus \
+  systemctl --user disable --now forgejo-runner.service forgejo-runner-prune.timer podman.socket
+sudo systemctl disable --now homelab-forgejo-runner-egress.service
+```
+
+Unregister the runner in Forgejo before deleting its bounded storage image or
+account. Forgejo may remain Actions-enabled with no online runner.

@@ -1,0 +1,12 @@
+[Unit]
+Description=Prune disposable Forgejo Actions Podman resources
+After=podman.socket forgejo-runner.service
+Requires=podman.socket
+
+[Service]
+Type=oneshot
+Environment=DOCKER_HOST=unix://%t/podman/podman.sock
+ExecStart=/usr/bin/podman system prune --force --filter until=168h
+NoNewPrivileges=true
+PrivateTmp=true
+

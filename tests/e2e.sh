@@ -199,6 +199,8 @@ caddy:
   bookmarks_password_hash: e2e-bookmarks-hash
 forgejo:
   database_password: e2e-forgejo-password
+  runner_secret: 0123456789abcdef0123456789abcdef01234567
+  runner_uuid: 01234567-89ab-cdef-0123-456789abcdef
 homeassistant:
   mosquitto_password: e2e-mosquitto-password
 immich:
@@ -239,6 +241,10 @@ sed -i \
   "$test_root/quadlet/applications/homeassistant/homeassistant-zigbee2mqtt.container"
 sed -i '/^Secret=immich-database-password/a Environment=IGNORE_DATABASE_FSTYPE=true' \
   "$test_root/quadlet/applications/immich/immich-postgres.container"
+sed -i \
+  -e '/^ContainerName=forgejo$/a PublishPort=3000:3000' \
+  -e '/^Environment=FORGEJO__actions__ENABLED=true$/a Environment=FORGEJO__security__INSTALL_LOCK=true' \
+  "$test_root/quadlet/applications/forgejo/forgejo.container"
 sed -i \
   -e '/^PublishPort=22000:22000\/tcp$/d' \
   -e '/^PublishPort=22000:22000\/udp$/d' \
@@ -405,9 +411,13 @@ for index in "${!expected_names[@]}"; do
 done
 
 if [[ $selector_mode == all ]]; then
+  sudo "$test_root/tests/forgejo-runner-e2e.sh" "$test_root" "$(id -un)"
   "$test_root/bin/security-audit"
   "$test_root/tests/postgres-migration-e2e.sh"
 else
+  if [[ " ${selected_workloads[*]} " =~ " forgejo " ]]; then
+    sudo "$test_root/tests/forgejo-runner-e2e.sh" "$test_root" "$(id -un)"
+  fi
   if [[ " ${selected_workloads[*]} " =~ " forgejo " || " ${selected_workloads[*]} " =~ " immich " ]]; then
     "$test_root/tests/postgres-migration-e2e.sh"
   fi

@@ -24,12 +24,16 @@ case "$(uname -m)" in
     age_sha256=bdc69c09cbdd6cf8b1f333d372a1f58247b3a33146406333e30c0f26e8f51377
     sops_binary="sops-${SOPS_RELEASE_TAG}.linux.amd64"
     sops_sha256=$SOPS_AMD64_BINARY_SHA256
+    runner_binary="forgejo-runner-${FORGEJO_RUNNER_VERSION}-linux-amd64"
+    runner_sha256=$FORGEJO_RUNNER_AMD64_BINARY_SHA256
     ;;
   aarch64)
     age_archive=age-v1.3.1-linux-arm64.tar.gz
     age_sha256=c6878a324421b69e3e20b00ba17c04bc5c6dab0030cfe55bf8f68fa8d9e9093a
     sops_binary="sops-${SOPS_RELEASE_TAG}.linux.arm64"
     sops_sha256=$SOPS_ARM64_BINARY_SHA256
+    runner_binary="forgejo-runner-${FORGEJO_RUNNER_VERSION}-linux-arm64"
+    runner_sha256=$FORGEJO_RUNNER_ARM64_BINARY_SHA256
     ;;
   *)
     printf 'unsupported E2E machine architecture: %s\n' "$(uname -m)" >&2
@@ -54,5 +58,12 @@ curl --fail --location --proto '=https' --tlsv1.2 \
 printf '%s  %s\n' "$sops_sha256" "$tmp_dir/$sops_binary" | sha256sum --check --status
 install -m 0755 "$tmp_dir/$sops_binary" "$tool_dir/sops"
 
+curl --fail --location --proto '=https' --tlsv1.2 \
+  --output "$tmp_dir/$runner_binary" \
+  "https://code.forgejo.org/forgejo/runner/releases/download/${FORGEJO_RUNNER_RELEASE_TAG}/$runner_binary"
+printf '%s  %s\n' "$runner_sha256" "$tmp_dir/$runner_binary" | sha256sum --check --status
+install -m 0755 "$tmp_dir/$runner_binary" "$tool_dir/forgejo-runner"
+
 age-keygen --version
 sops --version --disable-version-check
+forgejo-runner --version

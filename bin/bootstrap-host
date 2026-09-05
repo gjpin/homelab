@@ -8,6 +8,8 @@ root=$(cd -- "$(dirname -- "$0")/.." && pwd)
 source "$root/bin/lib.sh"
 # shellcheck source=/dev/null
 source "$root/bin/lib-host-storage.sh"
+# shellcheck source=/dev/null
+source "$root/bin/lib-forgejo-runner-host.sh"
 [[ $(uname -s) == Linux ]] || die "unsupported operating system: $(uname -s); this deployment requires Linux"
 # shellcheck disable=SC1091
 source /etc/os-release
@@ -87,6 +89,7 @@ packages=(
   iproute
   jq
   libselinux-utils
+  nftables
   openssh-clients
   passt
   podman
@@ -115,6 +118,7 @@ require_command envsubst
 require_command fuse-overlayfs
 require_command newgidmap
 require_command newuidmap
+require_command nft
 require_command pasta
 require_command restic
 require_rpm_version() {
@@ -150,6 +154,9 @@ fi
 # it reads only validated release metadata from the deployed current release.
 install -d -m 0755 /usr/local/libexec
 install -m 0755 "$root/bin/install-sops" /usr/local/libexec/homelab-install-sops
+
+"$root/bin/install-forgejo-runner" "$root/config/host-tools.env"
+install -m 0755 "$root/bin/install-forgejo-runner" /usr/local/libexec/homelab-install-forgejo-runner
 # Remove binaries from older revisions only after Fedora's packages and the
 # checksum-verified SOPS RPM have installed successfully.
 legacy_bin_dir=/usr/local/bin
@@ -176,16 +183,43 @@ if ! id "$runtime_user" >/dev/null 2>&1; then
   passwd --lock "$runtime_user"
 fi
 ensure_subordinate_id_range() {
-  local user=$1 option=$2 database=$3
+  local user=$1 option=$2 database=$3 range=${4:-100000-165535}
   if ! awk -F: -v user="$user" \
     '$1 == user && $2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $3 >= 65536 { found=1 }
      END { exit(found ? 0 : 1) }' "$database"; then
-    usermod "$option" 100000-165535 "$user"
+    usermod "$option" "$range" "$user"
   fi
   require_subordinate_id_range "$database" "$user"
 }
-ensure_subordinate_id_range "$runtime_user" --add-subuids /etc/subuid
-ensure_subordinate_id_range "$runtime_user" --add-subgids /etc/subgid
+ensure_subordinate_id_range "$runtime_user" --add-subuids /etc/subuid 100000-165535
+ensure_subordinate_id_range "$runtime_user" --add-subgids /etc/subgid 100000-165535
+
+runner_user=forgejo-runner
+runner_home=/home/forgejo-runner
+if ! id "$runner_user" >/dev/null 2>&1; then
+  useradd --create-home --home-dir "$runner_home" --shell /bin/bash "$runner_user"
+fi
+passwd --lock "$runner_user"
+chmod 0700 "$runner_home"
+ensure_subordinate_id_range "$runner_user" --add-subuids /etc/subuid 200000-265535
+ensure_subordinate_id_range "$runner_user" --add-subgids /etc/subgid 200000-265535
+require_matching_subordinate_id_ranges "$runtime_user"
+require_matching_subordinate_id_ranges "$runner_user"
+require_nonoverlapping_subordinate_id_ranges "$runtime_user" "$runner_user" /etc/subuid
+require_nonoverlapping_subordinate_id_ranges "$runtime_user" "$runner_user" /etc/subgid
+runner_groups=$(id -Gn "$runner_user")
+for forbidden_group in wheel root adm sudo docker homelab; do
+  [[ " $runner_groups " != *" $forbidden_group "* ]] || \
+    die "$runner_user has forbidden group membership: $forbidden_group"
+done
+runner_uid=$(id -u "$runner_user")
+forgejo_runner_configure_storage "$runner_user" "$runner_home"
+forgejo_runner_configure_user_slice "$runner_uid"
+loginctl enable-linger "$runner_user"
+systemctl start "user@${runner_uid}.service"
+runner_systemctl=(runuser -u "$runner_user" -- env \
+  HOME="$runner_home" XDG_RUNTIME_DIR="/run/user/$runner_uid" \
+  DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$runner_uid/bus" systemctl --user)
 
 HOMELAB_RUNTIME_HOME=$runtime_home
 export HOMELAB_RUNTIME_HOME
@@ -262,9 +296,58 @@ install -m 0644 "$root/systemd/system/caddy-https-proxy.socket" /etc/systemd/sys
 install -m 0644 "$root/systemd/system/caddy-https-proxy.service" /etc/systemd/system/caddy-https-proxy.service
 install -m 0644 "$root/systemd/system/homelab-host-tools-update.service" /etc/systemd/system/homelab-host-tools-update.service
 install -m 0644 "$root/systemd/system/homelab-host-tools-update.timer" /etc/systemd/system/homelab-host-tools-update.timer
+install -m 0644 "$root/systemd/system/homelab-forgejo-runner-egress.service" /etc/systemd/system/homelab-forgejo-runner-egress.service
 systemctl daemon-reload
 systemctl enable --now caddy-https-proxy.socket
 systemctl enable --now homelab-host-tools-update.timer
+
+if [[ -v BASE_DOMAIN && -n $BASE_DOMAIN ]]; then
+  install -d -m 0755 /etc/nftables
+  runner_egress_tmp=$(mktemp /etc/nftables/homelab-forgejo-runner-egress.nft.XXXXXX)
+  forgejo_runner_render_egress \
+    "$root/config/nftables/forgejo-runner-egress.nft" "$runner_egress_tmp" "git.$BASE_DOMAIN"
+  mv -fT "$runner_egress_tmp" /etc/nftables/homelab-forgejo-runner-egress.nft
+  systemctl enable homelab-forgejo-runner-egress.service
+  systemctl restart homelab-forgejo-runner-egress.service
+  nft list table inet homelab_runner_egress >/dev/null
+fi
+
+runner_config_dir="$runner_home/.config/forgejo-runner"
+runner_systemd_dir="$runner_home/.config/systemd/user"
+install -d -m 0700 -o "$runner_user" -g "$runner_user" "$runner_home/.config" "$runner_config_dir" "$runner_systemd_dir"
+install -m 0644 -o "$runner_user" -g "$runner_user" \
+  "$root/systemd/user/forgejo-runner.service" "$runner_systemd_dir/forgejo-runner.service"
+install -m 0644 -o "$runner_user" -g "$runner_user" \
+  "$root/systemd/user/forgejo-runner-prune.service" \
+  "$root/systemd/user/forgejo-runner-prune.timer" "$runner_systemd_dir/"
+"${runner_systemctl[@]}" daemon-reload
+"${runner_systemctl[@]}" enable --now podman.socket
+"${runner_systemctl[@]}" enable --now forgejo-runner-prune.timer
+"${runner_systemctl[@]}" is-active --quiet podman.socket || \
+  die "$runner_user Podman socket did not become active"
+runner_socket="/run/user/$runner_uid/podman/podman.sock"
+[[ -S $runner_socket && $(stat -c %U "$runner_socket") == "$runner_user" ]] || \
+  die "$runner_user Podman socket is missing or has the wrong owner: $runner_socket"
+# shellcheck disable=SC2016
+runner_podman_info=$(runuser -u "$runner_user" -- \
+  env HOME="$runner_home" XDG_RUNTIME_DIR="/run/user/$runner_uid" \
+  bash -c 'cd "$HOME"; exec podman info --format json')
+[[ $(jq -r '.store.graphRoot' <<<"$runner_podman_info") == "$(forgejo_runner_storage_path "$runner_home")" ]] || \
+  die "$runner_user Podman graphroot is not the bounded isolated storage path"
+
+if [[ -v FORGEJO_RUNNER_UUID && -n "$FORGEJO_RUNNER_UUID" && -v FORGEJO_RUNNER_SECRET && -n "$FORGEJO_RUNNER_SECRET" ]]; then
+  export FORGEJO_RUNNER_UUID FORGEJO_RUNNER_SECRET BASE_DOMAIN
+  runner_config_tmp=$(mktemp "$runner_config_dir/config.yaml.XXXXXX")
+  # shellcheck disable=SC2016
+  envsubst '${BASE_DOMAIN} ${FORGEJO_RUNNER_UUID} ${FORGEJO_RUNNER_SECRET}' \
+    <"$root/config/templates/forgejo-runner/config.yaml" >"$runner_config_tmp"
+  chown "$runner_user:$runner_user" "$runner_config_tmp"
+  chmod 0600 "$runner_config_tmp"
+  mv -fT "$runner_config_tmp" "$runner_config_dir/config.yaml"
+  "${runner_systemctl[@]}" enable --now forgejo-runner.service
+  "${runner_systemctl[@]}" is-active --quiet forgejo-runner.service || \
+    die "Forgejo Runner service did not become active"
+fi
 
 firewall-cmd --permanent --zone "$firewalld_zone" --add-service=https
 firewall-cmd --permanent --zone "$firewalld_zone" --add-port=22000/tcp

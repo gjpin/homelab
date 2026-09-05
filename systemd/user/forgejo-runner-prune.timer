@@ -1,0 +1,12 @@
+[Unit]
+Description=Prune disposable Forgejo Actions Podman resources weekly
+
+[Timer]
+OnBootSec=30min
+OnCalendar=weekly
+Persistent=true
+RandomizedDelaySec=30min
+Unit=forgejo-runner-prune.service
+
+[Install]
+WantedBy=timers.target

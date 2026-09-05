@@ -11,7 +11,7 @@ trap cleanup EXIT
 fixture="$work_dir/repository"
 mkdir -p "$fixture/bin" "$fixture/manifests" "$fixture/tests" \
   "$fixture/quadlet/applications/alpha" "$fixture/quadlet/applications/beta" \
-  "$fixture/quadlet/applications/caddy" "$fixture/quadlet/builds" \
+  "$fixture/quadlet/applications/caddy" "$fixture/quadlet/applications/forgejo" "$fixture/quadlet/builds" \
   "$fixture/images/caddy"
 cp "$root/bin/lib.sh" "$fixture/bin/lib.sh"
 cp "$root/bin/e2e-targets" "$fixture/bin/e2e-targets"
@@ -21,7 +21,8 @@ cat >"$fixture/manifests/applications.json" <<'EOF'
 {
   "alpha": {"units": ["alpha.service"], "secrets": []},
   "beta": {"units": ["beta.service"], "secrets": []},
-  "caddy": {"units": ["caddy.service", "caddy-build.service"], "secrets": []}
+  "caddy": {"units": ["caddy.service", "caddy-build.service"], "secrets": []},
+  "forgejo": {"units": ["forgejo.service"], "secrets": []}
 }
 EOF
 cat >"$fixture/tests/e2e-readiness.json" <<'EOF'
@@ -30,13 +31,15 @@ cat >"$fixture/tests/e2e-readiness.json" <<'EOF'
   "containers": {
     "alpha": {"mode": "running"},
     "beta": {"mode": "running"},
-    "caddy": {"mode": "running"}
+    "caddy": {"mode": "running"},
+    "forgejo": {"mode": "running"}
   }
 }
 EOF
 printf 'ContainerName=alpha\n' >"$fixture/quadlet/applications/alpha/alpha.container"
 printf 'ContainerName=beta\n' >"$fixture/quadlet/applications/beta/beta.container"
 printf 'ContainerName=caddy\n' >"$fixture/quadlet/applications/caddy/caddy.container"
+printf 'ContainerName=forgejo\n' >"$fixture/quadlet/applications/forgejo/forgejo.container"
 printf '[Build]\n' >"$fixture/quadlet/builds/caddy.build"
 printf 'FROM scratch\n' >"$fixture/images/caddy/Containerfile"
 
@@ -172,6 +175,12 @@ make_commit
 assert_scope none 'documentation change'
 assert_ci 'documentation change' \
   'e2e_mode=none' 'e2e_workloads=' 'build_images=' 'host_tools=false'
+reset_fixture
+
+mkdir -p "$fixture/tests/fixtures/forgejo-runner"
+printf 'on: push\n' >"$fixture/tests/fixtures/forgejo-runner/isolation.yml"
+make_commit
+assert_scope forgejo 'Forgejo Runner fixture change'
 reset_fixture
 
 mkdir -p "$fixture/.github/workflows"

@@ -1,0 +1,68 @@
+table inet homelab_runner_egress {
+    set dns_ipv4 {
+        type ipv4_addr
+        elements = { ${DNS_IPV4_ELEMENTS} }
+    }
+
+    set dns_ipv6 {
+        type ipv6_addr
+        elements = { ${DNS_IPV6_ELEMENTS} }
+    }
+
+    set forgejo_ipv4 {
+        type ipv4_addr
+        elements = { ${FORGEJO_IPV4_ELEMENTS} }
+    }
+
+    set forgejo_ipv6 {
+        type ipv6_addr
+        elements = { ${FORGEJO_IPV6_ELEMENTS} }
+    }
+
+    set private_ipv4 {
+        type ipv4_addr
+        flags interval
+        elements = {
+            10.0.0.0/8,
+            127.0.0.0/8,
+            169.254.0.0/16,
+            172.16.0.0/12,
+            192.168.0.0/16
+        }
+    }
+
+    set private_ipv6 {
+        type ipv6_addr
+        flags interval
+        elements = {
+            ::1/128,
+            fc00::/7,
+            fe80::/10
+        }
+    }
+
+    chain output {
+        type filter hook output priority 0; policy accept;
+
+        meta skuid "forgejo-runner" jump runner_egress_rules
+    }
+
+    chain runner_egress_rules {
+        # DNS is permitted only to the host's explicitly configured resolvers.
+        ip daddr @dns_ipv4 udp dport 53 accept
+        ip daddr @dns_ipv4 tcp dport 53 accept
+        ip6 daddr @dns_ipv6 udp dport 53 accept
+        ip6 daddr @dns_ipv6 tcp dport 53 accept
+
+        # The Forgejo endpoint may resolve to a private/LAN address.
+        ip daddr @forgejo_ipv4 tcp dport ${FORGEJO_RUNNER_ALLOWED_TCP_PORT} accept
+        ip6 daddr @forgejo_ipv6 tcp dport ${FORGEJO_RUNNER_ALLOWED_TCP_PORT} accept
+
+        # Deny private / RFC1918 / loopback destinations
+        ip daddr @private_ipv4 counter drop
+        ip6 daddr @private_ipv6 counter drop
+
+        # Allow public Internet egress
+        accept
+    }
+}

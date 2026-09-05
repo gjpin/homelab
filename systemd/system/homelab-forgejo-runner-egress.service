@@ -1,0 +1,13 @@
+[Unit]
+Description=Forgejo Runner Network Egress Isolation
+After=network.target firewalld.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=-/usr/sbin/nft delete table inet homelab_runner_egress
+ExecStart=/usr/sbin/nft -f /etc/nftables/homelab-forgejo-runner-egress.nft
+ExecStop=/usr/sbin/nft delete table inet homelab_runner_egress
+
+[Install]
+WantedBy=multi-user.target

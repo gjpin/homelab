@@ -1,0 +1,28 @@
+name: Forgejo Runner Isolation
+on: [push]
+jobs:
+  smoke:
+    runs-on: forgejo-ci
+    container:
+      options: --privileged
+    steps:
+      - name: Verify execution and isolation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          id
+          uname -a
+          test ! -S /var/run/docker.sock
+          test ! -S /run/podman/podman.sock
+          test ! -e /home/homelab/.ssh
+          test ! -e /home/homelab/.config/sops
+          test ! -e /run/user/__PRODUCTION_UID__
+          test "$(cat /sys/fs/cgroup/memory.max)" = 17179869184
+          test "$(cat /sys/fs/cgroup/pids.max)" = 1024
+          read -r quota period </sys/fs/cgroup/cpu.max
+          test "$quota" = 400000
+          test "$period" = 100000
+          ! grep -Eq '^CapEff:[[:space:]]+0*1ffffffffff' /proc/1/status
+          if timeout 3 bash -c '</dev/tcp/10.0.0.1/443' 2>/dev/null; then exit 1; fi
+          curl -fsS https://nodejs.org/ >/dev/null
+          sleep 20

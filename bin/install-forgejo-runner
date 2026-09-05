@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+[[ ${EUID} -eq 0 ]] || { printf 'Run this command as root.\n' >&2; exit 1; }
+
+die() {
+  printf 'error: %s\n' "$*" >&2
+  exit 1
+}
+
+info() {
+  printf '==> %s\n' "$*" >&2
+}
+
+host_arch() {
+  case "$(uname -m)" in
+    x86_64|amd64) printf '%s\n' amd64 ;;
+    aarch64|arm64) printf '%s\n' arm64 ;;
+    *) die "unsupported host architecture: $(uname -m) (supported architectures: amd64 and arm64)" ;;
+  esac
+}
+
+config_file=${1:?usage: install-forgejo-runner HOST_TOOLS_METADATA}
+[[ -r $config_file ]] || die "host tools metadata is not readable: $config_file"
+
+release_tag=
+amd64_binary_sha256=
+arm64_binary_sha256=
+while IFS= read -r line || [[ -n $line ]]; do
+  [[ -z $line || $line == \#* ]] && continue
+  [[ $line == *=* ]] || die "invalid host tools metadata line: $line"
+  key=${line%%=*}
+  value=${line#*=}
+  case "$key" in
+    FORGEJO_RUNNER_RELEASE_TAG) [[ -z $release_tag ]] || die "duplicate host tools metadata key: $key"; release_tag=$value ;;
+    FORGEJO_RUNNER_AMD64_BINARY_SHA256) [[ -z $amd64_binary_sha256 ]] || die "duplicate host tools metadata key: $key"; amd64_binary_sha256=$value ;;
+    FORGEJO_RUNNER_ARM64_BINARY_SHA256) [[ -z $arm64_binary_sha256 ]] || die "duplicate host tools metadata key: $key"; arm64_binary_sha256=$value ;;
+  esac
+done <"$config_file"
+
+[[ -n $release_tag ]] || die "missing FORGEJO_RUNNER_RELEASE_TAG in $config_file"
+[[ $release_tag =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Forgejo Runner release tag is invalid: $release_tag"
+for checksum in "$amd64_binary_sha256" "$arm64_binary_sha256"; do
+  [[ $checksum =~ ^[0-9a-f]{64}$ ]] || die "host tools metadata contains an invalid SHA-256 checksum"
+done
+
+arch=$(host_arch)
+case "$arch" in
+  amd64) binary_sha256=$amd64_binary_sha256 ;;
+  arm64) binary_sha256=$arm64_binary_sha256 ;;
+esac
+
+version=${release_tag#v}
+binary_file="forgejo-runner-${version}-linux-${arch}"
+url="https://code.forgejo.org/forgejo/runner/releases/download/${release_tag}/${binary_file}"
+
+for command in curl install sha256sum sort; do
+  command -v "$command" >/dev/null 2>&1 || die "required command not found: $command"
+done
+
+install -d -m 0755 /usr/local/bin
+tmp_bin=$(mktemp /usr/local/bin/.forgejo-runner.XXXXXX)
+trap 'rm -f -- "$tmp_bin"' EXIT
+
+curl --fail --location --proto '=https' --tlsv1.2 --output "$tmp_bin" "$url"
+printf '%s  %s\n' "$binary_sha256" "$tmp_bin" | sha256sum --check --status || \
+  die "downloaded Forgejo Runner binary checksum does not match the GitOps pin"
+
+chmod 0755 "$tmp_bin"
+
+candidate_output=$("$tmp_bin" --version 2>/dev/null) || \
+  die "downloaded Forgejo Runner binary cannot execute on $arch"
+candidate_version=$(awk '{print $NF}' <<<"$candidate_output" | sed 's/^v//')
+[[ $candidate_version == "$version" ]] || \
+  die "downloaded Forgejo Runner version $candidate_version does not match expected $version"
+
+target_bin=/usr/local/bin/forgejo-runner
+if [[ -x $target_bin ]]; then
+  installed_output=$("$target_bin" --version 2>/dev/null) || \
+    die "installed Forgejo Runner cannot report its version; refusing to replace it"
+  installed_version=$(awk '{print $NF}' <<<"$installed_output" | sed 's/^v//')
+  [[ $installed_version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || \
+    die "installed Forgejo Runner reported an invalid version: $installed_version"
+  lowest=$(printf '%s\n%s\n' "$installed_version" "$version" | sort -V | sed -n '1p')
+  [[ $lowest == "$installed_version" ]] || \
+    die "refusing to downgrade Forgejo Runner from $installed_version to $version"
+  if [[ $installed_version == "$version" ]]; then
+    info "Forgejo Runner $version is already installed"
+    exit 0
+  fi
+  info "updating Forgejo Runner from $installed_version to $version"
+fi
+
+mv -fT "$tmp_bin" "$target_bin"
+chmod 0755 "$target_bin"
+trap - EXIT
+info "installed Forgejo Runner $version to $target_bin"
+if id forgejo-runner >/dev/null 2>&1; then
+  runner_uid=$(id -u forgejo-runner)
+  if [[ -S /run/user/$runner_uid/bus ]]; then
+    runuser -u forgejo-runner -- env \
+      HOME=/home/forgejo-runner XDG_RUNTIME_DIR="/run/user/$runner_uid" \
+      DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$runner_uid/bus" \
+      systemctl --user try-restart forgejo-runner.service
+  fi
+fi
