@@ -982,19 +982,22 @@ production workloads.
 
 ### Registration and operation
 
-Runners are registered at repository scope rather than globally.
+Runners are registered at owner scope rather than repository or global scope.
+Every repository belonging to that Forgejo user or organization may schedule
+jobs on the runner, while repositories owned by other accounts cannot.
 
 1. **Register the runner**:
    On the host or management environment with access to the running `forgejo` container:
 
    ```bash
-   ./bin/register-forgejo-runner --scope OWNER/REPO
+   ./bin/register-forgejo-runner --scope OWNER
    ```
 
-   This executes an offline registration via `forgejo-cli` inside the Forgejo container
-   using the secret passed via stdin (`--secret-stdin`). `bin/init-secrets`
-   generated the secret; registration records the returned UUID securely in
-   `secrets/secrets.sops.yaml`.
+   This executes an owner-scoped offline registration via `forgejo-cli` inside
+   the Forgejo container using the secret passed via stdin (`--secret-stdin`).
+   An empty/global scope and an `OWNER/REPOSITORY` scope are rejected.
+   `bin/init-secrets` generated the secret; registration records the returned
+   UUID securely in `secrets/secrets.sops.yaml`.
 
 2. **Commit and deploy**:
    Commit the updated `secrets/secrets.sops.yaml` and deploy to the host.

@@ -251,7 +251,8 @@ load_site_config() {
   [[ -r $secrets_file ]] || die "missing encrypted secrets: $secrets_file"
   require_command jq
   require_command sops
-  secrets_json=$(sops --decrypt --output-type json "$secrets_file")
+  secrets_json=$(sops --config "$root/.sops.yaml" \
+    --decrypt --output-type json "$secrets_file")
   apply_site_config "$secrets_json"
   unset secrets_json
 }

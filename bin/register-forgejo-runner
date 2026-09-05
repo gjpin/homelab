@@ -13,26 +13,28 @@ require_command jq
 scope=
 while (($#)); do
   case "$1" in
-    --scope) scope=${2:?--scope requires OWNER/REPOSITORY}; shift 2 ;;
+    --scope) scope=${2:?--scope requires OWNER}; shift 2 ;;
     *)
-      [[ -z $scope ]] || die "usage: register-forgejo-runner --scope OWNER/REPOSITORY"
+      [[ -z $scope ]] || die "usage: register-forgejo-runner --scope OWNER"
       scope=$1
       shift
       ;;
   esac
 done
-[[ -n $scope ]] || die "usage: register-forgejo-runner --scope OWNER/REPOSITORY"
-[[ $scope =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || die "scope must be in format <owner>/<repository>"
+[[ -n $scope ]] || die "usage: register-forgejo-runner --scope OWNER"
+[[ $scope =~ ^[A-Za-z0-9_.-]+$ ]] || \
+  die "scope must be a Forgejo owner name; repository and global scopes are forbidden"
 
 secrets_file="$root/secrets/secrets.sops.yaml"
 [[ -r $secrets_file ]] || die "missing encrypted secrets: $secrets_file"
 
-secrets_json=$(sops --decrypt --output-type json "$secrets_file")
+secrets_json=$(sops --config "$root/.sops.yaml" \
+  --decrypt --output-type json "$secrets_file")
 runner_secret=$(jq -r '.forgejo.runner_secret // empty' <<<"$secrets_json")
 [[ -n $runner_secret ]] || die "missing forgejo.runner_secret in $secrets_file"
 [[ $runner_secret =~ ^[0-9a-f]{40}$ ]] || die "forgejo.runner_secret must be a 40-character hex string"
 
-info "registering runner for repository: $scope"
+info "registering runner for all repositories owned by: $scope"
 uuid=$(printf '%s' "$runner_secret" | podman exec -i forgejo \
   forgejo forgejo-cli actions register \
     --name homelab-runner \
@@ -44,5 +46,6 @@ validate_forgejo_runner_uuid "$uuid"
 info "runner registered successfully with UUID: $uuid"
 
 # Update runner_uuid in secrets file
-sops set "$secrets_file" '["forgejo"]["runner_uuid"]' "\"$uuid\""
+sops --config "$root/.sops.yaml" set \
+  "$secrets_file" '["forgejo"]["runner_uuid"]' "\"$uuid\""
 info "stored runner_uuid in $secrets_file"
