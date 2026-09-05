@@ -286,6 +286,10 @@ rg -q 'must run as the homelab account' "$root/bin/register-forgejo-runner" || {
   printf 'runner registration does not enforce the production operator account\n' >&2
   exit 1
 }
+rg -Fq 'systemctl start "user@${runtime_uid}.service"' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap must restart the homelab user manager after terminating it\n' >&2
+  exit 1
+}
 rg -q 'scope must be a Forgejo owner name; repository and global scopes are forbidden' \
   "$root/bin/register-forgejo-runner" || {
   printf 'runner registration must require owner-wide scope and reject global scope\n' >&2
