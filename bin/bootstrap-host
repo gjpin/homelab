@@ -286,6 +286,10 @@ if [[ -r $secrets_file ]] && rg -q '^sops:' "$secrets_file"; then
   [[ -e $device ]] || die "configured Zigbee coordinator does not exist: $device"
   "$root/bin/install-zigbee-udev" "$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID" "$runtime_user"
   loginctl terminate-user "$runtime_user" || true
+  runtime_uid=$(id -u "$runtime_user")
+  systemctl start "user@${runtime_uid}.service"
+  [[ -S /run/user/$runtime_uid/bus ]] || \
+    die "$runtime_user systemd user manager did not recreate its bus after restart"
 else
   info "encrypted secrets are not present yet; re-run bootstrap-host after init-secrets to apply timezone and Zigbee access"
 fi
