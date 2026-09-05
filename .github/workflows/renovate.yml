@@ -35,7 +35,7 @@ jobs:
         with:
           token: ${{ secrets.RENOVATE_TOKEN }}
           # renovate: datasource=docker depName=ghcr.io/renovatebot/renovate
-          renovate-version: 44.52.1
+          renovate-version: 44.65.2
         env:
           LOG_LEVEL: info
           RENOVATE_PLATFORM: github
