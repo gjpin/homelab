@@ -1,0 +1,26 @@
+[Unit]
+Description=Forgejo Actions Runner
+After=podman.socket
+Requires=podman.socket
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/forgejo-runner daemon \
+  --config %h/.config/forgejo-runner/config.yaml
+
+Environment=DOCKER_HOST=unix://%t/podman/podman.sock
+
+Restart=always
+RestartSec=5s
+TimeoutStopSec=30m
+
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+
+MemoryMax=16G
+CPUQuota=400%
+TasksMax=2048
+
+[Install]
+WantedBy=default.target

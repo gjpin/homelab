@@ -18,6 +18,8 @@ Environment=FORGEJO__database__DB_TYPE=postgres
 Environment=FORGEJO__database__HOST=forgejo-postgres:5432
 Environment=FORGEJO__database__NAME=forgejo
 Environment=FORGEJO__database__USER=forgejo
+Environment=FORGEJO__actions__ENABLED=true
+Environment=FORGEJO__actions__DEFAULT_ACTIONS_URL=https://data.forgejo.org
 Secret=forgejo-database-password,type=env,target=FORGEJO__database__PASSWD
 Volume=forgejo-data.volume:/var/lib/gitea:U
 LogDriver=journald

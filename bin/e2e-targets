@@ -276,6 +276,8 @@ for path in "${changed_paths[@]}"; do
         add_workload "$fixture"
       elif [[ $fixture == zigbee2mqtt ]]; then
         add_workload homeassistant
+      elif [[ $fixture == forgejo-runner ]]; then
+        add_workload forgejo
       else
         global_change=true
       fi
@@ -303,6 +305,8 @@ for path in "${changed_paths[@]}"; do
       fi
       ;;
     config/host-tools.env|tests/host-tools.sh|bin/install-sops|\
+      bin/install-forgejo-runner|\
+      bin/update-forgejo-runner-checksums|\
       systemd/system/homelab-host-tools-update.service|\
       systemd/system/homelab-host-tools-update.timer)
       host_tools_needed=true

@@ -17,7 +17,9 @@ load_host_tools "$root/config/host-tools.env"
 [[ -f "$root/config/host-tools.env" ]] || { printf 'host tools metadata is missing\n' >&2; exit 1; }
 for field in \
   SOPS_RELEASE_TAG SOPS_AMD64_RPM_SHA256 SOPS_AMD64_BINARY_SHA256 \
-  SOPS_ARM64_RPM_SHA256 SOPS_ARM64_BINARY_SHA256; do
+  SOPS_ARM64_RPM_SHA256 SOPS_ARM64_BINARY_SHA256 \
+  FORGEJO_RUNNER_RELEASE_TAG FORGEJO_RUNNER_AMD64_BINARY_SHA256 \
+  FORGEJO_RUNNER_ARM64_BINARY_SHA256; do
   rg -q "^${field}=" "$root/config/host-tools.env" || {
     printf 'host tools metadata is missing: %s\n' "$field" >&2
     exit 1
@@ -27,7 +29,7 @@ done
 rg -q 'age-keygen -pq -o' "$root/bin/bootstrap-host" || { printf 'host age identity is not post-quantum\n' >&2; exit 1; }
 for package in \
   age ca-certificates checkpolicy container-selinux curl diffutils firewalld fuse-overlayfs \
-  gettext-envsubst gawk git iproute jq libselinux-utils openssh-clients passt \
+  gettext-envsubst gawk git iproute jq libselinux-utils nftables openssh-clients passt \
   podman policycoreutils python3 restic ripgrep shadow-utils systemd tar util-linux \
   xfsprogs; do
   rg -q "^[[:space:]]+$package$" "$root/bin/bootstrap-host" || {
@@ -82,6 +84,27 @@ rg -q '^ExecStart=/usr/local/libexec/homelab-install-sops ' \
   printf 'host-tools service does not use the fixed installer\n' >&2
   exit 1
 }
+rg -q '^ExecStart=/usr/local/libexec/homelab-install-forgejo-runner ' \
+  "$root/systemd/system/homelab-host-tools-update.service" || {
+  printf 'host-tools service does not update Forgejo Runner\n' >&2
+  exit 1
+}
+for mapping in \
+  "forgejo-runner-\${version}-linux-\${arch}" \
+  "releases/download/\${release_tag}/\${binary_file}"; do
+  rg -Fq "$mapping" "$root/bin/install-forgejo-runner" || {
+    printf 'missing Forgejo Runner installer mapping: %s\n' "$mapping" >&2
+    exit 1
+  }
+done
+rg -q 'sha256sum --check' "$root/bin/install-forgejo-runner" || { printf 'Forgejo Runner checksum is not verified\n' >&2; exit 1; }
+rg -q 'refusing to downgrade Forgejo Runner' "$root/bin/install-forgejo-runner" || { printf 'Forgejo Runner installer does not reject downgrades\n' >&2; exit 1; }
+rg -q 'mv -fT "\$tmp_bin" "\$target_bin"' "$root/bin/install-forgejo-runner" || { printf 'Forgejo Runner installer replacement is not atomic\n' >&2; exit 1; }
+rg -q 'try-restart forgejo-runner.service' "$root/bin/install-forgejo-runner" || { printf 'Forgejo Runner updates do not restart the daemon\n' >&2; exit 1; }
+rg -q 'install -m 0755 "\$root/bin/install-forgejo-runner" /usr/local/libexec/homelab-install-forgejo-runner' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not install the fixed Forgejo Runner updater\n' >&2
+  exit 1
+}
 if rg -n 'ExecStart=.*(%h/current/bin|/home/homelab/current/bin|/current/bin)' \
   "$root/systemd/system/homelab-host-tools-update.service"; then
   printf 'host-tools service executes mutable Git content as root\n' >&2
@@ -95,6 +118,11 @@ rg -q '^Persistent=true$' "$root/systemd/system/homelab-host-tools-update.timer"
   printf 'host-tools timer must catch up missed runs\n' >&2
   exit 1
 }
+rg -q 'datasourceTemplate.*forgejo-releases' "$root/renovate.json" || { printf 'Renovate does not use the Forgejo release datasource\n' >&2; exit 1; }
+rg -q 'update-forgejo-runner-checksums' "$root/renovate.json" "$root/.github/workflows/renovate.yml" || {
+  printf 'Renovate does not refresh reviewed Forgejo Runner release checksums\n' >&2
+  exit 1
+}
 rg -q 'require_rpm_version age 1\.3\.0' "$root/bin/bootstrap-host" || { printf 'Fedora age minimum is not checked\n' >&2; exit 1; }
 rg -q 'require_rpm_version restic 0\.19\.1' "$root/bin/bootstrap-host" || { printf 'Fedora restic minimum is not checked\n' >&2; exit 1; }
 rg -q 'rm -f --' "$root/bin/bootstrap-host" || { printf 'legacy host binaries are not cleaned up\n' >&2; exit 1; }
@@ -106,6 +134,163 @@ rg -q -- '--add-subuids' "$root/bin/bootstrap-host" || { printf 'subuid provisio
 rg -q -- '--add-subgids' "$root/bin/bootstrap-host" || { printf 'subgid provisioning is missing\n' >&2; exit 1; }
 rg -q '/etc/subuid' "$root/bin/bootstrap-host" || { printf 'subuid validation is missing\n' >&2; exit 1; }
 rg -q '/etc/subgid' "$root/bin/bootstrap-host" || { printf 'subgid validation is missing\n' >&2; exit 1; }
+rg -q 'useradd --create-home --home-dir "\$runner_home" --shell /bin/bash "\$runner_user"' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not create the dedicated forgejo-runner system user\n' >&2
+  exit 1
+}
+rg -q 'passwd --lock "\$runner_user"' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not lock the forgejo-runner password\n' >&2
+  exit 1
+}
+rg -q 'ensure_subordinate_id_range "\$runner_user" --add-subuids /etc/subuid 200000-265535' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not assign isolated subuids to forgejo-runner\n' >&2
+  exit 1
+}
+rg -q 'ensure_subordinate_id_range "\$runner_user" --add-subgids /etc/subgid 200000-265535' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not assign isolated subgids to forgejo-runner\n' >&2
+  exit 1
+}
+rg -q 'loginctl enable-linger "\$runner_user"' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not enable linger for forgejo-runner\n' >&2
+  exit 1
+}
+# shellcheck disable=SC2016
+for assertion in \
+  'require_matching_subordinate_id_ranges "$runner_user"' \
+  'require_nonoverlapping_subordinate_id_ranges "$runtime_user" "$runner_user" /etc/subuid' \
+  'require_nonoverlapping_subordinate_id_ranges "$runtime_user" "$runner_user" /etc/subgid'; do
+  rg -Fq "$assertion" "$root/bin/bootstrap-host" || {
+    printf 'bootstrap does not enforce runner subordinate-ID isolation: %s\n' "$assertion" >&2
+    exit 1
+  }
+done
+rg -q 'systemctl restart homelab-forgejo-runner-egress.service' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not enable forgejo-runner egress service\n' >&2
+  exit 1
+}
+
+[[ -f "$root/config/templates/forgejo-runner/config.yaml" ]] || {
+  printf 'missing forgejo-runner configuration template\n' >&2
+  exit 1
+}
+rg -q '^  capacity: 1$' "$root/config/templates/forgejo-runner/config.yaml" || {
+  printf 'runner capacity must be 1\n' >&2
+  exit 1
+}
+rg -q '^  docker_host: "-"' "$root/config/templates/forgejo-runner/config.yaml" || {
+  printf 'runner docker_host must be disabled (-)\n' >&2
+  exit 1
+}
+rg -q '^  privileged: false$' "$root/config/templates/forgejo-runner/config.yaml" || {
+  printf 'runner privileged mode must be false\n' >&2
+  exit 1
+}
+rg -q '^  valid_volumes: \[\]$' "$root/config/templates/forgejo-runner/config.yaml" || {
+  printf 'runner valid_volumes must be empty\n' >&2
+  exit 1
+}
+rg -q '^  force_pull: true$' "$root/config/templates/forgejo-runner/config.yaml" || {
+  printf 'runner must refresh the digest-pinned job image\n' >&2
+  exit 1
+}
+rg -q 'forgejo-ci:docker://docker.io/library/node:26-trixie@sha256:[0-9a-f]{64}' \
+  "$root/config/templates/forgejo-runner/config.yaml" || {
+  printf 'runner default image must be digest-pinned Node 26 trixie\n' >&2
+  exit 1
+}
+rg -q '^    --cpus=4$' "$root/config/templates/forgejo-runner/config.yaml" || {
+  printf 'runner job containers must be limited to four CPUs\n' >&2
+  exit 1
+}
+rg -q '^    --memory=16g$' "$root/config/templates/forgejo-runner/config.yaml" || {
+  printf 'runner job containers must be limited to 16 GiB of memory\n' >&2
+  exit 1
+}
+if rg -q ':[[:space:]]*host([[:space:]"'\'']|$)' "$root/config/templates/forgejo-runner/config.yaml"; then
+  printf 'runner must not expose a host execution label\n' >&2
+  exit 1
+fi
+rg -q '^cache:' "$root/config/templates/forgejo-runner/config.yaml" || {
+  printf 'runner cache config is missing\n' >&2
+  exit 1
+}
+rg -q 'enabled: false' "$root/config/templates/forgejo-runner/config.yaml" || {
+  printf 'runner cache must be disabled\n' >&2
+  exit 1
+}
+
+[[ -f "$root/systemd/user/forgejo-runner.service" ]] || {
+  printf 'missing forgejo-runner user service unit\n' >&2
+  exit 1
+}
+rg -q '^MemoryMax=16G$' "$root/systemd/user/forgejo-runner.service" || {
+  printf 'runner service must configure MemoryMax=16G\n' >&2
+  exit 1
+}
+rg -q '^CPUQuota=400%$' "$root/systemd/user/forgejo-runner.service" || {
+  printf 'runner service must configure CPUQuota=400%%\n' >&2
+  exit 1
+}
+rg -q '^TasksMax=2048$' "$root/systemd/user/forgejo-runner.service" || {
+  printf 'runner service must configure TasksMax=2048\n' >&2
+  exit 1
+}
+rg -q '^NoNewPrivileges=true$' "$root/systemd/user/forgejo-runner.service" || {
+  printf 'runner service must enforce NoNewPrivileges=true\n' >&2
+  exit 1
+}
+for unit in forgejo-runner-prune.service forgejo-runner-prune.timer; do
+  [[ -f "$root/systemd/user/$unit" ]] || { printf 'missing runner cleanup unit: %s\n' "$unit" >&2; exit 1; }
+done
+rg -q 'podman system prune --force --filter until=168h' "$root/systemd/user/forgejo-runner-prune.service" || {
+  printf 'runner cleanup does not prune stale Podman resources\n' >&2
+  exit 1
+}
+rg -q '^FORGEJO_RUNNER_STORAGE_SIZE=20G$' "$root/bin/lib-forgejo-runner-host.sh" || {
+  printf 'runner storage is not bounded at the reviewed capacity\n' >&2
+  exit 1
+}
+rg -Fq 'user-${runner_uid}.slice' "$root/bin/lib-forgejo-runner-host.sh" || {
+  printf 'runner aggregate limits are not applied to the user slice\n' >&2
+  exit 1
+}
+
+[[ -f "$root/config/nftables/forgejo-runner-egress.nft" ]] || {
+  printf 'missing forgejo-runner egress nftables policy\n' >&2
+  exit 1
+}
+rg -q 'meta skuid "forgejo-runner"' "$root/config/nftables/forgejo-runner-egress.nft" || {
+  printf 'egress policy must match skuid forgejo-runner\n' >&2
+  exit 1
+}
+for set_name in dns_ipv4 dns_ipv6 forgejo_ipv4 forgejo_ipv6; do
+  rg -q "set $set_name" "$root/config/nftables/forgejo-runner-egress.nft" || {
+    printf 'runner egress policy is missing scoped set: %s\n' "$set_name" >&2
+    exit 1
+  }
+done
+
+[[ -f "$root/bin/register-forgejo-runner" ]] || {
+  printf 'missing register-forgejo-runner script\n' >&2
+  exit 1
+}
+rg -q 'actions register' "$root/bin/register-forgejo-runner" || {
+  printf 'register-forgejo-runner must run actions register\n' >&2
+  exit 1
+}
+rg -q -- '--secret-stdin true' "$root/bin/register-forgejo-runner" || {
+  printf 'register-forgejo-runner must pass registration secret via stdin\n' >&2
+  exit 1
+}
+rg -q 'must run as the homelab account' "$root/bin/register-forgejo-runner" || {
+  printf 'runner registration does not enforce the production operator account\n' >&2
+  exit 1
+}
+[[ -x "$root/tests/forgejo-runner-e2e.sh" ]] || { printf 'missing executable Forgejo Runner E2E\n' >&2; exit 1; }
+rg -q 'forgejo-runner-e2e.sh' "$root/tests/e2e.sh" || { printf 'main E2E does not execute runner coverage\n' >&2; exit 1; }
+for fixture in isolation.yml forbidden-volume.yml; do
+  [[ -f "$root/tests/fixtures/forgejo-runner/$fixture" ]] || { printf 'missing runner adversarial fixture: %s\n' "$fixture" >&2; exit 1; }
+done
 rg -q 'require_command rg' "$root/bin/reconcile" || { printf 'reconciliation rg preflight is missing\n' >&2; exit 1; }
 for command in fuse-overlayfs newgidmap newuidmap pasta; do
   rg -q "require_command $command" "$root/bin/verify-host-security" || {
@@ -447,6 +632,8 @@ while IFS= read -r build; do
 done < <(find "$root/quadlet/builds" -name '*.build' -type f | sort)
 
 [[ -x "$root/bin/backup" && -x "$root/bin/restic" && -x "$root/bin/install-sops" && \
+  -x "$root/bin/install-forgejo-runner" && -x "$root/bin/register-forgejo-runner" && \
+  -x "$root/bin/update-forgejo-runner-checksums" && \
   -x "$root/bin/install-selinux-policy" && -x "$root/bin/install-zigbee-udev" && \
   -x "$root/bin/migrate-databases" && -x "$root/bin/migrate-postgres" && \
   -x "$root/bin/migrate-mariadb" && -x "$root/bin/decommission-supernote" ]] || {
@@ -665,12 +852,15 @@ if rg '^FROM ' "$root/images" | rg -v '@sha256:[0-9a-f]{64}([[:space:]]+AS[[:spa
   exit 1
 fi
 
-action_line_re='^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]+[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}[[:space:]]+# v[0-9]+(\.[0-9]+){1,2}$'
+action_line_re='^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]+(https://data\.forgejo\.org/)?[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}[[:space:]]+# v[0-9]+(\.[0-9]+){1,2}$'
 while IFS= read -r action_line; do
   [[ $action_line =~ $action_line_re ]] || {
     printf 'GitHub Action must use a full SHA and version comment: %s\n' "$action_line" >&2
     exit 1
   }
-done < <(rg --no-filename '^[[:space:]]*(-[[:space:]]+)?uses:' "$workflows")
+done < <(
+  rg --no-filename '^[[:space:]]*(-[[:space:]]+)?uses:' \
+    "$workflows" "$root/tests/fixtures/forgejo-runner"
+)
 
 printf 'static topology validation passed\n'

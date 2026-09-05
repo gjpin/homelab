@@ -68,6 +68,37 @@ require_subordinate_id_range() {
   ' "$database" || die "$user has no valid subordinate ID range in $database"
 }
 
+subordinate_id_ranges() {
+  local database=$1 user=$2
+  [[ -r $database ]] || die "subordinate ID database is unavailable: $database"
+  awk -F: -v user="$user" '
+    $1 == user && $2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ { print $2 ":" $3 }
+  ' "$database" | sort -n -t: -k1,1
+}
+
+require_matching_subordinate_id_ranges() {
+  local user=$1 uid_ranges gid_ranges
+  uid_ranges=$(subordinate_id_ranges /etc/subuid "$user")
+  gid_ranges=$(subordinate_id_ranges /etc/subgid "$user")
+  [[ -n $uid_ranges && $uid_ranges == "$gid_ranges" ]] || \
+    die "$user must have identical valid ranges in /etc/subuid and /etc/subgid"
+}
+
+require_nonoverlapping_subordinate_id_ranges() {
+  local first_user=$1 second_user=$2 database=$3
+  local first_start first_count second_start second_count first_end second_end
+  while IFS=: read -r first_start first_count; do
+    [[ -n $first_start ]] || continue
+    first_end=$((first_start + first_count - 1))
+    while IFS=: read -r second_start second_count; do
+      [[ -n $second_start ]] || continue
+      second_end=$((second_start + second_count - 1))
+      (( first_start > second_end || second_start > first_end )) || \
+        die "$first_user subordinate range $first_start-$first_end overlaps $second_user range $second_start-$second_end in $database"
+    done < <(subordinate_id_ranges "$database" "$second_user")
+  done < <(subordinate_id_ranges "$database" "$first_user")
+}
+
 load_host_tools() {
   local file=${1:-$(repo_root)/config/host-tools.env}
   local line key value
@@ -77,6 +108,9 @@ load_host_tools() {
   SOPS_AMD64_BINARY_SHA256=
   SOPS_ARM64_RPM_SHA256=
   SOPS_ARM64_BINARY_SHA256=
+  FORGEJO_RUNNER_RELEASE_TAG=
+  FORGEJO_RUNNER_AMD64_BINARY_SHA256=
+  FORGEJO_RUNNER_ARM64_BINARY_SHA256=
   while IFS= read -r line || [[ -n $line ]]; do
     [[ -z $line || $line == \#* ]] && continue
     [[ $line == *=* ]] || die "invalid host tools metadata line: $line"
@@ -88,6 +122,9 @@ load_host_tools() {
       SOPS_AMD64_BINARY_SHA256) [[ -z $SOPS_AMD64_BINARY_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_AMD64_BINARY_SHA256=$value ;;
       SOPS_ARM64_RPM_SHA256) [[ -z $SOPS_ARM64_RPM_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_ARM64_RPM_SHA256=$value ;;
       SOPS_ARM64_BINARY_SHA256) [[ -z $SOPS_ARM64_BINARY_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_ARM64_BINARY_SHA256=$value ;;
+      FORGEJO_RUNNER_RELEASE_TAG) [[ -z $FORGEJO_RUNNER_RELEASE_TAG ]] || die "duplicate host tools metadata key: $key"; FORGEJO_RUNNER_RELEASE_TAG=$value ;;
+      FORGEJO_RUNNER_AMD64_BINARY_SHA256) [[ -z $FORGEJO_RUNNER_AMD64_BINARY_SHA256 ]] || die "duplicate host tools metadata key: $key"; FORGEJO_RUNNER_AMD64_BINARY_SHA256=$value ;;
+      FORGEJO_RUNNER_ARM64_BINARY_SHA256) [[ -z $FORGEJO_RUNNER_ARM64_BINARY_SHA256 ]] || die "duplicate host tools metadata key: $key"; FORGEJO_RUNNER_ARM64_BINARY_SHA256=$value ;;
       *) die "unknown host tools metadata key: $key" ;;
     esac
   done <"$file"
@@ -99,6 +136,14 @@ load_host_tools() {
   SOPS_VERSION=${SOPS_RELEASE_TAG#v}
   export SOPS_RELEASE_TAG SOPS_VERSION SOPS_AMD64_RPM_SHA256 SOPS_AMD64_BINARY_SHA256
   export SOPS_ARM64_RPM_SHA256 SOPS_ARM64_BINARY_SHA256
+
+  [[ $FORGEJO_RUNNER_RELEASE_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Forgejo Runner release tag is invalid: $FORGEJO_RUNNER_RELEASE_TAG"
+  for value in "$FORGEJO_RUNNER_AMD64_BINARY_SHA256" "$FORGEJO_RUNNER_ARM64_BINARY_SHA256"; do
+    [[ $value =~ ^[0-9a-f]{64}$ ]] || die "host tools metadata contains an invalid SHA-256 checksum"
+  done
+  FORGEJO_RUNNER_VERSION=${FORGEJO_RUNNER_RELEASE_TAG#v}
+  export FORGEJO_RUNNER_RELEASE_TAG FORGEJO_RUNNER_VERSION
+  export FORGEJO_RUNNER_AMD64_BINARY_SHA256 FORGEJO_RUNNER_ARM64_BINARY_SHA256
 }
 
 validate_base_domain() {
@@ -163,6 +208,17 @@ validate_backup_s3_prefix() {
   [[ $value != *'..'* && $value != *'//'* ]] || die "backup.s3_prefix contains an unsafe path component"
 }
 
+validate_forgejo_runner_secret() {
+  local value=${1:-}
+  [[ -z $value || $value =~ ^[0-9a-f]{40}$ ]] || die "forgejo.runner_secret must be empty or exactly 40 hexadecimal characters"
+}
+
+validate_forgejo_runner_uuid() {
+  local value=${1:-}
+  [[ -z $value || $value =~ ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$ ]] || \
+    die "forgejo.runner_uuid must be empty or a lowercase UUID"
+}
+
 apply_site_config() {
   local secrets_json=$1
   BASE_DOMAIN=$(jq -r '.site.base_domain // empty' <<<"$secrets_json")
@@ -172,6 +228,8 @@ apply_site_config() {
   BACKUP_S3_REGION=$(jq -r '.backup.s3_region // empty' <<<"$secrets_json")
   BACKUP_S3_BUCKET=$(jq -r '.backup.s3_bucket // empty' <<<"$secrets_json")
   BACKUP_S3_PREFIX=$(jq -r '.backup.s3_prefix // empty' <<<"$secrets_json")
+  FORGEJO_RUNNER_SECRET=$(jq -r '.forgejo.runner_secret // empty' <<<"$secrets_json")
+  FORGEJO_RUNNER_UUID=$(jq -r '.forgejo.runner_uuid // empty' <<<"$secrets_json")
   validate_base_domain "$BASE_DOMAIN"
   validate_timezone "$TIMEZONE"
   validate_zigbee_serial "$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID"
@@ -179,8 +237,11 @@ apply_site_config() {
   validate_backup_s3_region "$BACKUP_S3_REGION"
   validate_backup_s3_bucket "$BACKUP_S3_BUCKET"
   validate_backup_s3_prefix "$BACKUP_S3_PREFIX"
+  validate_forgejo_runner_secret "$FORGEJO_RUNNER_SECRET"
+  validate_forgejo_runner_uuid "$FORGEJO_RUNNER_UUID"
   export BASE_DOMAIN TIMEZONE HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID
   export BACKUP_S3_ENDPOINT BACKUP_S3_REGION BACKUP_S3_BUCKET BACKUP_S3_PREFIX
+  export FORGEJO_RUNNER_SECRET FORGEJO_RUNNER_UUID
 }
 
 load_site_config() {

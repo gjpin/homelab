@@ -11,6 +11,8 @@ podman ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
 printf '\nHost tools:\n'
 printf '%-28s %s\n' homelab-host-tools-update.timer "$(systemctl is-active homelab-host-tools-update.timer 2>/dev/null || true)"
 printf '%-28s %s\n' 'sops version' "$(sops --version --disable-version-check 2>/dev/null || printf 'unavailable')"
+printf '%-28s %s\n' 'forgejo-runner version' "$(forgejo-runner --version 2>/dev/null || printf 'unavailable')"
+printf '%-28s %s\n' homelab-forgejo-runner-egress.service "$(systemctl is-active homelab-forgejo-runner-egress.service 2>/dev/null || true)"
 
 printf '\nBackup:\n'
 printf '%-28s %s\n' homelab-backup.timer "$(systemctl --user is-active homelab-backup.timer 2>/dev/null || true)"

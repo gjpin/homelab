@@ -2,7 +2,7 @@
 set -Eeuo pipefail
 
 machine_user=$(id -un)
-printf '%s:100000:1000000\n' "$machine_user" | \
+printf '%s:100000:65536\n' "$machine_user" | \
   sudo tee /etc/subuid /etc/subgid >/dev/null
 podman system migrate
 

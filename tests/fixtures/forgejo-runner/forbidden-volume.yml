@@ -1,0 +1,9 @@
+on: push
+jobs:
+  forbidden-volume:
+    runs-on: forgejo-ci
+    container:
+      volumes:
+        - /:/host
+    steps:
+      - run: test ! -e /host/etc/passwd

@@ -272,6 +272,29 @@ same reviewed update path as images:
   as root. Document the timer, recovery behavior, and one-time rollout for
   existing hosts.
 
+### Forgejo Actions runner exception
+
+Forgejo Actions is an intentional arbitrary-code-execution workload and MUST
+NOT execute under the production `homelab` account.
+
+The Forgejo Runner runs under the dedicated locked `forgejo-runner` account
+with independent subordinate UID/GID mappings, rootless Podman storage,
+runtime directory, systemd user manager and Podman API socket.
+
+The runner and all workflow containers MUST NOT receive access to:
+
+- the `homelab` Podman API socket;
+- `/run/user/<homelab-uid>`;
+- the `homelab` container storage;
+- `%t/homelab` rendered configuration;
+- production Podman secrets;
+- production named volumes;
+- deployment SSH/SOPS credentials.
+
+This exception permits a second unprivileged runtime account only for
+sandboxed CI execution. It does not permit rootful containers, privileged
+containers, host runner labels or production socket sharing.
+
 ## Workload inventory
 
 This is the compact record that must be updated whenever an application or
@@ -281,7 +304,7 @@ authoritative detailed configuration.
 | Workload | Runtime and dependency pattern | Networks / UI / external exposure | State, secrets, and special security notes |
 | --- | --- | --- | --- |
 | `caddy` | Custom build; reverse-proxy entrypoint | All active edge networks; `*.BASE_DOMAIN`; loopback `127.0.0.1:8443` only | Caddy user; Cloudflare and bookmarks secrets; `NET_BIND_SERVICE`; never joins backend networks; host `systemd-socket-proxyd` SELinux module for TCP 443/`http_port_t` |
-| `forgejo` | Rootless Forgejo plus PostgreSQL | Backend plus Forgejo edge; `git` route | Rootless UIDs; Forgejo and PostgreSQL volumes; database secret |
+| `forgejo` | Rootless Forgejo plus PostgreSQL; companion `forgejo-runner` host CI service | Backend plus Forgejo edge; `git` route; runner nftables policy permits configured DNS, public egress, and only the resolved Forgejo endpoint within private ranges | Rootless UIDs; Forgejo and PostgreSQL volumes; database secret; companion runner runs under locked `forgejo-runner` account with separate Podman socket, 20 GiB bounded graphroot, account-wide cgroup limits, weekly runner-only cleanup, and no access to production state; readiness is proven by workflow-driven smoke and adversarial E2E |
 | `homeassistant` | Home Assistant, Mosquitto, and Zigbee2MQTT | Backend plus Home Assistant edge; `home` and `home-zigbee` routes | Zigbee device fixture and `container_device_t` exception plus host SELinux module adding `container_net_domain` so MQTT/DNS work; D-Bus read-only bind plus host SELinux module allowing socket write and stream connectto for Bluetooth adapter discovery; MQTT Podman secret plus `ZIGBEE2MQTT_CONFIG_*` GitOps env; writable Zigbee2MQTT data volume; `RunInit=false` on Home Assistant (s6 PID 1) and Zigbee2MQTT (non-root cannot exec `/run/podman-init`); host udev rule pins the coordinator to `dialout` `0660` and strips `uaccess` |
 | `immich` | Rootless server, PostgreSQL, Valkey, and ML service | Backend plus server edge; dedicated ML egress; `photos` route | Multiple durable volumes; database secret; ML outbound isolation |
 | `radicale` | Custom rootless image with rendered config | Internal Radicale network; `contacts` route; no Internet egress | Bcrypt htpasswd secret; custom build and rendered user/config files |

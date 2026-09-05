@@ -1,5 +1,5 @@
 [Unit]
-Description=Install the GitOps-approved SOPS host tool
+Description=Install GitOps-approved host tools
 After=network-online.target
 Wants=network-online.target
 ConditionPathExists=/home/homelab/current/config/host-tools.env
@@ -9,6 +9,7 @@ Type=oneshot
 User=root
 Group=root
 ExecStart=/usr/local/libexec/homelab-install-sops /home/homelab/current/config/host-tools.env
+ExecStart=/usr/local/libexec/homelab-install-forgejo-runner /home/homelab/current/config/host-tools.env
 NoNewPrivileges=true
 PrivateDevices=true
 PrivateTmp=true
@@ -17,6 +18,6 @@ ProtectControlGroups=true
 ProtectKernelLogs=true
 ProtectKernelModules=true
 ProtectKernelTunables=true
-RestrictAddressFamilies=AF_INET AF_INET6
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 RestrictNamespaces=true
 SystemCallArchitectures=native
