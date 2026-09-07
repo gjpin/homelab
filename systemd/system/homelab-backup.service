@@ -1,0 +1,15 @@
+[Unit]
+Description=Create an encrypted incremental backup of the homelab volumes
+After=network-online.target docker.service homelab-secrets.service
+Wants=network-online.target
+Requires=docker.service homelab-secrets.service
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+Environment=HOME=/home/homelab
+Environment=HOMELAB_STATE_DIR=/home/homelab/.local/state/homelab
+ExecStart=/home/homelab/current/bin/backup --tag automatic
+TimeoutStartSec=infinity
+UMask=0077

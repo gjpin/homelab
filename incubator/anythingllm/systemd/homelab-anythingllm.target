@@ -1,4 +1,0 @@
-[Unit]
-Description=anythingllm application stack
-Wants=anythingllm.service
-After=homelab-secrets.service

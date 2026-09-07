@@ -73,16 +73,16 @@ host_tools_needed=false
 head_workloads=()
 
 load_known_images() {
-  local file path
-  for file in "$root"/quadlet/builds/*.build; do
-    [[ -e $file ]] || continue
-    known_images[$(basename -- "$file" .build)]=true
+  local dir path
+  for dir in "$root"/images/*; do
+    [[ -d $dir && -f $dir/Containerfile ]] || continue
+    known_images[$(basename -- "$dir")]=true
   done
   if git -C "$root" rev-parse --verify "$head_ref^{commit}" >/dev/null 2>&1; then
     while IFS= read -r path; do
-      [[ $path == *.build ]] || continue
-      known_images[$(basename -- "$path" .build)]=true
-    done < <(git -C "$root" ls-tree --name-only "$head_ref" quadlet/builds/ 2>/dev/null || true)
+      [[ $path == images/*/Containerfile ]] || continue
+      known_images[$(basename -- "$(dirname -- "$path")")]=true
+    done < <(git -C "$root" ls-tree -r --name-only "$head_ref" -- images 2>/dev/null || true)
   fi
 }
 
@@ -165,7 +165,7 @@ git -C "$root" show "$head_ref:tests/e2e-readiness.json" >"$work_dir/head-readin
 for manifest in "$work_dir"/*-manifest.json; do
   jq -e '
     type == "object" and
-    all(.[]; type == "object" and (.units | type == "array"))
+    all(.[]; type == "object" and (.containers | type == "array"))
   ' "$manifest" >/dev/null || fail_open
 done
 for metadata in "$work_dir"/*-readiness.json; do
@@ -190,9 +190,8 @@ add_workload() {
 workload_for_build() {
   local build=$1 workload
   for workload in "${head_workloads[@]}"; do
-    if jq -e --arg unit "${build}-build.service" \
-      --arg workload "$workload" \
-      '.[$workload].units | index($unit) != null' \
+    if jq -e --arg build "$build" --arg workload "$workload" \
+      '.[$workload].build == $build' \
       "$work_dir/head-manifest.json" >/dev/null; then
       printf '%s\n' "$workload"
       return 0
@@ -215,18 +214,14 @@ workload_for_resource() {
 }
 
 container_owner() {
-  local ref=$1 manifest=$2 container=$3 workload unit file name
+  local manifest=$2 container=$3 workload
   mapfile -t workloads < <(jq -r 'keys[]' "$manifest")
   for workload in "${workloads[@]}"; do
-    while IFS= read -r unit; do
-      [[ $unit == *.service && $unit != *-build.service ]] || continue
-      file="quadlet/applications/$workload/${unit%.service}.container"
-      name=$(git -C "$root" show "$ref:$file" 2>/dev/null | sed -n 's/^ContainerName=//p' | head -n 1)
-      if [[ $name == "$container" ]]; then
-        printf '%s\n' "$workload"
-        return 0
-      fi
-    done < <(jq -r --arg workload "$workload" '.[$workload].units[]' "$manifest")
+    if jq -e --arg workload "$workload" --arg container "$container" \
+      '.[$workload].containers | index($container) != null' "$manifest" >/dev/null; then
+      printf '%s\n' "$workload"
+      return 0
+    fi
   done
   return 1
 }
@@ -234,8 +229,8 @@ container_owner() {
 mapfile -t changed_paths < <(git -C "$root" diff --name-only "$base_ref" "$head_ref") || fail_open
 for path in "${changed_paths[@]}"; do
   case "$path" in
-    quadlet/applications/*/*)
-      workload=${path#quadlet/applications/}
+    compose/*/*)
+      workload=${path#compose/}
       add_workload "${workload%%/*}"
       ;;
     config/templates/homeassistant/automations.yaml)
@@ -245,19 +240,8 @@ for path in "${changed_paths[@]}"; do
       workload=${path#config/templates/}
       add_workload "${workload%%/*}"
       ;;
-    systemd/user/homelab-*.target)
-      workload=${path##*/homelab-}
-      add_workload "${workload%.target}"
-      ;;
-    quadlet/builds/*.build)
-      build=${path##*/}
-      build=${build%.build}
-      add_build_image "$build"
-      if workload=$(workload_for_build "$build"); then
-        add_workload "$workload"
-      else
-        global_change=true
-      fi
+    systemd/system/homelab.service)
+      global_change=true
       ;;
     images/*/*)
       image=${path#images/}
@@ -286,25 +270,11 @@ for path in "${changed_paths[@]}"; do
       # These files are handled structurally below so that adding a workload
       # does not broaden the E2E run to unrelated workloads.
       ;;
-    quadlet/networks/*.network)
-      resource=${path##*/}
-      resource=${resource%.network}
-      if workload=$(workload_for_resource "$resource"); then
-        add_workload "$workload"
-      else
-        global_change=true
-      fi
-      ;;
-    quadlet/volumes/*.volume)
-      resource=${path##*/}
-      resource=${resource%.volume}
-      if workload=$(workload_for_resource "$resource"); then
-        add_workload "$workload"
-      else
-        global_change=true
-      fi
+    manifests/networks.json)
+      global_change=true
       ;;
     config/host-tools.env|tests/host-tools.sh|bin/install-sops|\
+      bin/install-age|bin/install-restic|\
       bin/install-forgejo-runner|\
       bin/update-forgejo-runner-checksums|\
       systemd/system/homelab-host-tools-update.service|\
@@ -317,18 +287,15 @@ for path in "${changed_paths[@]}"; do
       host_tools_needed=true
       ;;
     bin/*|tests/e2e.sh|tests/install-e2e-tools.sh|\
-      tests/postgres-migration-e2e.sh|tests/mariadb-migration-e2e.sh|\
-      config/legacy-migration.env|\
-      systemd/user/*|quadlet/networks/*|quadlet/volumes/*)
+      tests/postgres-migration-e2e.sh|\
+      systemd/system/*)
       global_change=true
       ;;
     .sops.yaml|secrets/*|\
       tests/static.sh|tests/e2e-selection.sh|tests/backup.sh|\
       tests/architecture.sh|tests/bootstrap-storage.sh|\
-      tests/postgres-migration.sh|tests/mariadb-migration.sh|\
-      tests/legacy-restore.sh|tests/selinux-policy.sh|tests/zigbee-udev.sh|\
-      selinux/*|\
-      .github/*|README.md|docs/*|incubator/*|AGENTS.md|renovate.json)
+      tests/postgres-migration.sh|tests/zigbee-udev.sh|\
+      .github/*|README.md|docs/*|AGENTS.md|renovate.json)
       ;;
     *)
       global_change=true

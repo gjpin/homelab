@@ -1,0 +1,86 @@
+name: homelab-searxng
+
+services:
+  searxng-redis:
+    image: docker.io/library/redis:8.10.1@sha256:298e5b3bc566bade82f46ad5511777a4a07a294097ce16ada2f6a42be5239df5
+    container_name: searxng-redis
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+      - SETPCAP
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+    command: ["redis-server", "--save", "30", "1", "--loglevel", "warning"]
+    volumes:
+      - redis:/data
+    networks:
+      - searxng
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  searxng-core:
+    image: docker.io/searxng/searxng:2026.8.28-a30b2d474@sha256:addd2cf36efb4b9815a2820a522aef7cce4da0d1c0e4527f6675f5663332fc9b
+    container_name: searxng-core
+    user: "977:977"
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+      - /etc/searxng
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+    environment:
+      FORCE_OWNERSHIP: "false"
+    volumes:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - cache:/var/cache/searxng
+    networks:
+      - searxng
+      - searxng-edge
+    depends_on:
+      searxng-redis:
+        condition: service_healthy
+
+volumes:
+  redis:
+    name: homelab-searxng-redis
+    labels:
+      homelab.application: searxng
+  cache:
+    name: homelab-searxng-cache
+    labels:
+      homelab.application: searxng
+
+networks:
+  searxng:
+    name: homelab-searxng
+    external: true
+  searxng-edge:
+    name: homelab-searxng-edge
+    external: true

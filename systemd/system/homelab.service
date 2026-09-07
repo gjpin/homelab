@@ -1,0 +1,18 @@
+[Unit]
+Description=Start homelab Compose workloads
+After=docker.service homelab-secrets.service
+Requires=docker.service homelab-secrets.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=homelab
+Group=homelab
+SupplementaryGroups=docker
+Environment=HOME=/home/homelab
+Environment=HOMELAB_STATE_DIR=/home/homelab/.local/state/homelab
+ExecStart=/home/homelab/current/bin/reconcile
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

@@ -1,3 +1,0 @@
-[Volume]
-VolumeName=homelab-syncthing-data
-Label=io.containers.systemd.application=syncthing

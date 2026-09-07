@@ -1,0 +1,46 @@
+name: homelab-syncthing
+
+services:
+  syncthing:
+    image: docker.io/syncthing/syncthing:2.1.3@sha256:8c8ff37ab6aa8be23b700648a90fa9412e214852e9fd6ea8477c8334792daec0
+    container_name: syncthing
+    hostname: homelab
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+    ports:
+      - "22000:22000/tcp"
+      - "22000:22000/udp"
+    volumes:
+      - data:/var/syncthing
+    networks:
+      - syncthing
+
+volumes:
+  data:
+    name: homelab-syncthing-data
+    labels:
+      homelab.application: syncthing
+
+networks:
+  syncthing:
+    name: homelab-syncthing
+    external: true

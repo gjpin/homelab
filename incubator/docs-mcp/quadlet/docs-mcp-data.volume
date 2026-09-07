@@ -1,3 +1,0 @@
-[Volume]
-VolumeName=homelab-docs-mcp-data
-Label=io.containers.systemd.application=docs-mcp

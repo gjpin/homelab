@@ -1,0 +1,171 @@
+name: homelab-immich
+
+services:
+  immich-redis:
+    image: docker.io/library/redis:8.10.1@sha256:298e5b3bc566bade82f46ad5511777a4a07a294097ce16ada2f6a42be5239df5
+    container_name: immich-redis
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+      - SETPCAP
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+    volumes:
+      - redis:/data
+    networks:
+      - immich
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  immich-postgres:
+    image: ghcr.io/immich-app/postgres:18-vectorchord1.1.1-pgvector0.8.5@sha256:6e384bf4aa03866473395961786f40006555e4cd008b98f92bf4a44e5ab7b012
+    container_name: immich-postgres
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/run/postgresql
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/secrets/immich.env
+    environment:
+      POSTGRES_USER: immich
+      POSTGRES_DB: immich
+      PGDATA: /var/lib/postgresql/data
+      POSTGRES_INITDB_ARGS: --data-checksums
+    volumes:
+      - postgres:/var/lib/postgresql
+      - postgres-config:/etc/postgresql
+    networks:
+      - immich
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U immich -d immich"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:v3.1.0@sha256:5a0839dc5303cd7215bcd2180a26aed3af41675aefb3e75e5157e9f10ad16e6e
+    container_name: immich-machine-learning
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+    volumes:
+      - machine-learning:/cache
+    networks:
+      - immich
+      - immich-ml-egress
+
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:v3.1.0@sha256:b434cb9287eea1471c9974845914d4dd328c9c2d652e446ed4930f99944f0ceb
+    container_name: immich-server
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/secrets/immich.env
+    environment:
+      DB_HOSTNAME: immich-postgres
+      DB_USERNAME: immich
+      DB_DATABASE_NAME: immich
+      REDIS_HOSTNAME: immich-redis
+      UPLOAD_LOCATION: /data
+      DB_DATA_LOCATION: /var/lib/postgresql/data
+    volumes:
+      - data:/data
+    networks:
+      - immich
+      - immich-edge
+    depends_on:
+      immich-postgres:
+        condition: service_healthy
+      immich-redis:
+        condition: service_healthy
+
+volumes:
+  redis:
+    name: homelab-immich-redis
+    labels:
+      homelab.application: immich
+  postgres:
+    name: homelab-immich-postgres
+    labels:
+      homelab.application: immich
+  postgres-config:
+    name: homelab-immich-postgres-config
+    labels:
+      homelab.application: immich
+  machine-learning:
+    name: homelab-immich-machine-learning
+    labels:
+      homelab.application: immich
+  data:
+    name: homelab-immich-data
+    labels:
+      homelab.application: immich
+
+networks:
+  immich:
+    name: homelab-immich
+    external: true
+  immich-edge:
+    name: homelab-immich-edge
+    external: true
+  immich-ml-egress:
+    name: homelab-immich-ml-egress
+    external: true

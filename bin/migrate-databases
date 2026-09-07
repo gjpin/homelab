@@ -7,23 +7,14 @@ source "$(dirname -- "$0")/lib.sh"
 
 usage() {
   cat <<'EOF'
-Usage: bin/migrate-databases [--release DIRECTORY] [--workload NAME] [--engine postgres|mariadb] [--check] [--dry-run]
+Usage: bin/migrate-databases [--release DIRECTORY] [--workload NAME] [--check] [--dry-run]
 
-Automatically detect and perform PostgreSQL and MariaDB major version
-migrations for declared *-postgres.container and *-mariadb.container units.
-When a Quadlet image specifies a higher major version than the on-disk volume,
-this tool dumps the database using the previous image, re-initializes the
-volume, restores the dump, and verifies integrity.
-
-Dump and raw rollback archives are written under
-~/.local/state/homelab/{postgres,mariadb}-upgrades/ before the data directory
-is wiped. A failed restore rolls back from those durable archives.
+Detect PostgreSQL major upgrades from compose image tags versus on-disk PG_VERSION.
 EOF
 }
 
 release=$(repo_root)
 workload_filter=
-engine_filter=
 check_only=false
 dry_run=false
 
@@ -32,11 +23,7 @@ while (($#)); do
     --release) release=${2:?}; shift 2 ;;
     --workload) workload_filter=${2:?}; shift 2 ;;
     --engine)
-      engine_filter=${2:?}
-      case "$engine_filter" in
-        postgres|mariadb) ;;
-        *) die "unsupported engine: $engine_filter" ;;
-      esac
+      [[ ${2:?} == postgres ]] || die "unsupported engine: $2"
       shift 2
       ;;
     --check) check_only=true; shift ;;
@@ -46,48 +33,28 @@ while (($#)); do
   esac
 done
 
-require_command find
+require_command docker
 require_command jq
-require_command podman
-require_command sed
+require_command rg
 require_command tar
 
 [[ -d $release ]] || die "release directory does not exist: $release"
 current_link=${HOMELAB_CURRENT_LINK:-$HOME/current}
-state_dir=${HOMELAB_STATE_DIR:-$HOME/.local/state/homelab}
-runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}
+state_dir=$(homelab_state_dir)
+lock_file="${HOMELAB_LOCK_FILE:-$state_dir/operation.lock}"
 
 if [[ ${HOMELAB_OPERATION_LOCK_HELD:-} != 1 ]]; then
   require_command flock
-  lock_file="$runtime_dir/homelab-operation.lock"
+  install -d -m 0700 "$state_dir"
   exec 9>"$lock_file"
   flock --nonblock 9 || die "another homelab maintenance operation is running"
 fi
 
-unit_engine() {
-  local path=$1
-  case "$path" in
-    *-postgres.container) printf '%s\n' postgres ;;
-    *-mariadb.container) printf '%s\n' mariadb ;;
-    *) return 1 ;;
-  esac
-}
-
 extract_image_major_version() {
-  local engine=$1 image=$2 version output
-  [[ -n $image ]] || return 1
-  case "$engine" in
-    postgres)
-      output=$(podman run --rm --network none --cap-drop all --security-opt=no-new-privileges \
-        --entrypoint postgres "$image" --version 2>/dev/null) || true
-      version=$(sed -nE 's/.*PostgreSQL\) ([0-9]+).*/\1/p' <<<"$output")
-      ;;
-    mariadb)
-      output=$(podman run --rm --network none --cap-drop all --security-opt=no-new-privileges \
-        --entrypoint mariadbd "$image" --version 2>/dev/null) || true
-      version=$(sed -nE 's/.*Ver ([0-9]+).*/\1/p' <<<"$output")
-      ;;
-  esac
+  local image=$1 output version
+  output=$(docker run --rm --network none --cap-drop ALL --security-opt=no-new-privileges \
+    --entrypoint postgres "$image" --version 2>/dev/null) || true
+  version=$(sed -nE 's/.*PostgreSQL\) ([0-9]+).*/\1/p' <<<"$output")
   if [[ $version =~ ^[0-9]+$ ]]; then
     printf '%s\n' "$version"
     return 0
@@ -100,477 +67,291 @@ extract_image_major_version() {
 }
 
 read_on_disk_major() {
-  local engine=$1 mountpoint=$2 file content
-  case "$engine" in
-    postgres)
-      podman unshare test -f "$mountpoint/PG_VERSION" || return 1
-      content=$(podman unshare cat "$mountpoint/PG_VERSION" 2>/dev/null | tr -d '[:space:]')
-      ;;
-    mariadb)
-      content=
-      for file in mariadb_upgrade_info mysql_upgrade_info; do
-        if podman unshare test -f "$mountpoint/$file"; then
-          content=$(podman unshare cat "$mountpoint/$file" 2>/dev/null | tr -d '[:space:]')
-          break
-        fi
-      done
-      [[ -n $content ]] || return 1
-      content=${content%%-*}
-      content=${content%%.*}
-      ;;
-  esac
+  local volume=$1 content
+  docker volume inspect "$volume" >/dev/null 2>&1 || return 1
+  content=$(docker run --rm --network none --volume "$volume:/data:ro" \
+    docker.io/library/alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b \
+    cat /data/PG_VERSION 2>/dev/null | tr -d '[:space:]') || return 1
   [[ $content =~ ^[0-9]+$ ]] || return 1
   printf '%s\n' "$content"
 }
 
-secret_name_for_target() {
-  local unit_path=$1 target=$2 line name rest spec
-  while IFS= read -r line; do
-    [[ -n $line ]] || continue
-    name=${line%%,*}
-    rest=${line#"$name"}
-    spec=${rest#,}
-    case ",$spec," in
-      *",target=$target,"*) printf '%s\n' "$name"; return 0 ;;
-    esac
-  done < <(sed -n 's/^Secret=//p' "$unit_path")
-  return 1
-}
-
 volume_in_use() {
-  local volume=$1 holders
-  holders=$(podman ps --filter "volume=$volume" --format '{{.Names}}' 2>/dev/null || true)
-  [[ -n $holders ]]
+  local volume=$1
+  [[ -n $(docker ps --filter "volume=$volume" --format '{{.Names}}' 2>/dev/null || true) ]]
 }
 
-hardening_run_args() {
-  printf '%s\n' \
-    --network none \
-    --read-only --read-only-tmpfs \
-    --cap-drop all --security-opt=no-new-privileges --pids-limit 1024
+compose_field() {
+  local file=$1 container=$2 key=$3
+  python3 - "$file" "$container" "$key" <<'PY'
+import sys
+path, container, key = sys.argv[1:]
+text = open(path, encoding="utf-8").read().splitlines()
+in_services = False
+current = None
+for line in text:
+    if line.startswith("services:"):
+        in_services = True
+        continue
+    if in_services and line and not line.startswith(" ") and not line.startswith("\t"):
+        break
+    if in_services and line.startswith("  ") and not line.startswith("    ") and line.strip().endswith(":"):
+        current = line.strip()[:-1]
+        continue
+    if current is None:
+        continue
+    stripped = line.strip()
+    if stripped.startswith("container_name:"):
+        name = stripped.split(":", 1)[1].strip().strip('"')
+        if name == container:
+            wanted = current
+            current_svc = None
+            for line2 in text:
+                if line2.startswith("services:"):
+                    continue
+                if line2.startswith("  ") and not line2.startswith("    ") and line2.strip().endswith(":"):
+                    current_svc = line2.strip()[:-1]
+                    continue
+                if current_svc != wanted:
+                    continue
+                if line2.strip().startswith(key + ":"):
+                    print(line2.split(":", 1)[1].strip().strip('"'))
+                    raise SystemExit(0)
+            raise SystemExit(1)
+raise SystemExit(1)
+PY
 }
 
-collect_units() {
-  local path engine
-  while IFS= read -r path; do
-    [[ -n $path ]] || continue
-    engine=$(unit_engine "$path") || continue
-    if [[ -n $engine_filter && $engine != "$engine_filter" ]]; then
-      continue
-    fi
-    printf '%s\n' "$path"
-  done < <(find "$release/quadlet/applications" \
-    \( -name '*-postgres.container' -o -name '*-mariadb.container' \) -type f | sort)
+compose_env() {
+  local file=$1 container=$2 key=$3
+  python3 - "$file" "$container" "$key" <<'PY'
+import sys
+path, container, key = sys.argv[1:]
+text = open(path, encoding="utf-8").read().splitlines()
+wanted = None
+current = None
+in_env = False
+for i, line in enumerate(text):
+    if line.startswith("  ") and not line.startswith("    ") and line.strip().endswith(":"):
+        current = line.strip()[:-1]
+        in_env = False
+        continue
+    if current is None:
+        continue
+    if line.strip().startswith("container_name:"):
+        name = line.split(":", 1)[1].strip().strip('"')
+        if name == container:
+            wanted = current
+for current in [wanted]:
+    if current is None:
+        raise SystemExit(1)
+in_svc = False
+in_env = False
+svc = None
+for line in text:
+    if line.startswith("  ") and not line.startswith("    ") and line.strip().endswith(":"):
+        svc = line.strip()[:-1]
+        in_env = False
+        continue
+    if svc != current:
+        continue
+    if line.strip() == "environment:":
+        in_env = True
+        continue
+    if in_env:
+        if line.startswith("    ") and ":" in line.strip():
+            k, v = line.strip().split(":", 1)
+            if k == key:
+                print(v.strip().strip('"'))
+                raise SystemExit(0)
+        elif line.strip() and not line.startswith("    "):
+            in_env = False
+raise SystemExit(1)
+PY
 }
+
+compose_named_volume() {
+  local file=$1 suffix=$2
+  rg -N "name: homelab-.*${suffix}$" "$file" | awk '{print $2}' | head -n 1
+}
+
+hardening=(--network none --read-only --cap-drop ALL --security-opt=no-new-privileges --pids-limit 1024)
 
 migrations_needed=0
+while IFS= read -r compose_file; do
+  workload=$(basename "$(dirname "$compose_file")")
+  [[ -z $workload_filter || $workload == "$workload_filter" ]] || continue
+  container=$(rg -N 'container_name: .*-postgres$' "$compose_file" | awk '{print $2}' | head -n 1 || true)
+  [[ -n $container ]] || continue
+  target_image=$(compose_field "$compose_file" "$container" image) || die "missing image for $container"
+  db_user=$(compose_env "$compose_file" "$container" POSTGRES_USER 2>/dev/null || printf '%s' "$workload")
+  db_name=$(compose_env "$compose_file" "$container" POSTGRES_DB 2>/dev/null || printf '%s' "$workload")
+  initdb_args=$(compose_env "$compose_file" "$container" POSTGRES_INITDB_ARGS 2>/dev/null || true)
+  target_volume=$(compose_named_volume "$compose_file" postgres)
+  [[ -n $target_volume ]] || die "missing postgres volume for $workload"
+  config_volume=$(compose_named_volume "$compose_file" postgres-config || true)
+  [[ $config_volume != "$target_volume" ]] || config_volume=
 
-while IFS= read -r unit_path; do
-  [[ -n $unit_path ]] || continue
-  engine=$(unit_engine "$unit_path")
-  case "$engine" in
-    postgres) engine_label=PostgreSQL ;;
-    mariadb) engine_label=MariaDB ;;
-  esac
-  workload=$(basename "$(dirname "$unit_path")")
-  if [[ -n $workload_filter && $workload != "$workload_filter" ]]; then
-    continue
-  fi
-
-  target_image=$(sed -n 's/^Image=//p' "$unit_path")
-  [[ -n $target_image ]] || die "missing Image in $unit_path"
-  user=$(sed -n 's/^User=//p' "$unit_path")
-  db_service=$(basename -- "$unit_path" .container).service
-  exec_args=$(sed -n 's/^Exec=//p' "$unit_path")
-  container_filename=$(basename -- "$unit_path")
-
-  data_path=
-  db_user=
-  db_name=
-  initdb_args=
-  config_volume_file_name=
-  root_secret=
-  user_secret=
-  case "$engine" in
-    postgres)
-      [[ -n $user ]] || user=postgres:postgres
-      data_path=/var/lib/postgresql/data
-      db_user=$(sed -n 's/^Environment=POSTGRES_USER=//p' "$unit_path")
-      [[ -n $db_user ]] || db_user=$workload
-      db_name=$(sed -n 's/^Environment=POSTGRES_DB=//p' "$unit_path")
-      [[ -n $db_name ]] || db_name=$workload
-      initdb_args=$(sed -n 's/^Environment=POSTGRES_INITDB_ARGS=//p' "$unit_path")
-      volume_file_name=$(sed -n "s|^Volume=\\([^:]*\\):${data_path}:U$|\\1|p" "$unit_path")
-      config_volume_file_name=$(sed -n 's/^Volume=\([^:]*\):\/etc\/postgresql:U$/\1/p' "$unit_path")
-      ;;
-    mariadb)
-      [[ -n $user ]] || user=mysql:mysql
-      data_path=/var/lib/mysql
-      db_user=$(sed -n 's/^Environment=MYSQL_USER=//p' "$unit_path")
-      [[ -n $db_user ]] || db_user=$workload
-      db_name=$(sed -n 's/^Environment=MYSQL_DATABASE=//p' "$unit_path")
-      [[ -n $db_name ]] || db_name=$workload
-      volume_file_name=$(sed -n "s|^Volume=\\([^:]*\\):${data_path}:U$|\\1|p" "$unit_path")
-      root_secret=$(secret_name_for_target "$unit_path" MYSQL_ROOT_PASSWORD) || \
-        die "missing MYSQL_ROOT_PASSWORD secret in $unit_path"
-      user_secret=$(secret_name_for_target "$unit_path" MYSQL_PASSWORD) || true
-      ;;
-  esac
-  [[ -n $volume_file_name ]] || die "missing or unsupported data Volume mount in $unit_path"
-  volume_file="$release/quadlet/volumes/$volume_file_name"
-  [[ -f $volume_file ]] || die "missing volume unit: $volume_file"
-  target_volume=$(sed -n 's/^VolumeName=//p' "$volume_file")
-  [[ -n $target_volume ]] || die "missing VolumeName in $volume_file"
-
-  config_volume=
-  if [[ -n ${config_volume_file_name:-} && -f "$release/quadlet/volumes/$config_volume_file_name" ]]; then
-    config_volume=$(sed -n 's/^VolumeName=//p' "$release/quadlet/volumes/$config_volume_file_name")
-  fi
-
-  if ! podman volume exists "$target_volume"; then
-    continue
-  fi
-  mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$target_volume")
-  [[ -d $mountpoint ]] || continue
-
-  on_disk_version=$(read_on_disk_major "$engine" "$mountpoint") || continue
-
-  target_version=$(extract_image_major_version "$engine" "$target_image") || \
-    die "could not determine target $engine major version for $target_image"
-
+  docker volume inspect "$target_volume" >/dev/null 2>&1 || continue
+  on_disk_version=$(read_on_disk_major "$target_volume") || continue
+  target_version=$(extract_image_major_version "$target_image") || \
+    die "could not determine PostgreSQL major version for $target_image"
   if ((on_disk_version == target_version)); then
     continue
   fi
   if ((on_disk_version > target_version)); then
-    die "unsupported $engine downgrade from $on_disk_version to $target_version for workload $workload"
+    die "unsupported PostgreSQL downgrade from $on_disk_version to $target_version for $workload"
   fi
-
   migrations_needed=$((migrations_needed + 1))
-  info "$engine_label major version migration detected for $workload: $on_disk_version -> $target_version"
-
-  if $check_only; then
-    continue
-  fi
+  info "PostgreSQL major version migration detected for $workload: $on_disk_version -> $target_version"
+  $check_only && continue
 
   old_image=
-  if [[ -L $current_link && -f "$current_link/quadlet/applications/$workload/$container_filename" ]]; then
-    candidate_image=$(sed -n 's/^Image=//p' "$current_link/quadlet/applications/$workload/$container_filename")
-    candidate_version=$(extract_image_major_version "$engine" "$candidate_image") || true
-    if [[ $candidate_version == "$on_disk_version" ]]; then
-      old_image=$candidate_image
-    fi
+  if [[ -L $current_link && -f $current_link/compose/$workload/compose.yaml ]]; then
+    candidate_image=$(compose_field "$current_link/compose/$workload/compose.yaml" "$container" image 2>/dev/null || true)
+    candidate_version=$(extract_image_major_version "$candidate_image" 2>/dev/null || true)
+    [[ $candidate_version == "$on_disk_version" ]] && old_image=$candidate_image
   fi
   if [[ -z $old_image ]]; then
-    case "$engine" in
-      postgres)
-        if [[ $target_image =~ ^ghcr\.io/immich-app/postgres: ]]; then
-          old_image="ghcr.io/immich-app/postgres:${on_disk_version}"
-        else
-          old_image="docker.io/postgres:${on_disk_version}-bookworm"
-        fi
-        ;;
-      mariadb)
-        old_image="docker.io/library/mariadb:${on_disk_version}"
-        ;;
-    esac
+    if [[ $target_image =~ ^ghcr\.io/immich-app/postgres: ]]; then
+      old_image="ghcr.io/immich-app/postgres:${on_disk_version}"
+    else
+      old_image="docker.io/postgres:${on_disk_version}-bookworm"
+    fi
   fi
-
   if $dry_run; then
-    info "dry-run: would migrate $workload from $engine_label $on_disk_version to $target_version using $old_image -> $target_image"
+    info "dry-run: would migrate $workload from PostgreSQL $on_disk_version to $target_version using $old_image -> $target_image"
     continue
   fi
 
-  if ! podman image exists "$old_image"; then
-    info "pulling previous $engine image: $old_image"
-    podman pull "$old_image" >/dev/null
+  docker image inspect "$old_image" >/dev/null 2>&1 || docker pull "$old_image" >/dev/null
+  homelab_compose "$workload" stop >/dev/null 2>&1 || true
+  volume_in_use "$target_volume" && die "refusing to migrate $workload: volume $target_volume is still mounted"
+  if [[ -n $config_volume ]]; then
+    volume_in_use "$config_volume" && die "refusing to migrate $workload: volume $config_volume is still mounted"
   fi
 
-  if command -v systemctl >/dev/null 2>&1; then
-    systemctl --user stop "homelab-$workload.target" "$db_service" >/dev/null 2>&1 || true
-    if systemctl --user is-active --quiet "homelab-$workload.target" 2>/dev/null; then
-      die "refusing to migrate $workload: homelab-$workload.target is still active"
-    fi
-    if systemctl --user is-active --quiet "$db_service" 2>/dev/null; then
-      die "refusing to migrate $workload: $db_service is still active"
-    fi
-  fi
-  if volume_in_use "$target_volume"; then
-    die "refusing to migrate $workload: volume $target_volume is still mounted by a container"
-  fi
-  if [[ -n $config_volume ]] && volume_in_use "$config_volume"; then
-    die "refusing to migrate $workload: volume $config_volume is still mounted by a container"
-  fi
-
-  work_dir=$(mktemp -d "$runtime_dir/homelab-${engine}-upgrade-${workload}.XXXXXX")
-  backup_dir="$state_dir/${engine}-upgrades"
+  work_dir=$(mktemp -d "${TMPDIR:-/tmp}/homelab-postgres-upgrade-${workload}.XXXXXX")
+  backup_dir="$state_dir/postgres-upgrades"
   install -d -m 0700 "$backup_dir"
   timestamp=$(date +%Y%m%d%H%M%S)
-  case "$engine" in
-    postgres)
-      dump_archive="$backup_dir/${workload}-pg${on_disk_version}-to-pg${target_version}-${timestamp}.dump"
-      ;;
-    mariadb)
-      dump_archive="$backup_dir/${workload}-mariadb${on_disk_version}-to-mariadb${target_version}-${timestamp}.sql"
-      ;;
-  esac
-  raw_archive="$backup_dir/${workload}-${engine}${on_disk_version}-raw-${timestamp}.tar"
-  raw_config_archive=
-  if [[ -n $config_volume ]]; then
-    raw_config_archive="$backup_dir/${workload}-${engine}${on_disk_version}-config-raw-${timestamp}.tar"
-  fi
-
+  dump_archive="$backup_dir/${workload}-pg${on_disk_version}-to-pg${target_version}-${timestamp}.dump"
+  raw_archive="$backup_dir/${workload}-postgres${on_disk_version}-raw-${timestamp}.tar"
   old_container="homelab-migrate-old-${workload}-$$"
   new_container="homelab-migrate-new-${workload}-$$"
   dump_file="$work_dir/dump"
   raw_backup_tar="$work_dir/raw.tar"
-  raw_config_tar="$work_dir/raw-config.tar"
 
   # Invoked by the EXIT trap below.
   # shellcheck disable=SC2329
   cleanup() {
     local rc=$?
     set +e
-    podman rm -f "$old_container" "$new_container" >/dev/null 2>&1 || true
+    docker rm -f "$old_container" "$new_container" >/dev/null 2>&1 || true
     rm -rf -- "$work_dir"
     trap - EXIT
     exit "$rc"
   }
   trap cleanup EXIT
 
-  rollback_datadir() {
-    podman rm -f "$old_container" "$new_container" >/dev/null 2>&1 || true
-    podman unshare find "$mountpoint" -mindepth 1 -delete
-    podman unshare tar --acls --xattrs --selinux --numeric-owner \
-      --directory "$mountpoint" --extract --file "$raw_archive"
-    if [[ -n $raw_config_archive && -n $config_volume ]]; then
-      config_mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$config_volume")
-      podman unshare find "$config_mountpoint" -mindepth 1 -delete
-      podman unshare tar --acls --xattrs --selinux --numeric-owner \
-        --directory "$config_mountpoint" --extract --file "$raw_config_archive"
-    fi
+  volume_tar() {
+    local volume=$1 dest=$2
+    docker run --rm --network none --volume "$volume:/data:ro" --volume "$dest:/out" \
+      docker.io/library/alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b \
+      tar -C /data -cf /out/vol.tar .
+  }
+  volume_wipe() {
+    local volume=$1
+    docker run --rm --network none --volume "$volume:/data" \
+      docker.io/library/alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b \
+      sh -c 'find /data -mindepth 1 -delete'
+  }
+  volume_untar() {
+    local volume=$1 archive=$2
+    docker run --rm --network none --volume "$volume:/data" --volume "$archive:/in/vol.tar:ro" \
+      docker.io/library/alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b \
+      tar -C /data -xf /in/vol.tar
   }
 
-  info "starting temporary container to dump $engine $on_disk_version for $workload"
-  old_env_file="$work_dir/old.env"
-  case "$engine" in
-    postgres)
-      printf 'POSTGRES_USER=%s\nPOSTGRES_DB=%s\nPGDATA=/var/lib/postgresql/data\nPOSTGRES_HOST_AUTH_METHOD=trust\n' \
-        "$db_user" "$db_name" >"$old_env_file"
-      ;;
-    mariadb)
-      printf 'MYSQL_DATABASE=%s\nMYSQL_USER=%s\n' "$db_name" "$db_user" >"$old_env_file"
-      ;;
-  esac
-  chmod 0600 "$old_env_file"
+  rollback_datadir() {
+    docker rm -f "$old_container" "$new_container" >/dev/null 2>&1 || true
+    volume_wipe "$target_volume"
+    volume_untar "$target_volume" "$raw_archive"
+  }
 
-  old_run_args=(podman run --detach --name "$old_container")
-  mapfile -t harden < <(hardening_run_args)
-  old_run_args+=("${harden[@]}")
-  old_run_args+=(--user "$user")
-  old_run_args+=(--tmpfs "/tmp:rw,noexec,nosuid,nodev")
-  if [[ $engine == postgres ]]; then
-    old_run_args+=(--tmpfs "/run/postgresql:rw,noexec,nosuid,nodev" --tmpfs "/var/run/postgresql:rw,noexec,nosuid,nodev")
-  else
-    old_run_args+=(--tmpfs "/run/mysqld:rw,noexec,nosuid,nodev")
-  fi
-  old_run_args+=(--env-file "$old_env_file" --volume "$target_volume:${data_path}:U")
-  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
-    old_run_args+=(--volume "$config_volume:/etc/postgresql:U")
-  fi
-  if [[ $engine == mariadb ]]; then
-    old_run_args+=(--secret "${root_secret},type=env,target=MYSQL_ROOT_PASSWORD")
-    if [[ -n $user_secret ]]; then
-      old_run_args+=(--secret "${user_secret},type=env,target=MYSQL_PASSWORD")
-    fi
-  fi
-  old_run_args+=("$old_image")
-  if [[ -n $exec_args ]]; then
-    read -r -a exec_arg_array <<<"$exec_args"
-    old_run_args+=("${exec_arg_array[@]}")
-  fi
-  "${old_run_args[@]}" >/dev/null
+  env_file="$work_dir/pg.env"
+  printf 'POSTGRES_USER=%s\nPOSTGRES_DB=%s\nPGDATA=/var/lib/postgresql/data\nPOSTGRES_HOST_AUTH_METHOD=trust\n' \
+    "$db_user" "$db_name" >"$env_file"
+  chmod 0600 "$env_file"
+  docker run --detach --name "$old_container" "${hardening[@]}" \
+    --tmpfs /tmp --tmpfs /run --tmpfs /var/run/postgresql \
+    --env-file "$env_file" --volume "$target_volume:/var/lib/postgresql/data" \
+    ${config_volume:+--volume "$config_volume:/etc/postgresql"} \
+    "$old_image" >/dev/null
 
   ready=false
   for ((attempt = 1; attempt <= 90; attempt++)); do
-    case "$engine" in
-      postgres)
-        if podman exec "$old_container" pg_isready -h 127.0.0.1 -U "$db_user" -d "$db_name" >/dev/null 2>&1; then
-          ready=true
-          break
-        fi
-        ;;
-      mariadb)
-        if podman exec "$old_container" sh -c 'mariadb-admin ping -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent' >/dev/null 2>&1; then
-          ready=true
-          break
-        fi
-        ;;
-    esac
+    if docker exec "$old_container" pg_isready -h 127.0.0.1 -U "$db_user" -d "$db_name" >/dev/null 2>&1; then
+      ready=true
+      break
+    fi
     sleep 1
   done
-  $ready || die "legacy $engine container did not become ready: $old_container"
-
-  info "dumping database for $workload"
-  case "$engine" in
-    postgres)
-      podman exec "$old_container" pg_dump -h 127.0.0.1 -U "$db_user" -d "$db_name" --format=custom --no-owner >"$dump_file"
-      ;;
-    mariadb)
-      podman exec "$old_container" sh -c 'mariadb-dump -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --system=users --insert-ignore && mariadb-dump -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --all-databases --ignore-database=mysql --ignore-database=sys --single-transaction --routines --events --flush-privileges' >"$dump_file"
-      ;;
-  esac
-  [[ -s $dump_file ]] || die "$engine dump for $workload is empty: $dump_file"
-  podman rm -f "$old_container" >/dev/null
-
-  info "creating pre-migration rollback archive for $workload"
-  podman unshare tar --acls --xattrs --selinux --numeric-owner \
-    --directory "$mountpoint" --create --file "$raw_backup_tar" .
+  $ready || die "legacy PostgreSQL container did not become ready: $old_container"
+  docker exec "$old_container" pg_dump -h 127.0.0.1 -U "$db_user" -d "$db_name" --format=custom --no-owner >"$dump_file"
+  [[ -s $dump_file ]] || die "PostgreSQL dump for $workload is empty"
+  docker rm -f "$old_container" >/dev/null
+  volume_tar "$target_volume" "$work_dir"
+  mv "$work_dir/vol.tar" "$raw_backup_tar"
   install -m 0600 "$dump_file" "$dump_archive"
   install -m 0600 "$raw_backup_tar" "$raw_archive"
-  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
-    config_mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$config_volume")
-    podman unshare tar --acls --xattrs --selinux --numeric-owner \
-      --directory "$config_mountpoint" --create --file "$raw_config_tar" .
-    install -m 0600 "$raw_config_tar" "$raw_config_archive"
-  fi
+  volume_wipe "$target_volume"
+  [[ -n $config_volume ]] && volume_wipe "$config_volume"
 
-  info "preparing volume for $engine $target_version initialization"
-  podman unshare find "$mountpoint" -mindepth 1 -delete
-  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
-    config_mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$config_volume")
-    podman unshare find "$config_mountpoint" -mindepth 1 -delete
-  fi
-
-  info "starting temporary container to initialize $engine $target_version for $workload"
-  new_env_file="$work_dir/new.env"
-  case "$engine" in
-    postgres)
-      printf 'POSTGRES_USER=%s\nPOSTGRES_DB=%s\nPGDATA=/var/lib/postgresql/data\nPOSTGRES_HOST_AUTH_METHOD=trust\n' \
-        "$db_user" "$db_name" >"$new_env_file"
-      if [[ -n $initdb_args ]]; then
-        printf 'POSTGRES_INITDB_ARGS=%s\n' "$initdb_args" >>"$new_env_file"
-      fi
-      ;;
-    mariadb)
-      printf 'MYSQL_DATABASE=%s\nMYSQL_USER=%s\n' "$db_name" "$db_user" >"$new_env_file"
-      ;;
-  esac
-  chmod 0600 "$new_env_file"
-
-  new_run_args=(podman run --detach --name "$new_container")
-  mapfile -t harden < <(hardening_run_args)
-  new_run_args+=("${harden[@]}")
-  new_run_args+=(--user "$user")
-  new_run_args+=(--tmpfs "/tmp:rw,noexec,nosuid,nodev")
-  if [[ $engine == postgres ]]; then
-    new_run_args+=(--tmpfs "/run/postgresql:rw,noexec,nosuid,nodev" --tmpfs "/var/run/postgresql:rw,noexec,nosuid,nodev")
-  else
-    new_run_args+=(--tmpfs "/run/mysqld:rw,noexec,nosuid,nodev")
-  fi
-  new_run_args+=(--env-file "$new_env_file" --volume "$target_volume:${data_path}:U")
-  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
-    new_run_args+=(--volume "$config_volume:/etc/postgresql:U")
-  fi
-  if [[ $engine == mariadb ]]; then
-    new_run_args+=(--secret "${root_secret},type=env,target=MYSQL_ROOT_PASSWORD")
-    if [[ -n $user_secret ]]; then
-      new_run_args+=(--secret "${user_secret},type=env,target=MYSQL_PASSWORD")
-    fi
-  fi
-  new_run_args+=("$target_image")
-  if [[ -n $exec_args ]]; then
-    read -r -a exec_arg_array <<<"$exec_args"
-    new_run_args+=("${exec_arg_array[@]}")
-  fi
-  "${new_run_args[@]}" >/dev/null
-
+  printf 'POSTGRES_USER=%s\nPOSTGRES_DB=%s\nPGDATA=/var/lib/postgresql/data\nPOSTGRES_HOST_AUTH_METHOD=trust\n' \
+    "$db_user" "$db_name" >"$env_file"
+  [[ -n $initdb_args ]] && printf 'POSTGRES_INITDB_ARGS=%s\n' "$initdb_args" >>"$env_file"
+  docker run --detach --name "$new_container" "${hardening[@]}" \
+    --tmpfs /tmp --tmpfs /run --tmpfs /var/run/postgresql \
+    --env-file "$env_file" --volume "$target_volume:/var/lib/postgresql/data" \
+    ${config_volume:+--volume "$config_volume:/etc/postgresql"} \
+    "$target_image" >/dev/null
   ready=false
   for ((attempt = 1; attempt <= 90; attempt++)); do
-    case "$engine" in
-      postgres)
-        if podman exec "$new_container" pg_isready -h 127.0.0.1 -U "$db_user" -d "$db_name" >/dev/null 2>&1; then
-          ready=true
-          break
-        fi
-        ;;
-      mariadb)
-        if podman exec "$new_container" sh -c 'mariadb-admin ping -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" --silent' >/dev/null 2>&1; then
-          ready=true
-          break
-        fi
-        ;;
-    esac
+    if docker exec "$new_container" pg_isready -h 127.0.0.1 -U "$db_user" -d "$db_name" >/dev/null 2>&1; then
+      ready=true
+      break
+    fi
     sleep 1
   done
   if ! $ready; then
-    info "initialization failed; rolling back $workload data directory"
     rollback_datadir
-    die "new $engine container did not become ready: $new_container"
+    die "new PostgreSQL container did not become ready: $new_container"
   fi
-
-  info "restoring database dump into $engine $target_version for $workload"
-  restore_rc=0
-  case "$engine" in
-    postgres)
-      podman cp "$dump_file" "$new_container:/tmp/migration.dump"
-      podman exec "$new_container" pg_restore -h 127.0.0.1 -U "$db_user" -d "$db_name" \
-        --clean --if-exists --no-owner --exit-on-error /tmp/migration.dump || restore_rc=$?
-      ;;
-    mariadb)
-      podman cp "$dump_file" "$new_container:/tmp/migration.sql"
-      podman exec "$new_container" sh -c 'mariadb -h127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD" < /tmp/migration.sql' \
-        || restore_rc=$?
-      ;;
-  esac
-
-  if ((restore_rc != 0)); then
-    info "restore failed; rolling back $workload data directory"
+  docker cp "$dump_file" "$new_container:/tmp/migration.dump"
+  if ! docker exec "$new_container" pg_restore -h 127.0.0.1 -U "$db_user" -d "$db_name" \
+    --clean --if-exists --no-owner --exit-on-error /tmp/migration.dump; then
     rollback_datadir
-    die "$engine restore failed for $workload; rollback completed"
+    die "PostgreSQL restore failed for $workload; rollback completed"
   fi
-
-  case "$engine" in
-    postgres)
-      verified_db=$(podman exec "$new_container" psql -h 127.0.0.1 -U "$db_user" -d "$db_name" \
-        --tuples-only --no-align --command='SELECT current_database()')
-      if [[ $verified_db != "$db_name" ]]; then
-        info "verification failed; rolling back $workload data directory"
-        rollback_datadir
-        die "database verification query failed for $workload"
-      fi
-      ;;
-    mariadb)
-      verified_db=$(podman exec "$new_container" sh -c \
-        "mariadb -h127.0.0.1 -uroot -p\"\$MYSQL_ROOT_PASSWORD\" --batch --skip-column-names --execute=\"SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME='${db_name}'\"")
-      verified_db=$(tr -d '[:space:]' <<<"$verified_db")
-      if [[ $verified_db != "$db_name" ]]; then
-        info "verification failed; rolling back $workload data directory"
-        rollback_datadir
-        die "database verification query failed for $workload"
-      fi
-      ;;
-  esac
-
-  podman rm -f "$new_container" >/dev/null
-
-  post_disk_version=$(read_on_disk_major "$engine" "$mountpoint") || post_disk_version=
+  verified_db=$(docker exec "$new_container" psql -h 127.0.0.1 -U "$db_user" -d "$db_name" \
+    --tuples-only --no-align --command='SELECT current_database()')
+  if [[ $verified_db != "$db_name" ]]; then
+    rollback_datadir
+    die "database verification query failed for $workload"
+  fi
+  docker rm -f "$new_container" >/dev/null
+  post_disk_version=$(read_on_disk_major "$target_volume") || post_disk_version=
   if [[ $post_disk_version != "$target_version" ]]; then
-    info "post-migration version check failed; rolling back $workload data directory"
     rollback_datadir
-    die "migrated $engine version verification failed for $workload (expected $target_version, found ${post_disk_version:-missing})"
+    die "post-migration PostgreSQL version is $post_disk_version, expected $target_version"
   fi
-
-  rm -f -- "$raw_archive"
-  [[ -z $raw_config_archive ]] || rm -f -- "$raw_config_archive"
-  info "$engine migration completed for $workload ($on_disk_version -> $target_version)"
-  info "migration dump retained at: $dump_archive"
-
-  rm -rf -- "$work_dir"
   trap - EXIT
-done < <(collect_units)
+  rm -rf -- "$work_dir"
+  info "migrated $workload PostgreSQL $on_disk_version -> $target_version"
+done < <(find "$release/compose" -name compose.yaml -type f | sort)
 
 if $check_only && ((migrations_needed > 0)); then
-  exit 1
+  exit 2
 fi
-
 exit 0

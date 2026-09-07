@@ -40,7 +40,7 @@
       "network": "homelab-immich",
       "port": 2283
     },
-    "immich-valkey": {
+    "immich-redis": {
       "mode": "health"
     },
     "radicale": {
@@ -53,7 +53,7 @@
       "network": "homelab-searxng",
       "port": 8080
     },
-    "searxng-valkey": {
+    "searxng-redis": {
       "mode": "health"
     },
     "syncthing": {

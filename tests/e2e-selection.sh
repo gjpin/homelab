@@ -10,8 +10,8 @@ trap cleanup EXIT
 
 fixture="$work_dir/repository"
 mkdir -p "$fixture/bin" "$fixture/manifests" "$fixture/tests" \
-  "$fixture/quadlet/applications/alpha" "$fixture/quadlet/applications/beta" \
-  "$fixture/quadlet/applications/caddy" "$fixture/quadlet/applications/forgejo" "$fixture/quadlet/builds" \
+  "$fixture/compose/alpha" "$fixture/compose/beta" \
+  "$fixture/compose/caddy" "$fixture/compose/forgejo" \
   "$fixture/images/caddy"
 cp "$root/bin/lib.sh" "$fixture/bin/lib.sh"
 cp "$root/bin/e2e-targets" "$fixture/bin/e2e-targets"
@@ -19,10 +19,10 @@ chmod +x "$fixture/bin/e2e-targets"
 
 cat >"$fixture/manifests/applications.json" <<'EOF'
 {
-  "alpha": {"units": ["alpha.service"], "secrets": []},
-  "beta": {"units": ["beta.service"], "secrets": []},
-  "caddy": {"units": ["caddy.service", "caddy-build.service"], "secrets": []},
-  "forgejo": {"units": ["forgejo.service"], "secrets": []}
+  "alpha": {"containers": ["alpha"], "secrets": []},
+  "beta": {"containers": ["beta"], "secrets": []},
+  "caddy": {"containers": ["caddy"], "secrets": [], "build": "caddy"},
+  "forgejo": {"containers": ["forgejo"], "secrets": []}
 }
 EOF
 cat >"$fixture/tests/e2e-readiness.json" <<'EOF'
@@ -36,11 +36,10 @@ cat >"$fixture/tests/e2e-readiness.json" <<'EOF'
   }
 }
 EOF
-printf 'ContainerName=alpha\n' >"$fixture/quadlet/applications/alpha/alpha.container"
-printf 'ContainerName=beta\n' >"$fixture/quadlet/applications/beta/beta.container"
-printf 'ContainerName=caddy\n' >"$fixture/quadlet/applications/caddy/caddy.container"
-printf 'ContainerName=forgejo\n' >"$fixture/quadlet/applications/forgejo/forgejo.container"
-printf '[Build]\n' >"$fixture/quadlet/builds/caddy.build"
+printf 'services:\n  alpha:\n    container_name: alpha\n' >"$fixture/compose/alpha/compose.yaml"
+printf 'services:\n  beta:\n    container_name: beta\n' >"$fixture/compose/beta/compose.yaml"
+printf 'services:\n  caddy:\n    container_name: caddy\n' >"$fixture/compose/caddy/compose.yaml"
+printf 'services:\n  forgejo:\n    container_name: forgejo\n' >"$fixture/compose/forgejo/compose.yaml"
 printf 'FROM scratch\n' >"$fixture/images/caddy/Containerfile"
 
 git -C "$fixture" init -q
@@ -83,20 +82,20 @@ reset_fixture() {
   git -C "$fixture" clean -fdq
 }
 
-printf 'ContainerName=alpha-updated\n' >"$fixture/quadlet/applications/alpha/alpha.container"
+printf 'services:\n  alpha:\n    container_name: alpha-updated\n' >"$fixture/compose/alpha/compose.yaml"
 make_commit
 assert_scope alpha 'container change'
 assert_ci 'container change' \
   'e2e_mode=workloads' 'e2e_workloads=alpha' 'build_images=' 'host_tools=false'
 reset_fixture
 
-mkdir -p "$fixture/quadlet/applications/gamma"
+mkdir -p "$fixture/compose/gamma"
 cat >"$fixture/manifests/applications.json" <<'EOF'
 {
-  "alpha": {"units": ["alpha.service"], "secrets": []},
-  "beta": {"units": ["beta.service"], "secrets": []},
-  "caddy": {"units": ["caddy.service", "caddy-build.service"], "secrets": []},
-  "gamma": {"units": ["gamma.service"], "secrets": []}
+  "alpha": {"containers": ["alpha"], "secrets": []},
+  "beta": {"containers": ["beta"], "secrets": []},
+  "caddy": {"containers": ["caddy"], "secrets": [], "build": "caddy"},
+  "gamma": {"containers": ["gamma"], "secrets": []}
 }
 EOF
 cat >"$fixture/tests/e2e-readiness.json" <<'EOF'
@@ -110,16 +109,16 @@ cat >"$fixture/tests/e2e-readiness.json" <<'EOF'
   }
 }
 EOF
-printf 'ContainerName=gamma\n' >"$fixture/quadlet/applications/gamma/gamma.container"
+printf 'services:\n  gamma:\n    container_name: gamma\n' >"$fixture/compose/gamma/compose.yaml"
 make_commit
 assert_scope gamma 'new workload'
 reset_fixture
 
-git -C "$fixture" rm -rq quadlet/applications/beta
+git -C "$fixture" rm -rq compose/beta
 cat >"$fixture/manifests/applications.json" <<'EOF'
 {
-  "alpha": {"units": ["alpha.service"], "secrets": []},
-  "caddy": {"units": ["caddy.service", "caddy-build.service"], "secrets": []}
+  "alpha": {"containers": ["alpha"], "secrets": []},
+  "caddy": {"containers": ["caddy"], "secrets": [], "build": "caddy"}
 }
 EOF
 cat >"$fixture/tests/e2e-readiness.json" <<'EOF'
@@ -143,30 +142,23 @@ make_commit
 assert_scope alpha 'readiness metadata change'
 reset_fixture
 
-printf 'ContainerName=alpha-updated\n' >"$fixture/quadlet/applications/alpha/alpha.container"
-printf 'ContainerName=beta-updated\n' >"$fixture/quadlet/applications/beta/beta.container"
+printf 'services:\n  alpha:\n    container_name: alpha-updated\n' >"$fixture/compose/alpha/compose.yaml"
+printf 'services:\n  beta:\n    container_name: beta-updated\n' >"$fixture/compose/beta/compose.yaml"
 make_commit
 assert_scope $'alpha\nbeta' 'multiple workload changes'
 reset_fixture
 
-mkdir -p "$fixture/quadlet/networks"
-printf '[Network]\n' >"$fixture/quadlet/networks/shared.network"
+printf '{}\n' >"$fixture/manifests/networks.json"
 make_commit
 assert_scope all 'global network change'
 reset_fixture
 
-mkdir -p "$fixture/quadlet/networks"
-printf '[Network]\n' >"$fixture/quadlet/networks/alpha-edge.network"
+printf 'services:\n  alpha:\n    container_name: alpha\n    networks: [alpha-edge]\n' \
+  >"$fixture/compose/alpha/compose.yaml"
 make_commit
 assert_scope alpha 'workload network change'
 assert_ci 'workload network change' \
   'e2e_mode=workloads' 'e2e_workloads=alpha' 'build_images=' 'host_tools=false'
-reset_fixture
-
-mkdir -p "$fixture/quadlet/volumes"
-printf '[Volume]\n' >"$fixture/quadlet/volumes/alpha-data.volume"
-make_commit
-assert_scope alpha 'workload volume change'
 reset_fixture
 
 mkdir -p "$fixture/docs"

@@ -13,14 +13,12 @@ source "$root/bin/lib-forgejo-runner-host.sh"
 [[ $(uname -s) == Linux ]] || die "unsupported operating system: $(uname -s); this deployment requires Linux"
 # shellcheck disable=SC1091
 source /etc/os-release
-[[ ${ID:-} == fedora && ${VERSION_ID:-} =~ ^(44|45)$ ]] || \
-  die "unsupported host distribution: bootstrap-host requires Fedora 44 or Fedora 45"
+[[ ${ID:-} == debian ]] || die "unsupported host distribution: bootstrap-host requires Debian"
 arch=$(host_arch)
 runtime_user=homelab
 runtime_home=/home/homelab
 repo_url=
 branch=main
-firewalld_zone=
 git_key=
 known_hosts=
 host_age_key=
@@ -33,7 +31,6 @@ while (($#)); do
   case "$1" in
     --repo) repo_url=${2:?}; shift 2 ;;
     --branch) branch=${2:?}; shift 2 ;;
-    --firewalld-zone) firewalld_zone=${2:?}; shift 2 ;;
     --git-key) git_key=${2:?}; shift 2 ;;
     --known-hosts) known_hosts=${2:?}; shift 2 ;;
     --host-age-key) host_age_key=${2:?}; shift 2 ;;
@@ -56,6 +53,7 @@ while (($#)); do
       defer_forgejo_runner=true
       shift
       ;;
+    --firewalld-zone) shift 2 ;;
     *) printf 'Unknown argument: %s\n' "$1" >&2; exit 1 ;;
   esac
 done
@@ -79,105 +77,67 @@ case "$repo_url" in
     ;;
 esac
 
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
 packages=(
-  age
+  apparmor
+  bzip2
   ca-certificates
-  checkpolicy
-  container-selinux
   curl
-  diffutils
-  firewalld
-  fuse-overlayfs
-  gettext-envsubst
+  dbus-user-session
   gawk
+  gettext-base
   git
-  iproute
+  iproute2
   jq
-  libselinux-utils
   nftables
-  openssh-clients
-  passt
-  podman
-  policycoreutils
+  openssh-client
   python3
-  restic
+  python3-bcrypt
   ripgrep
-  shadow-utils
-  systemd
   tar
+  uidmap
   util-linux
   xfsprogs
 )
 if [[ $arch == arm64 ]]; then
-  packages+=(qemu-user-binfmt qemu-user-static-x86)
+  packages+=(qemu-user-static)
 fi
-if ! dnf install -y "${packages[@]}"; then
-  if [[ $arch == arm64 ]]; then
-    die "ARM64 bootstrap requires qemu-user-binfmt and qemu-user-static-x86; the required emulation packages could not be installed"
-  fi
-  exit 1
-fi
-require_command age
-require_command age-keygen
-require_command envsubst
-require_command fuse-overlayfs
-require_command newgidmap
-require_command newuidmap
-require_command nft
-require_command pasta
-require_command restic
-require_rpm_version() {
-  local package=$1 minimum=$2 actual lowest
-  actual=$(rpm -q --queryformat '%{VERSION}\n' "$package") || \
-    die "required Fedora package is not installed: $package"
-  lowest=$(printf '%s\n%s\n' "$minimum" "$actual" | sort -V | sed -n '1p')
-  [[ $lowest == "$minimum" ]] || \
-    die "$package $actual is older than the required $minimum"
-}
-require_rpm_version age 1.3.0
-require_rpm_version restic 0.19.1
-require_command getenforce
-require_command getsebool
-require_command selinuxenabled
-selinuxenabled || die "SELinux is disabled; enable it before bootstrapping this host"
-[[ $(getenforce) == Enforcing ]] || die "SELinux must be enforcing before bootstrapping this host"
-getsebool container_use_devices >/dev/null 2>&1 || \
-  die "container_use_devices is unavailable after installing container-selinux"
-setsebool -P container_use_devices off
+apt-get install -y "${packages[@]}"
+systemctl enable --now apparmor || true
+aa_enabled=$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null || printf 'N')
+[[ $aa_enabled == Y ]] || die "AppArmor is not enabled; enable it before bootstrapping this host"
+require_command apparmor_parser
+
+install -m 0755 -d /etc/apt/keyrings
+curl --fail --location --proto '=https' --tlsv1.2 \
+  --output /etc/apt/keyrings/docker.asc https://download.docker.com/linux/debian/gpg
+chmod a+r /etc/apt/keyrings/docker.asc
+codename=${VERSION_CODENAME:?}
+dpkg_arch=$(dpkg --print-architecture)
+printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian %s stable\n' \
+  "$dpkg_arch" "$codename" >/etc/apt/sources.list.d/docker.list
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin \
+  docker-compose-plugin docker-ce-rootless-extras
+systemctl enable --now docker.service
+require_command docker
 
 if [[ $arch == arm64 ]]; then
-  systemctl enable --now systemd-binfmt
+  systemctl enable --now systemd-binfmt || true
   require_command qemu-x86_64-static
-  binfmt_registration=/proc/sys/fs/binfmt_misc/qemu-x86_64
-  [[ -r $binfmt_registration ]] || die "ARM64 bootstrap could not find the qemu-x86_64 binfmt registration"
-  grep -q '^enabled$' "$binfmt_registration" || \
-    die "ARM64 bootstrap found a disabled qemu-x86_64 binfmt registration"
 fi
 
+"$root/bin/install-age" "$root/config/host-tools.env"
+"$root/bin/install-restic" "$root/config/host-tools.env"
 "$root/bin/install-sops" "$root/config/host-tools.env"
-# The system updater is deliberately copied outside the mutable Git checkout;
-# it reads only validated release metadata from the deployed current release.
-install -d -m 0755 /usr/local/libexec
-install -m 0755 "$root/bin/install-sops" /usr/local/libexec/homelab-install-sops
-
 "$root/bin/install-forgejo-runner" "$root/config/host-tools.env"
-install -m 0755 "$root/bin/install-forgejo-runner" /usr/local/libexec/homelab-install-forgejo-runner
-# Remove binaries from older revisions only after Fedora's packages and the
-# checksum-verified SOPS RPM have installed successfully.
-legacy_bin_dir=/usr/local/bin
-rm -f -- \
-  "$legacy_bin_dir/age" "$legacy_bin_dir/age-keygen" "$legacy_bin_dir/age-inspect" \
-  "$legacy_bin_dir/restic" "$legacy_bin_dir/sops"
-systemctl enable --now firewalld
-if [[ -z $firewalld_zone ]]; then
-  firewalld_zone=$(firewall-cmd --get-default-zone 2>/dev/null || printf 'public')
-fi
+install -d -m 0755 /usr/local/lib/homelab
+install -m 0755 "$root/bin/install-age" /usr/local/lib/homelab/install-age
+install -m 0755 "$root/bin/install-restic" /usr/local/lib/homelab/install-restic
+install -m 0755 "$root/bin/install-sops" /usr/local/lib/homelab/install-sops
+install -m 0755 "$root/bin/install-forgejo-runner" /usr/local/lib/homelab/install-forgejo-runner
 
-# Re-bootstrap must be able to replace the proxy this script installed.
-if systemctl is-active --quiet caddy-https-proxy.socket \
-  || systemctl is-enabled --quiet caddy-https-proxy.socket 2>/dev/null; then
-  systemctl stop caddy-https-proxy.service caddy-https-proxy.socket || true
-fi
 if ss -H -ltn 'sport = :443' | grep -q .; then
   printf 'TCP port 443 is already in use; stop the existing listener first.\n' >&2
   exit 1
@@ -185,8 +145,10 @@ fi
 
 if ! id "$runtime_user" >/dev/null 2>&1; then
   useradd --create-home --home-dir "$runtime_home" --shell /bin/bash "$runtime_user"
-  passwd --lock "$runtime_user"
 fi
+passwd --lock "$runtime_user"
+usermod -aG docker "$runtime_user"
+
 ensure_subordinate_id_range() {
   local user=$1 option=$2 database=$3 range=${4:-100000-165535}
   if ! awk -F: -v user="$user" \
@@ -196,8 +158,6 @@ ensure_subordinate_id_range() {
   fi
   require_subordinate_id_range "$database" "$user"
 }
-ensure_subordinate_id_range "$runtime_user" --add-subuids /etc/subuid 100000-165535
-ensure_subordinate_id_range "$runtime_user" --add-subgids /etc/subgid 100000-165535
 
 runner_user=forgejo-runner
 runner_home=/home/forgejo-runner
@@ -208,10 +168,7 @@ passwd --lock "$runner_user"
 chmod 0700 "$runner_home"
 ensure_subordinate_id_range "$runner_user" --add-subuids /etc/subuid 200000-265535
 ensure_subordinate_id_range "$runner_user" --add-subgids /etc/subgid 200000-265535
-require_matching_subordinate_id_ranges "$runtime_user"
 require_matching_subordinate_id_ranges "$runner_user"
-require_nonoverlapping_subordinate_id_ranges "$runtime_user" "$runner_user" /etc/subuid
-require_nonoverlapping_subordinate_id_ranges "$runtime_user" "$runner_user" /etc/subgid
 runner_groups=$(id -Gn "$runner_user")
 for forbidden_group in wheel root adm sudo docker homelab; do
   [[ " $runner_groups " != *" $forbidden_group "* ]] || \
@@ -222,22 +179,15 @@ forgejo_runner_configure_storage "$runner_user" "$runner_home"
 forgejo_runner_configure_user_slice "$runner_uid"
 loginctl enable-linger "$runner_user"
 systemctl start "user@${runner_uid}.service"
-runner_systemctl=(runuser -u "$runner_user" -- env \
-  HOME="$runner_home" XDG_RUNTIME_DIR="/run/user/$runner_uid" \
-  DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$runner_uid/bus" systemctl --user)
-if $defer_forgejo_runner; then
-  "${runner_systemctl[@]}" disable --now \
-    forgejo-runner.service forgejo-runner-prune.timer podman.socket >/dev/null 2>&1 || true
-  "${runner_systemctl[@]}" stop podman.service >/dev/null 2>&1 || true
-fi
 
 HOMELAB_RUNTIME_HOME=$runtime_home
 export HOMELAB_RUNTIME_HOME
 homelab_storage_setup "$data_disk_mode" "$data_disk" "$format_data_disk" "$runtime_user"
-loginctl enable-linger "$runtime_user"
 
-install -d -m 0700 -o "$runtime_user" -g "$runtime_user" "$runtime_home/.ssh" "$runtime_home/.config/sops/age" "$runtime_home/git"
-chown "$runtime_user:$runtime_user" "$runtime_home/.config"
+install -d -m 0700 -o "$runtime_user" -g "$runtime_user" \
+  "$runtime_home/.ssh" "$runtime_home/.config/sops/age" "$runtime_home/git" \
+  "$runtime_home/.local/state/homelab"
+chown "$runtime_user:$runtime_user" "$runtime_home/.config" "$runtime_home/.local" "$runtime_home/.local/state"
 if [[ -n $git_key ]]; then
   install -m 0600 -o "$runtime_user" -g "$runtime_user" "$git_key" "$runtime_home/.ssh/id_ed25519"
 fi
@@ -295,29 +245,37 @@ if [[ -r $secrets_file ]] && rg -q '^sops:' "$secrets_file"; then
   device="/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID"
   [[ -e $device ]] || die "configured Zigbee coordinator does not exist: $device"
   "$root/bin/install-zigbee-udev" "$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID" "$runtime_user"
-  loginctl terminate-user "$runtime_user" || true
-  runtime_uid=$(id -u "$runtime_user")
-  systemctl start "user@${runtime_uid}.service"
-  [[ -S /run/user/$runtime_uid/bus ]] || \
-    die "$runtime_user systemd user manager did not recreate its bus after restart"
 else
   info "encrypted secrets are not present yet; re-run bootstrap-host after init-secrets to apply timezone and Zigbee access"
 fi
 
-for te in "$root"/selinux/*.te; do
-  "$root/bin/install-selinux-policy" "$te"
+for unit in \
+  homelab-secrets.service homelab.service \
+  homelab-reconcile.service homelab-reconcile.timer \
+  homelab-backup.service homelab-backup.timer \
+  homelab-host-tools-update.service homelab-host-tools-update.timer \
+  homelab-forgejo-runner-egress.service \
+  forgejo-runner.service forgejo-runner-prune.service forgejo-runner-prune.timer; do
+  install -m 0644 "$root/systemd/system/$unit" "/etc/systemd/system/$unit"
 done
-install -m 0644 "$root/systemd/system/caddy-https-proxy.socket" /etc/systemd/system/caddy-https-proxy.socket
-install -m 0644 "$root/systemd/system/caddy-https-proxy.service" /etc/systemd/system/caddy-https-proxy.service
-install -m 0644 "$root/systemd/system/homelab-host-tools-update.service" /etc/systemd/system/homelab-host-tools-update.service
-install -m 0644 "$root/systemd/system/homelab-host-tools-update.timer" /etc/systemd/system/homelab-host-tools-update.timer
-install -m 0644 "$root/systemd/system/homelab-forgejo-runner-egress.service" /etc/systemd/system/homelab-forgejo-runner-egress.service
 systemctl daemon-reload
-systemctl enable --now caddy-https-proxy.socket
 systemctl enable --now homelab-host-tools-update.timer
+systemctl enable homelab.service homelab-reconcile.timer homelab-backup.timer
+
+install -d -m 0755 /etc/nftables
+cat >/etc/nftables.d/homelab-host.nft <<'EOF'
+table inet homelab_host {
+  chain input {
+    type filter hook input priority 0; policy accept;
+    tcp dport { 22, 443 } accept
+    tcp dport 22000 accept
+    udp dport 22000 accept
+  }
+}
+EOF
+systemctl enable --now nftables || true
 
 if [[ -v BASE_DOMAIN && -n $BASE_DOMAIN ]]; then
-  install -d -m 0755 /etc/nftables
   runner_egress_tmp=$(mktemp /etc/nftables/homelab-forgejo-runner-egress.nft.XXXXXX)
   forgejo_runner_render_egress \
     "$root/config/nftables/forgejo-runner-egress.nft" "$runner_egress_tmp" "git.$BASE_DOMAIN"
@@ -328,29 +286,13 @@ if [[ -v BASE_DOMAIN && -n $BASE_DOMAIN ]]; then
 fi
 
 runner_config_dir="$runner_home/.config/forgejo-runner"
-runner_systemd_dir="$runner_home/.config/systemd/user"
-install -d -m 0700 -o "$runner_user" -g "$runner_user" "$runner_home/.config" "$runner_config_dir" "$runner_systemd_dir"
-install -m 0644 -o "$runner_user" -g "$runner_user" \
-  "$root/systemd/user/forgejo-runner.service" "$runner_systemd_dir/forgejo-runner.service"
-install -m 0644 -o "$runner_user" -g "$runner_user" \
-  "$root/systemd/user/forgejo-runner-prune.service" \
-  "$root/systemd/user/forgejo-runner-prune.timer" "$runner_systemd_dir/"
-"${runner_systemctl[@]}" daemon-reload
-"${runner_systemctl[@]}" enable --now podman.socket
-"${runner_systemctl[@]}" enable --now forgejo-runner-prune.timer
-"${runner_systemctl[@]}" is-active --quiet podman.socket || \
-  die "$runner_user Podman socket did not become active"
-runner_socket="/run/user/$runner_uid/podman/podman.sock"
-[[ -S $runner_socket && $(stat -c %U "$runner_socket") == "$runner_user" ]] || \
-  die "$runner_user Podman socket is missing or has the wrong owner: $runner_socket"
-# shellcheck disable=SC2016
-runner_podman_info=$(runuser -u "$runner_user" -- \
-  env HOME="$runner_home" XDG_RUNTIME_DIR="/run/user/$runner_uid" \
-  bash -c 'cd "$HOME"; exec podman info --format json')
-[[ $(jq -r '.store.graphRoot' <<<"$runner_podman_info") == "$(forgejo_runner_storage_path "$runner_home")" ]] || \
-  die "$runner_user Podman graphroot is not the bounded isolated storage path"
+install -d -m 0700 -o "$runner_user" -g "$runner_user" "$runner_home/.config" "$runner_config_dir"
+runuser -u "$runner_user" -- env HOME="$runner_home" XDG_RUNTIME_DIR="/run/user/$runner_uid" \
+  dockerd-rootless-setuptool.sh install
+runuser -u "$runner_user" -- env HOME="$runner_home" XDG_RUNTIME_DIR="/run/user/$runner_uid" \
+  systemctl --user enable --now docker.service
 
-if [[ -v FORGEJO_RUNNER_UUID && -n "$FORGEJO_RUNNER_UUID" && -v FORGEJO_RUNNER_SECRET && -n "$FORGEJO_RUNNER_SECRET" ]]; then
+if [[ -v FORGEJO_RUNNER_UUID && -n $FORGEJO_RUNNER_UUID && -v FORGEJO_RUNNER_SECRET && -n $FORGEJO_RUNNER_SECRET ]]; then
   export FORGEJO_RUNNER_UUID FORGEJO_RUNNER_SECRET BASE_DOMAIN
   runner_config_tmp=$(mktemp "$runner_config_dir/config.yaml.XXXXXX")
   # shellcheck disable=SC2016
@@ -359,29 +301,15 @@ if [[ -v FORGEJO_RUNNER_UUID && -n "$FORGEJO_RUNNER_UUID" && -v FORGEJO_RUNNER_S
   chown "$runner_user:$runner_user" "$runner_config_tmp"
   chmod 0600 "$runner_config_tmp"
   mv -fT "$runner_config_tmp" "$runner_config_dir/config.yaml"
-  if ! $defer_forgejo_runner; then
-    "${runner_systemctl[@]}" enable --now forgejo-runner.service
-    "${runner_systemctl[@]}" is-active --quiet forgejo-runner.service || \
-      die "Forgejo Runner service did not become active"
-  fi
 fi
 
+systemctl enable forgejo-runner-prune.timer
 if $defer_forgejo_runner; then
-  "${runner_systemctl[@]}" disable --now \
-    forgejo-runner.service forgejo-runner-prune.timer podman.socket >/dev/null
-  "${runner_systemctl[@]}" stop podman.service >/dev/null 2>&1 || true
-  for runner_unit in forgejo-runner.service forgejo-runner-prune.timer podman.socket; do
-    ! "${runner_systemctl[@]}" is-active --quiet "$runner_unit" || \
-      die "$runner_unit remained active while Forgejo Runner activation was deferred"
-  done
+  systemctl disable --now forgejo-runner.service forgejo-runner-prune.timer >/dev/null 2>&1 || true
   info "Forgejo Runner activation deferred until bootstrap is run without --defer-forgejo-runner"
+else
+  systemctl enable --now forgejo-runner.service forgejo-runner-prune.timer
 fi
-
-firewall-cmd --permanent --zone "$firewalld_zone" --add-service=https
-firewall-cmd --permanent --zone "$firewalld_zone" --add-port=22000/tcp
-firewall-cmd --permanent --zone "$firewalld_zone" --add-port=22000/udp
-firewall-cmd --reload
 
 printf 'Host post-quantum age recipient: %s\n' "$recipient"
-printf 'Add this recipient with the operator recipient using bin/init-secrets, commit, push, re-run bootstrap-host, then run:\n'
-printf 'runuser -u %s -- env HOME=%s XDG_RUNTIME_DIR=/run/user/%s %s/git/repository/bin/reconcile\n' "$runtime_user" "$runtime_home" "$(id -u "$runtime_user")" "$runtime_home"
+printf 'Add this recipient with the operator recipient using bin/init-secrets, commit, push, re-run bootstrap-host, then start homelab.service.\n'

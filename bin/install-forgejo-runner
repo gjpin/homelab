@@ -95,12 +95,6 @@ mv -fT "$tmp_bin" "$target_bin"
 chmod 0755 "$target_bin"
 trap - EXIT
 info "installed Forgejo Runner $version to $target_bin"
-if id forgejo-runner >/dev/null 2>&1; then
-  runner_uid=$(id -u forgejo-runner)
-  if [[ -S /run/user/$runner_uid/bus ]]; then
-    runuser -u forgejo-runner -- env \
-      HOME=/home/forgejo-runner XDG_RUNTIME_DIR="/run/user/$runner_uid" \
-      DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$runner_uid/bus" \
-      systemctl --user try-restart forgejo-runner.service
-  fi
+if systemctl cat forgejo-runner.service >/dev/null 2>&1; then
+  systemctl try-restart forgejo-runner.service
 fi

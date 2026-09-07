@@ -1,0 +1,42 @@
+name: homelab-vaultwarden
+
+services:
+  vaultwarden:
+    image: docker.io/vaultwarden/server:1.37.2@sha256:094b5689ed81549bd293418395c7cf495ae9d960fc2d4928cef2083ef913d912
+    container_name: vaultwarden
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/secrets/vaultwarden.env
+    environment:
+      WEBSOCKET_ENABLED: "true"
+      ROCKET_PORT: "8080"
+      SIGNUPS_ALLOWED: "true"
+      INVITATIONS_ALLOWED: "false"
+      SHOW_PASSWORD_HINT: "false"
+    volumes:
+      - data:/data
+    networks:
+      - vaultwarden
+
+volumes:
+  data:
+    name: homelab-vaultwarden-data
+    labels:
+      homelab.application: vaultwarden
+
+networks:
+  vaultwarden:
+    name: homelab-vaultwarden
+    external: true

@@ -1,3 +1,0 @@
-[Volume]
-VolumeName=homelab-supernote-data
-Label=io.containers.systemd.application=supernote

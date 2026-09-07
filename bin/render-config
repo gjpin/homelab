@@ -9,65 +9,53 @@ source "$(dirname -- "$0")/lib.sh"
 root=$(repo_root)
 require_command envsubst
 require_command jq
-require_command podman
 require_command python3
 require_command sops
 
 secrets_file="$root/secrets/secrets.sops.yaml"
 [[ -r $secrets_file ]] || die "missing encrypted secrets: $secrets_file"
-runtime_root="${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}/homelab"
-rendered="$runtime_root/rendered"
-install -d -m 0700 "$runtime_root" "$HOME/.local/state/homelab"
+state_dir=$(homelab_state_dir)
+rendered=$(homelab_rendered_dir)
+install -d -m 0700 "$state_dir"
 rm -rf -- "$rendered"
-install -d -m 0700 "$rendered" "$rendered/caddy" "$rendered/homeassistant" "$rendered/radicale" "$rendered/searxng"
+install -d -m 0700 "$rendered" \
+  "$rendered/caddy" \
+  "$rendered/homeassistant" \
+  "$rendered/radicale" \
+  "$rendered/searxng" \
+  "$rendered/secrets"
 
 secrets_json=$(sops --config "$root/.sops.yaml" \
   --decrypt --output-type json "$secrets_file")
 apply_site_config "$secrets_json"
-ln -sfn "/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID" "$HOME/.local/state/homelab/zigbee-router"
-if command -v restorecon >/dev/null 2>&1; then
-  restorecon -F "$HOME/.local/state/homelab/zigbee-router" >/dev/null 2>&1 || true
-fi
-jq -e '
-  .backup.s3_access_key_id | type == "string" and length > 0
-' <<<"$secrets_json" >/dev/null || die "backup S3 access key ID is missing"
-jq -e '
-  .backup.s3_secret_access_key | type == "string" and length > 0
-' <<<"$secrets_json" >/dev/null || die "backup S3 secret access key is missing"
-jq -e '
-  .backup.repository_password | type == "string" and length >= 20
-' <<<"$secrets_json" >/dev/null || die "restic repository password must contain at least 20 characters"
+ln -sfn "/dev/serial/by-id/$HOMEASSISTANT_ZIGBEE_ROUTER_SERIAL_ID" "$state_dir/zigbee-router"
+jq -e '.backup.s3_access_key_id | type == "string" and length > 0' <<<"$secrets_json" >/dev/null || \
+  die "backup S3 access key ID is missing"
+jq -e '.backup.s3_secret_access_key | type == "string" and length > 0' <<<"$secrets_json" >/dev/null || \
+  die "backup S3 secret access key is missing"
+jq -e '.backup.repository_password | type == "string" and length >= 20' <<<"$secrets_json" >/dev/null || \
+  die "restic repository password must contain at least 20 characters"
+
 secret_value() {
   jq -jer "$1" <<<"$secrets_json"
 }
 
-replace_secret() {
-  local name=$1 path=$2
-  secret_value "$path" | podman secret create --replace "$name" - >/dev/null
+write_env() {
+  local path=$1
+  cat >"$path"
+  chmod 0400 "$path"
 }
 
-replace_secret caddy-cloudflare-api-token '.caddy.cloudflare_api_token'
-replace_secret caddy-bookmarks-password-hash '.caddy.bookmarks_password_hash'
-replace_secret forgejo-database-password '.forgejo.database_password'
-replace_secret immich-database-password '.immich.database_password'
-replace_secret vaultwarden-admin-token '.vaultwarden.admin_token_hash'
-replace_secret homeassistant-mosquitto-password '.homeassistant.mosquitto_password'
-
-HOMEASSISTANT_TRUSTED_PROXY_SUBNET=10.200.12.0/24
-export BASE_DOMAIN HOMEASSISTANT_TRUSTED_PROXY_SUBNET
 {
   printf 'BASE_DOMAIN=%s\n' "$BASE_DOMAIN"
   printf 'TZ=%s\n' "$TIMEZONE"
 } >"$rendered/site.env"
-# shellcheck disable=SC2016
-envsubst '${HOMEASSISTANT_TRUSTED_PROXY_SUBNET}' <"$root/config/templates/homeassistant/configuration.yaml" >"$rendered/homeassistant/configuration.yaml"
-cp -- "$root/config/templates/homeassistant/automations.yaml" "$rendered/homeassistant/automations.yaml"
 
-# GitOps MQTT/serial/frontend settings; the MQTT password is a Podman secret.
+cp -- "$root/config/templates/homeassistant/configuration.yaml" "$rendered/homeassistant/configuration.yaml"
+cp -- "$root/config/templates/homeassistant/automations.yaml" "$rendered/homeassistant/automations.yaml"
 # shellcheck disable=SC2016
 envsubst '${BASE_DOMAIN}' <"$root/config/templates/homeassistant/zigbee2mqtt.env" >"$rendered/homeassistant/zigbee2mqtt.env"
 cp -- "$root/config/templates/homeassistant/mosquitto.conf" "$rendered/homeassistant/mosquitto.conf"
-
 HOMEASSISTANT_MOSQUITTO_PASSWORD=$(secret_value '.homeassistant.mosquitto_password')
 printf '%s' "$HOMEASSISTANT_MOSQUITTO_PASSWORD" | "$root/bin/mosquitto-password" >"$rendered/homeassistant/mosquitto-passwords"
 
@@ -81,7 +69,31 @@ export SEARXNG_SECRET_KEY
 # shellcheck disable=SC2016
 envsubst '${BASE_DOMAIN} ${SEARXNG_SECRET_KEY}' <"$root/config/templates/searxng/settings.yml" >"$rendered/searxng/settings.yml"
 
-# The parent runtime directory is 0700. Files are read-only but world-readable
-# inside their explicitly selected container so non-root image users can open them.
-find "$rendered" -type f -exec chmod 0444 {} +
-unset secrets_json HOMEASSISTANT_MOSQUITTO_PASSWORD SEARXNG_SECRET_KEY
+write_env "$rendered/secrets/caddy.env" <<EOF
+CADDY_CLOUDFLARE_TOKEN=$(secret_value '.caddy.cloudflare_api_token')
+CADDY_HASHED_PASSWORD=$(secret_value '.caddy.bookmarks_password_hash')
+EOF
+
+forgejo_password=$(secret_value '.forgejo.database_password')
+write_env "$rendered/secrets/forgejo.env" <<EOF
+POSTGRES_PASSWORD=$forgejo_password
+FORGEJO__database__PASSWD=$forgejo_password
+EOF
+
+immich_password=$(secret_value '.immich.database_password')
+write_env "$rendered/secrets/immich.env" <<EOF
+POSTGRES_PASSWORD=$immich_password
+DB_PASSWORD=$immich_password
+EOF
+
+write_env "$rendered/secrets/vaultwarden.env" <<EOF
+ADMIN_TOKEN=$(secret_value '.vaultwarden.admin_token_hash')
+EOF
+
+write_env "$rendered/secrets/homeassistant.env" <<EOF
+ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD=$HOMEASSISTANT_MOSQUITTO_PASSWORD
+EOF
+
+find "$rendered" -type f ! -path "$rendered/secrets/*" -exec chmod 0444 {} +
+chmod 0700 "$rendered/secrets"
+unset secrets_json HOMEASSISTANT_MOSQUITTO_PASSWORD SEARXNG_SECRET_KEY forgejo_password immich_password

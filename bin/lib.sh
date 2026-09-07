@@ -99,14 +99,23 @@ require_nonoverlapping_subordinate_id_ranges() {
   done < <(subordinate_id_ranges "$database" "$first_user")
 }
 
+require_sha256() {
+  local value=$1
+  [[ $value =~ ^[0-9a-f]{64}$ ]] || die "host tools metadata contains an invalid SHA-256 checksum"
+}
+
 load_host_tools() {
   local file=${1:-$(repo_root)/config/host-tools.env}
   local line key value
   [[ -r $file ]] || die "missing host tools metadata: $file"
+  AGE_RELEASE_TAG=
+  AGE_AMD64_TAR_SHA256=
+  AGE_ARM64_TAR_SHA256=
+  RESTIC_RELEASE_TAG=
+  RESTIC_AMD64_BZ2_SHA256=
+  RESTIC_ARM64_BZ2_SHA256=
   SOPS_RELEASE_TAG=
-  SOPS_AMD64_RPM_SHA256=
   SOPS_AMD64_BINARY_SHA256=
-  SOPS_ARM64_RPM_SHA256=
   SOPS_ARM64_BINARY_SHA256=
   FORGEJO_RUNNER_RELEASE_TAG=
   FORGEJO_RUNNER_AMD64_BINARY_SHA256=
@@ -117,10 +126,14 @@ load_host_tools() {
     key=${line%%=*}
     value=${line#*=}
     case "$key" in
+      AGE_RELEASE_TAG) [[ -z $AGE_RELEASE_TAG ]] || die "duplicate host tools metadata key: $key"; AGE_RELEASE_TAG=$value ;;
+      AGE_AMD64_TAR_SHA256) [[ -z $AGE_AMD64_TAR_SHA256 ]] || die "duplicate host tools metadata key: $key"; AGE_AMD64_TAR_SHA256=$value ;;
+      AGE_ARM64_TAR_SHA256) [[ -z $AGE_ARM64_TAR_SHA256 ]] || die "duplicate host tools metadata key: $key"; AGE_ARM64_TAR_SHA256=$value ;;
+      RESTIC_RELEASE_TAG) [[ -z $RESTIC_RELEASE_TAG ]] || die "duplicate host tools metadata key: $key"; RESTIC_RELEASE_TAG=$value ;;
+      RESTIC_AMD64_BZ2_SHA256) [[ -z $RESTIC_AMD64_BZ2_SHA256 ]] || die "duplicate host tools metadata key: $key"; RESTIC_AMD64_BZ2_SHA256=$value ;;
+      RESTIC_ARM64_BZ2_SHA256) [[ -z $RESTIC_ARM64_BZ2_SHA256 ]] || die "duplicate host tools metadata key: $key"; RESTIC_ARM64_BZ2_SHA256=$value ;;
       SOPS_RELEASE_TAG) [[ -z $SOPS_RELEASE_TAG ]] || die "duplicate host tools metadata key: $key"; SOPS_RELEASE_TAG=$value ;;
-      SOPS_AMD64_RPM_SHA256) [[ -z $SOPS_AMD64_RPM_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_AMD64_RPM_SHA256=$value ;;
       SOPS_AMD64_BINARY_SHA256) [[ -z $SOPS_AMD64_BINARY_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_AMD64_BINARY_SHA256=$value ;;
-      SOPS_ARM64_RPM_SHA256) [[ -z $SOPS_ARM64_RPM_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_ARM64_RPM_SHA256=$value ;;
       SOPS_ARM64_BINARY_SHA256) [[ -z $SOPS_ARM64_BINARY_SHA256 ]] || die "duplicate host tools metadata key: $key"; SOPS_ARM64_BINARY_SHA256=$value ;;
       FORGEJO_RUNNER_RELEASE_TAG) [[ -z $FORGEJO_RUNNER_RELEASE_TAG ]] || die "duplicate host tools metadata key: $key"; FORGEJO_RUNNER_RELEASE_TAG=$value ;;
       FORGEJO_RUNNER_AMD64_BINARY_SHA256) [[ -z $FORGEJO_RUNNER_AMD64_BINARY_SHA256 ]] || die "duplicate host tools metadata key: $key"; FORGEJO_RUNNER_AMD64_BINARY_SHA256=$value ;;
@@ -128,22 +141,55 @@ load_host_tools() {
       *) die "unknown host tools metadata key: $key" ;;
     esac
   done <"$file"
-  [[ $SOPS_RELEASE_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "SOPS release tag is invalid: $SOPS_RELEASE_TAG"
-  for value in "$SOPS_AMD64_RPM_SHA256" "$SOPS_AMD64_BINARY_SHA256" \
-    "$SOPS_ARM64_RPM_SHA256" "$SOPS_ARM64_BINARY_SHA256"; do
-    [[ $value =~ ^[0-9a-f]{64}$ ]] || die "host tools metadata contains an invalid SHA-256 checksum"
-  done
-  SOPS_VERSION=${SOPS_RELEASE_TAG#v}
-  export SOPS_RELEASE_TAG SOPS_VERSION SOPS_AMD64_RPM_SHA256 SOPS_AMD64_BINARY_SHA256
-  export SOPS_ARM64_RPM_SHA256 SOPS_ARM64_BINARY_SHA256
 
+  [[ $AGE_RELEASE_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "age release tag is invalid: $AGE_RELEASE_TAG"
+  [[ $RESTIC_RELEASE_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "restic release tag is invalid: $RESTIC_RELEASE_TAG"
+  [[ $SOPS_RELEASE_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "SOPS release tag is invalid: $SOPS_RELEASE_TAG"
   [[ $FORGEJO_RUNNER_RELEASE_TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "Forgejo Runner release tag is invalid: $FORGEJO_RUNNER_RELEASE_TAG"
-  for value in "$FORGEJO_RUNNER_AMD64_BINARY_SHA256" "$FORGEJO_RUNNER_ARM64_BINARY_SHA256"; do
-    [[ $value =~ ^[0-9a-f]{64}$ ]] || die "host tools metadata contains an invalid SHA-256 checksum"
+  for value in \
+    "$AGE_AMD64_TAR_SHA256" "$AGE_ARM64_TAR_SHA256" \
+    "$RESTIC_AMD64_BZ2_SHA256" "$RESTIC_ARM64_BZ2_SHA256" \
+    "$SOPS_AMD64_BINARY_SHA256" "$SOPS_ARM64_BINARY_SHA256" \
+    "$FORGEJO_RUNNER_AMD64_BINARY_SHA256" "$FORGEJO_RUNNER_ARM64_BINARY_SHA256"; do
+    require_sha256 "$value"
   done
+  AGE_VERSION=${AGE_RELEASE_TAG#v}
+  RESTIC_VERSION=${RESTIC_RELEASE_TAG#v}
+  SOPS_VERSION=${SOPS_RELEASE_TAG#v}
   FORGEJO_RUNNER_VERSION=${FORGEJO_RUNNER_RELEASE_TAG#v}
+  export AGE_RELEASE_TAG AGE_VERSION AGE_AMD64_TAR_SHA256 AGE_ARM64_TAR_SHA256
+  export RESTIC_RELEASE_TAG RESTIC_VERSION RESTIC_AMD64_BZ2_SHA256 RESTIC_ARM64_BZ2_SHA256
+  export SOPS_RELEASE_TAG SOPS_VERSION SOPS_AMD64_BINARY_SHA256 SOPS_ARM64_BINARY_SHA256
   export FORGEJO_RUNNER_RELEASE_TAG FORGEJO_RUNNER_VERSION
   export FORGEJO_RUNNER_AMD64_BINARY_SHA256 FORGEJO_RUNNER_ARM64_BINARY_SHA256
+}
+
+homelab_state_dir() {
+  printf '%s\n' "${HOMELAB_STATE_DIR:-$HOME/.local/state/homelab}"
+}
+
+homelab_rendered_dir() {
+  printf '%s\n' "${HOMELAB_RENDERED:-$(homelab_state_dir)/rendered}"
+}
+
+homelab_compose() {
+  local app=$1 root
+  shift
+  root=${HOMELAB_RELEASE_ROOT:-$(repo_root)}
+  [[ -f $root/compose/$app/compose.yaml ]] || die "missing compose file for $app"
+  HOMELAB_RENDERED=$(homelab_rendered_dir) \
+  HOMELAB_STATE=$(homelab_state_dir) \
+    docker compose --project-name "homelab-$app" --file "$root/compose/$app/compose.yaml" "$@"
+}
+
+homelab_named_volumes() {
+  local root=${1:-$(repo_root)}
+  rg --no-filename --glob 'compose/*/compose.yaml' '^\s+name: homelab-[a-z0-9-]+$' "$root" \
+    | awk '{print $2}' | sort -u
+}
+
+homelab_backend_networks() {
+  printf '%s\n' homelab-forgejo homelab-homeassistant homelab-immich homelab-searxng
 }
 
 validate_base_domain() {

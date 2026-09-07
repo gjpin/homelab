@@ -1,0 +1,25 @@
+[Unit]
+Description=Forgejo Actions Runner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=forgejo-runner
+Group=forgejo-runner
+Environment=HOME=/home/forgejo-runner
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+Environment=DOCKER_HOST=unix:///run/user/%U/docker.sock
+ExecStart=/usr/local/bin/forgejo-runner daemon --config /home/forgejo-runner/.config/forgejo-runner/config.yaml
+Restart=always
+RestartSec=5s
+TimeoutStopSec=30m
+NoNewPrivileges=true
+PrivateTmp=true
+UMask=0077
+MemoryMax=16G
+CPUQuota=400%
+TasksMax=2048
+
+[Install]
+WantedBy=multi-user.target

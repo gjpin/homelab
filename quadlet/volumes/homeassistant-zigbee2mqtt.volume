@@ -1,3 +1,0 @@
-[Volume]
-VolumeName=homelab-homeassistant-zigbee2mqtt
-Label=io.containers.systemd.application=homeassistant

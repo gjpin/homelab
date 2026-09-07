@@ -404,11 +404,11 @@ ssh "$NEW_HOST" '
 
 ```bash
 ssh "$NEW_HOST" \
-  'install -d -m 0700 /home/pi/podman-bootstrap/source'
+  'install -d -m 0700 /home/pi/docker-bootstrap/source'
 
 rsync -a --delete --exclude .git \
   "$OPERATOR_REPO/" \
-  "$NEW_HOST:/home/pi/podman-bootstrap/source/"
+  "$NEW_HOST:/home/pi/docker-bootstrap/source/"
 ```
 
 7. Run bootstrap with the restored credentials while keeping the Forgejo
@@ -418,7 +418,8 @@ rsync -a --delete --exclude .git \
 ssh -t "$NEW_HOST" '
   cd /
 
-  sudo /home/pi/podman-bootstrap/source/bin/bootstrap-host \
+  sudo /home/pi/docker-bootstrap/source/bin/bootstrap-host \
+    --branch docker \
     --repo git@github.com:gjpin/homelab.git \
     --git-key /home/pi/homelab-restore/.ssh/id_ed25519 \
     --known-hosts /home/pi/homelab-restore/.ssh/known_hosts \
@@ -428,7 +429,7 @@ ssh -t "$NEW_HOST" '
 '
 ```
 
-If production Podman storage uses an external disk, replace `--no-data-disk`
+If production Docker storage uses an external disk, replace `--no-data-disk`
 with:
 
 ```bash

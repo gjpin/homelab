@@ -1,3 +1,0 @@
-[Volume]
-VolumeName=homelab-forgejo-postgres
-Label=io.containers.systemd.application=forgejo

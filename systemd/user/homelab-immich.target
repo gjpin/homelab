@@ -1,4 +1,0 @@
-[Unit]
-Description=immich application stack
-Wants=immich-valkey.service immich-postgres.service immich-machine-learning.service immich-server.service
-After=homelab-secrets.service

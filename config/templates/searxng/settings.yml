@@ -24,8 +24,8 @@ server:
     X-Robots-Tag: noindex, nofollow
     Referrer-Policy: no-referrer
 
-valkey:
-  url: valkey://searxng-valkey:6379/0
+redis:
+  url: redis://searxng-redis:6379/0
 
 search:
   formats: [html, csv, json, rss]

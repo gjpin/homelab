@@ -6,7 +6,7 @@ same paths but upload only new chunks; every snapshot is still independently
 restorable as a complete point in time.
 
 Backups are cold: all application targets are stopped for the scan and upload
-so PostgreSQL, MariaDB, SQLite, Valkey, and ordinary files share one consistent
+so PostgreSQL, SQLite, Redis, and ordinary files share one consistent
 point in time. The initial upload can therefore cause substantial downtime.
 
 ## Configure the repository
@@ -65,22 +65,19 @@ sudo dnf upgrade -y restic
 Fresh hosts install restic during `bootstrap-host`.
 
 Confirm that the host timezone matches `site.timezone` in the encrypted
-secrets file; on an older host, correct it before enabling the timer:
+secrets file:
 
 ```bash
 timedatectl
 sudo timedatectl set-timezone Europe/Lisbon
 ```
 
-Initialize the repository exactly once as `homelab`. The scheduled job never
+Initialize the repository exactly once. The scheduled job never
 initializes a missing repository automatically:
 
 ```bash
-sudo -iu homelab
-export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-~/current/bin/restic init
-~/current/bin/restic cat config
-exit
+sudo env HOME=/home/homelab /home/homelab/current/bin/restic init
+sudo env HOME=/home/homelab /home/homelab/current/bin/restic cat config
 ```
 
 ## Automatic and manual backups
@@ -93,22 +90,16 @@ points; restic deduplication shares unchanged chunks between them.
 Trigger the same retained backup manually and wait for completion:
 
 ```bash
-sudo -iu homelab
-export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-systemctl --user start homelab-backup.service
-~/current/bin/status
-journalctl --user -u homelab-backup.service --since today
-exit
+sudo systemctl start homelab-backup.service
+sudo env HOME=/home/homelab /home/homelab/current/bin/status
+journalctl -u homelab-backup.service --since today
 ```
 
 Create a protected snapshot that automatic retention will not remove:
 
 ```bash
-sudo -iu homelab
-export XDG_RUNTIME_DIR="/run/user/$(id -u)"
-~/current/bin/backup --tag manual
-~/current/bin/restic snapshots --tag manual
-exit
+sudo env HOME=/home/homelab /home/homelab/current/bin/backup --tag manual
+sudo env HOME=/home/homelab /home/homelab/current/bin/restic snapshots --tag manual
 ```
 
 Protected `manual`, `pre-restore`, and `migration` snapshots must be removed
@@ -128,32 +119,12 @@ forgets it immediately; a failed cleanup is recorded locally, shown by
 
 ## What is backed up
 
-- Every named volume declared by `quadlet/volumes`, after verifying it exactly
-  matches the labeled inventory for active applications.
+- Every named Docker volume declared in `compose/*/compose.yaml`, after verifying
+  it matches the `homelab.application` labeled inventory.
 - The deployed Git commit, host age identity, and a volume-to-mountpoint
   manifest.
 
 The private Git repository, operator age identity, and plaintext repository
 password remain independent recovery prerequisites. Releases, images,
-rendered configuration, caches outside named volumes, and host firewall units
-are recreated rather than backed up. For operator workstation backup and host
-migration workflows, see [the host migration and restore guide](host-migration.md).
-
-Volumes belonging to inactive incubator bundles are intentionally outside this
-backup inventory.
-
-## Older Docker/Restic repositories
-
-The pre-Quadlet `main` deployment backed up one `/data/containers` tree and did
-not use the current named-volume metadata. Keep that repository and its
-password unchanged, and treat it as read-only during a host migration. The
-legacy repository must not be initialized again and must not be used with the
-current `bin/restic` wrapper.
-
-For a one-time migration, follow
-[the old-main migration guide](legacy-main-to-quadlets.md). It restores the
-legacy snapshot to a private staging directory, copies only durable
-application data into newly created Quadlet volumes, and converts the two
-PostgreSQL 17 data directories through logical dumps before PostgreSQL 18 is
-started. Future backups should use the new configured prefix and the current
-Quadlet backup format.
+and rendered configuration are recreated rather than backed up. For a
+Quadlet-to-Docker cutover, see [quadlet-to-docker.md](quadlet-to-docker.md).

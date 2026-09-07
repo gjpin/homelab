@@ -1,3 +1,0 @@
-[Volume]
-VolumeName=homelab-supernote-nginx-state
-Label=io.containers.systemd.application=supernote

@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# Host-root helpers for mounting Podman graphroot on an external disk.
+# Host-root helpers for mounting Docker storage on an external disk.
 # Sourced by bin/bootstrap-host; not executed directly.
 
-HOMELAB_STORAGE_FSTAB_MARKER="# homelab-podman-storage"
+HOMELAB_STORAGE_FSTAB_MARKER="# homelab-docker-storage"
 HOMELAB_STORAGE_FSTAB_OPTIONS="defaults,noatime,x-systemd.automount,x-systemd.device-timeout=30"
 HOMELAB_STORAGE_PROMPT_DECLINED=10
 # XFS volume labels are limited to 12 characters.
 HOMELAB_STORAGE_FS_LABEL="homelab-data"
 
 homelab_storage_path() {
-  printf '%s\n' "${HOMELAB_STORAGE_PATH:-/home/homelab/.local/share/containers/storage}"
+  printf '%s\n' "${HOMELAB_STORAGE_PATH:-/var/lib/docker}"
 }
 
 homelab_storage_fstab() {
@@ -205,7 +205,7 @@ homelab_storage_is_mounted_under() {
 homelab_storage_assert_not_os_device() {
   local name=$1
   if homelab_storage_is_os_device "$name"; then
-    die "refusing to use the operating system disk for Podman storage: $name"
+    die "refusing to use the operating system disk for Docker storage: $name"
   fi
 }
 
@@ -311,7 +311,7 @@ homelab_storage_fstab_is_managed() {
 homelab_storage_managed_uuid() {
   local line
   line=$(homelab_storage_managed_fstab_line)
-  [[ $line == UUID=* ]] || die "managed Podman storage fstab stanza is missing"
+  [[ $line == UUID=* ]] || die "managed Docker storage fstab stanza is missing"
   line=${line#UUID=}
   printf '%s\n' "${line%%[[:space:]]*}"
 }
@@ -351,7 +351,7 @@ homelab_storage_fstab_without_managed() {
       exit 3
     }
     { print }
-  ' "$fstab" || die "cannot rewrite the Podman storage fstab stanza"
+  ' "$fstab" || die "cannot rewrite the Docker storage fstab stanza"
 }
 
 homelab_storage_write_fstab() {
@@ -397,11 +397,9 @@ homelab_storage_systemd_path_unit() {
 }
 
 homelab_storage_write_user_dropin() {
-  local user=$1
-  local uid dir path
-  uid=$(id -u "$user")
+  local dir path
   path=$(homelab_storage_path)
-  dir="$(homelab_storage_systemd_dir)/user@${uid}.service.d"
+  dir="$(homelab_storage_systemd_dir)/docker.service.d"
   install -d -m 0755 "$dir"
   cat >"$dir/homelab-storage.conf" <<EOF
 [Unit]
@@ -411,12 +409,15 @@ EOF
 }
 
 homelab_storage_prepare_mountpoint() {
-  local path home user
+  local path
   path=$(homelab_storage_path)
-  user=${1:-homelab}
-  home=${HOMELAB_RUNTIME_HOME:-/home/homelab}
-  install -d -m 0700 -o "$(id -u "$user")" -g "$(id -g "$user")" \
-    "$home/.local" "$home/.local/share" "$home/.local/share/containers" "$path"
+  if [[ ${HOMELAB_STORAGE_TEST:-0} == 1 ]]; then
+    install -d -m 0710 "$path"
+  elif getent group docker >/dev/null 2>&1; then
+    install -d -m 0710 -o root -g docker "$path"
+  else
+    install -d -m 0710 -o root "$path"
+  fi
   if homelab_storage_path_is_mounted "$path"; then
     return 0
   fi
@@ -438,7 +439,7 @@ homelab_storage_activate_mount() {
   systemctl start "$automount_unit"
   systemctl start "$mount_unit"
   homelab_storage_path_is_mounted "$path" || \
-    die "failed to mount Podman storage at $path"
+    die "failed to mount Docker storage at $path"
 }
 
 homelab_storage_label_mount() {
@@ -636,7 +637,7 @@ homelab_storage_apply() {
   homelab_storage_write_user_dropin "$user"
   homelab_storage_activate_mount
   homelab_storage_label_mount "$user"
-  info "Podman storage is mounted at $(homelab_storage_path)"
+  info "Docker storage is mounted at $(homelab_storage_path)"
 }
 
 homelab_storage_read_tty() {
@@ -656,7 +657,7 @@ homelab_storage_prompt() {
   local -a lines
   local selected format_choice by_id confirm_line confirm_word confirm_dev
   path=$(homelab_storage_path)
-  printf '\nThis host can keep Podman images and named volumes on an external disk\nmounted at %s.\nTreat that disk as permanently attached; do not unplug it while services run.\n\n' "$path" >&2
+  printf '\nThis host can keep Docker images and named volumes on an external disk\nmounted at %s.\nTreat that disk as permanently attached; do not unplug it while services run.\n\n' "$path" >&2
   answer=$(homelab_storage_read_tty 'Use an external data disk? [y/N] ')
   [[ $answer =~ ^[Yy]([Ee][Ss])?$ ]] || return "$HOMELAB_STORAGE_PROMPT_DECLINED"
   mapfile -t lines < <(homelab_storage_candidate_lines)
@@ -708,20 +709,20 @@ homelab_storage_setup() {
   [[ -n $user ]] || die "runtime user is required"
 
   if homelab_storage_fstab_is_managed; then
-    [[ $format == false ]] || die "refusing to format the configured Podman storage disk"
+    [[ $format == false ]] || die "refusing to format the configured Docker storage disk"
     if homelab_storage_already_mounted_correctly; then
       if [[ $mode == use ]]; then
         homelab_storage_assert_device_matches_configured "$device"
       fi
       homelab_storage_write_user_dropin "$user"
-      info "Podman storage disk already mounted at $(homelab_storage_path)"
+      info "Docker storage disk already mounted at $(homelab_storage_path)"
       return 0
     fi
     if [[ $mode == use ]]; then
       homelab_storage_assert_device_matches_configured "$device"
     fi
     homelab_storage_write_user_dropin "$user"
-    info "Mounting the configured Podman storage disk"
+    info "Mounting the configured Docker storage disk"
     homelab_storage_prepare_mountpoint "$user"
     homelab_storage_activate_mount
     homelab_storage_label_mount "$user"

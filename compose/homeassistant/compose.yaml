@@ -1,0 +1,112 @@
+name: homelab-homeassistant
+
+services:
+  homeassistant-mosquitto:
+    image: docker.io/library/eclipse-mosquitto:2.1.2-alpine@sha256:6f8d8a947c506f8a2290ec65cd4bd2bc7cb4d43fb5f6271f861cb013e2ef9797
+    container_name: homeassistant-mosquitto
+    user: "1883:1883"
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+      - /mosquitto/log
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+    volumes:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/homeassistant/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/homeassistant/mosquitto-passwords:/mosquitto/config/passwords:ro
+      - mosquitto-data:/mosquitto/data
+    networks:
+      - homeassistant
+
+  homeassistant-zigbee2mqtt:
+    image: ghcr.io/koenkk/zigbee2mqtt:2.14.1@sha256:fef0de769dcd04c27b3a6d277b61046eb96284bdd4198dcb1687c3a01b3020f3
+    container_name: homeassistant-zigbee2mqtt
+    user: "1000:1000"
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: journald
+    group_add:
+      - dialout
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/homeassistant/zigbee2mqtt.env
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/secrets/homeassistant.env
+    devices:
+      - ${HOMELAB_STATE:-/home/homelab/.local/state/homelab}/zigbee-router:/dev/ttyACM0
+    volumes:
+      - zigbee2mqtt:/app/data
+      - /run/udev:/run/udev:ro
+    networks:
+      - homeassistant
+      - homeassistant-edge
+    depends_on:
+      - homeassistant-mosquitto
+
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:2026.9.0@sha256:372d991e58882a1d8c68c07e9aa3f3b509276e695355f73ccdb03baa70407293
+    container_name: homeassistant
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 1024
+    init: false
+    tmpfs:
+      - /tmp
+      - /run:exec
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+    volumes:
+      - config:/config
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/homeassistant/configuration.yaml:/config/configuration.yaml:ro
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/homeassistant/automations.yaml:/config/automations.yaml:ro
+      - /run/dbus:/run/dbus:ro
+    networks:
+      - homeassistant
+      - homeassistant-edge
+    depends_on:
+      - homeassistant-mosquitto
+
+volumes:
+  mosquitto-data:
+    name: homelab-homeassistant-mosquitto-data
+    labels:
+      homelab.application: homeassistant
+  zigbee2mqtt:
+    name: homelab-homeassistant-zigbee2mqtt
+    labels:
+      homelab.application: homeassistant
+  config:
+    name: homelab-homeassistant-config
+    labels:
+      homelab.application: homeassistant
+
+networks:
+  homeassistant:
+    name: homelab-homeassistant
+    external: true
+  homeassistant-edge:
+    name: homelab-homeassistant-edge
+    external: true

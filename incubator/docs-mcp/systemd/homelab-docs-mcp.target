@@ -1,4 +1,0 @@
-[Unit]
-Description=docs-mcp application stack
-Wants=docs-mcp-worker.service docs-mcp-server.service docs-mcp-web.service
-After=homelab-secrets.service

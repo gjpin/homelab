@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+# shellcheck source=/dev/null
+source "$(dirname -- "$0")/lib.sh"
+
+root=${1:-$(repo_root)}
+require_command docker
+require_command jq
+[[ -r $root/manifests/networks.json ]] || die "missing $root/manifests/networks.json"
+
+while IFS= read -r name; do
+  internal=$(jq -r --arg name "$name" '.[$name].internal' "$root/manifests/networks.json")
+  if docker network inspect "$name" >/dev/null 2>&1; then
+    actual=$(docker network inspect -f '{{.Internal}}' "$name")
+    expected=false
+    [[ $internal == true ]] && expected=true
+    [[ $actual == "$expected" ]] || die "network $name internal=$actual, expected $expected"
+    continue
+  fi
+  args=(network create --label homelab.managed=true)
+  [[ $internal == true ]] && args+=(--internal)
+  docker "${args[@]}" "$name" >/dev/null
+  info "created network $name"
+done < <(jq -r 'keys[]' "$root/manifests/networks.json" | sort)

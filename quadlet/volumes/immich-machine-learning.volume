@@ -1,3 +1,0 @@
-[Volume]
-VolumeName=homelab-immich-machine-learning
-Label=io.containers.systemd.application=immich

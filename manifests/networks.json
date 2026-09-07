@@ -1,0 +1,14 @@
+{
+  "homelab-forgejo": { "internal": true, "app": "forgejo" },
+  "homelab-forgejo-edge": { "internal": false, "app": "forgejo" },
+  "homelab-homeassistant": { "internal": true, "app": "homeassistant" },
+  "homelab-homeassistant-edge": { "internal": false, "app": "homeassistant" },
+  "homelab-immich": { "internal": true, "app": "immich" },
+  "homelab-immich-edge": { "internal": false, "app": "immich" },
+  "homelab-immich-ml-egress": { "internal": false, "app": "immich" },
+  "homelab-radicale": { "internal": true, "app": "radicale" },
+  "homelab-searxng": { "internal": true, "app": "searxng" },
+  "homelab-searxng-edge": { "internal": false, "app": "searxng" },
+  "homelab-syncthing": { "internal": true, "app": "syncthing" },
+  "homelab-vaultwarden": { "internal": true, "app": "vaultwarden" }
+}

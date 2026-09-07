@@ -5,28 +5,52 @@ umask 077
 # shellcheck source=/dev/null
 source "$(dirname -- "$0")/lib.sh"
 
+require_command docker
 require_command flock
 require_command git
 require_command jq
-require_command podman
 require_command rg
-require_command systemctl
 require_command tar
 
 runtime_home=${HOME:?HOME is not set}
 repo_dir=${HOMELAB_REPO_DIR:-$runtime_home/git/repository}
 releases_dir=${HOMELAB_RELEASES_DIR:-$runtime_home/releases}
 current_link=${HOMELAB_CURRENT_LINK:-$runtime_home/current}
-state_dir=${HOMELAB_STATE_DIR:-$runtime_home/.local/state/homelab}
+state_dir=$(homelab_state_dir)
 branch=${HOMELAB_GIT_BRANCH:-main}
-lock_file="${XDG_RUNTIME_DIR:?}/homelab-operation.lock"
+lock_file="${HOMELAB_LOCK_FILE:-$state_dir/operation.lock}"
 dry_run=false
 [[ ${1:-} == --dry-run ]] && dry_run=true
 
+install -d -m 0700 "$state_dir"
 exec 9>"$lock_file"
 flock --nonblock 9 || die "another reconciliation is running"
 [[ -d $repo_dir/.git ]] || die "Git checkout not found: $repo_dir"
-install -d -m 0700 "$releases_dir" "$state_dir"
+install -d -m 0700 "$releases_dir"
+
+compose_up() {
+  local app=$1
+  HOMELAB_RELEASE_ROOT=$release homelab_compose "$app" up -d --remove-orphans --pull missing
+}
+
+compose_down() {
+  local app=$1
+  HOMELAB_RELEASE_ROOT=$release homelab_compose "$app" down --remove-orphans
+}
+
+build_custom_image() {
+  local image=$1
+  info "building localhost/homelab/$image"
+  docker build --pull --file "$release/images/$image/Containerfile" \
+    --tag "localhost/homelab/$image" "$release/images/$image"
+}
+
+workload_containers_running() {
+  local app=$1 name
+  while IFS= read -r name; do
+    docker inspect -f '{{.State.Running}}' "$name" 2>/dev/null | grep -qx true || return 1
+  done < <(jq -r --arg app "$app" '.[$app].containers[]' "$current_link/manifests/applications.json")
+}
 
 info "fetching origin/$branch"
 git -C "$repo_dir" fetch --prune origin "$branch"
@@ -40,24 +64,14 @@ fi
 if [[ $target_commit == "$deployed_commit" && -e $current_link ]]; then
   info "already at $target_commit"
   "$current_link/bin/verify-host-security"
-  systemctl --user start homelab-secrets.service
+  HOMELAB_RELEASE_ROOT=$current_link "$current_link/bin/render-config"
+  HOMELAB_RELEASE_ROOT=$current_link "$current_link/bin/ensure-networks" "$current_link"
   while IFS= read -r app; do
-    needs_restart=false
-    while IFS= read -r unit; do
-      if ! systemctl --user is-active --quiet "$unit"; then
-        needs_restart=true
-        break
-      fi
-    done < <(jq -r --arg app "$app" \
-      '.[$app].units[] | select(endswith("-build.service") | not)' \
-      "$current_link/manifests/applications.json")
-    if $needs_restart; then
-      info "repairing inactive $app application target"
-      systemctl --user restart "homelab-$app.target"
+    if ! workload_containers_running "$app"; then
+      info "repairing inactive $app"
+      release=$current_link compose_up "$app"
     fi
   done < <(jq -r 'keys[]' "$current_link/manifests/applications.json")
-  systemctl --user enable homelab-backup.timer >/dev/null
-  systemctl --user start homelab.target homelab-reconcile.timer homelab-backup.timer
   "$current_link/bin/security-audit"
   exit 0
 fi
@@ -77,13 +91,11 @@ if $dry_run; then
   exit 0
 fi
 
-mapfile -t images < <(rg --no-filename '^Image=' "$release/quadlet/applications" | cut -d= -f2- | rg -v '\.build$' | sort -u)
-for image in "${images[@]}"; do
-  if ! podman image exists "$image"; then
-    info "pulling $image"
-    podman pull "$image" >/dev/null
-  fi
-done
+export HOMELAB_RELEASE_ROOT=$release
+while IFS= read -r image; do
+  [[ -n $image ]] || continue
+  build_custom_image "$image"
+done < <(jq -r '.[] | select(.build != null) | .build' "$release/manifests/applications.json" | sort -u)
 
 HOMELAB_OPERATION_LOCK_HELD=1 "$release/bin/migrate-databases" --release "$release"
 
@@ -94,25 +106,22 @@ else
   mapfile -t changed_paths < <(git -C "$repo_dir" diff --name-only "$deployed_commit" "$target_commit")
   for path in "${changed_paths[@]}"; do
     case "$path" in
-      quadlet/applications/*)
-        app=$(cut -d/ -f3 <<<"$path")
-        [[ -d "$release/quadlet/applications/$app" ]] && apps+=("$app")
+      compose/*)
+        app=$(cut -d/ -f2 <<<"$path")
+        [[ -d $release/compose/$app ]] && apps+=("$app")
         ;;
       config/templates/*)
         app=$(cut -d/ -f3 <<<"$path")
-        [[ -d "$release/quadlet/applications/$app" ]] && apps+=("$app")
+        [[ -d $release/compose/$app ]] && apps+=("$app")
         ;;
-      images/caddy/*|quadlet/builds/caddy.build)
+      images/caddy/*)
         apps+=(caddy)
         ;;
-      images/radicale/*|quadlet/builds/radicale.build)
-        apps+=(radicale)
-        ;;
-      quadlet/networks/*|quadlet/volumes/*)
+      manifests/networks.json)
         mapfile -t apps < <(jq -r 'keys[]' "$release/manifests/applications.json")
         break
         ;;
-      secrets/*|.sops.yaml|bin/*|systemd/user/*|manifests/*)
+      secrets/*|.sops.yaml|bin/*|systemd/*|manifests/*)
         mapfile -t apps < <(jq -r 'keys[]' "$release/manifests/applications.json")
         break
         ;;
@@ -122,19 +131,15 @@ fi
 mapfile -t apps < <(printf '%s\n' "${apps[@]}" | sed '/^$/d' | sort -u)
 
 previous_apps=()
-if [[ -L $current_link && -r "$current_link/manifests/applications.json" ]]; then
+if [[ -L $current_link && -r $current_link/manifests/applications.json ]]; then
   mapfile -t previous_apps < <(jq -r 'keys[]' "$current_link/manifests/applications.json")
 fi
 retired_apps=()
-retired_active_apps=()
 for previous_app in "${previous_apps[@]}"; do
   if ! jq -e --arg app "$previous_app" 'has($app)' "$release/manifests/applications.json" >/dev/null; then
     retired_apps+=("$previous_app")
-    if systemctl --user is-active --quiet "homelab-$previous_app.target"; then
-      retired_active_apps+=("$previous_app")
-    fi
     info "retiring $previous_app"
-    systemctl --user stop "homelab-$previous_app.target"
+    HOMELAB_RELEASE_ROOT=$current_link compose_down "$previous_app" || true
   fi
 done
 
@@ -142,18 +147,13 @@ previous_target=
 [[ -L $current_link ]] && previous_target=$(readlink "$current_link")
 
 restore_prior_release() {
-  local message=$1
+  local message=$1 app
   if [[ -n $previous_target ]]; then
     ln -sfn "$previous_target" "$current_link"
-    ln -sfn "$current_link/quadlet" "$runtime_home/.config/containers/systemd/homelab"
-    for source in "$current_link"/systemd/user/*; do
-      [[ -e $source || -L $source ]] || continue
-      unit=$(basename -- "$source")
-      ln -sfn "$source" "$runtime_home/.config/systemd/user/$unit"
-    done
-    systemctl --user daemon-reload || true
+    HOMELAB_RELEASE_ROOT=$previous_target "$previous_target/bin/render-config" || true
+    HOMELAB_RELEASE_ROOT=$previous_target "$previous_target/bin/ensure-networks" "$previous_target" || true
     for app in "${previous_apps[@]}"; do
-      systemctl --user start "homelab-$app.target" || true
+      HOMELAB_RELEASE_ROOT=$previous_target homelab_compose "$app" up -d --remove-orphans || true
     done
   fi
   die "$message"
@@ -161,46 +161,21 @@ restore_prior_release() {
 
 ln -sfn "$release" "$current_link.next"
 mv -Tf "$current_link.next" "$current_link"
-install -d -m 0700 "$runtime_home/.config/containers/systemd" "$runtime_home/.config/systemd/user"
-ln -sfn "$current_link/quadlet" "$runtime_home/.config/containers/systemd/homelab"
-for source in "$current_link"/systemd/user/*; do
-  unit=$(basename -- "$source")
-  ln -sfn "$source" "$runtime_home/.config/systemd/user/$unit"
-done
 
-if ! systemctl --user daemon-reload; then
-  restore_prior_release "systemd reload failed; restored prior release"
-fi
+"$release/bin/render-config"
+"$release/bin/ensure-networks" "$release"
 
-for retired_app in "${retired_apps[@]}"; do
-  systemctl --user disable "homelab-$retired_app.target" >/dev/null 2>&1 || true
-done
-for link in "$runtime_home/.config/systemd/user"/homelab-*; do
-  [[ -L $link ]] || continue
-  unit=$(basename -- "$link")
-  [[ -e "$current_link/systemd/user/$unit" ]] || unlink "$link"
-done
-
-systemctl --user restart homelab-secrets.service
 for app in "${apps[@]}"; do
-  [[ -e "$release/systemd/user/homelab-$app.target" ]] || continue
-  info "restarting $app"
-  case "$app" in
-    caddy|radicale) systemctl --user restart "$app-build.service" ;;
-  esac
-  systemctl --user restart "homelab-$app.target"
+  info "starting $app"
+  compose_up "$app" || restore_prior_release "failed to start $app"
 done
 
 for app in "${apps[@]}"; do
-  while IFS= read -r unit; do
-    systemctl --user is-active --quiet "$unit" || \
-      restore_prior_release "$app unit failed health/activation checks: $unit. Named-volume major migrations already applied are not reversed."
-  done < <(jq -r --arg app "$app" \
-    '.[$app].units[] | select(endswith("-build.service") | not)' \
-    "$release/manifests/applications.json")
+  while IFS= read -r name; do
+    docker inspect -f '{{.State.Running}}' "$name" 2>/dev/null | grep -qx true || \
+      restore_prior_release "$app container failed: $name. Named-volume major migrations already applied are not reversed."
+  done < <(jq -r --arg app "$app" '.[$app].containers[]' "$release/manifests/applications.json")
 done
 "$release/bin/security-audit"
 printf '%s\n' "$target_commit" >"$state_dir/deployed-commit"
-systemctl --user enable homelab.target homelab-reconcile.timer homelab-backup.timer >/dev/null
-systemctl --user start homelab.target homelab-reconcile.timer homelab-backup.timer
 info "deployed $target_commit"

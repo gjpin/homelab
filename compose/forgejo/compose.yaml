@@ -1,0 +1,98 @@
+name: homelab-forgejo
+
+services:
+  forgejo-postgres:
+    image: docker.io/postgres:18.6-bookworm@sha256:1c59e2c3c818eaa0f0628f695b36e7c9e362d6b219b36a54a32df645cbd7e1af
+    container_name: forgejo-postgres
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+      - /run
+      - /var/run/postgresql
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/secrets/forgejo.env
+    environment:
+      POSTGRES_USER: forgejo
+      POSTGRES_DB: forgejo
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - postgres:/var/lib/postgresql
+    networks:
+      - forgejo
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forgejo -d forgejo"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:16.0.3-rootless@sha256:214f4ae63ee78be1e445e58573c88dc7215e72091210852e0df94eaac1a25685
+    container_name: forgejo
+    user: "1000:1000"
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/secrets/forgejo.env
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      FORGEJO__database__DB_TYPE: postgres
+      FORGEJO__database__HOST: forgejo-postgres:5432
+      FORGEJO__database__NAME: forgejo
+      FORGEJO__database__USER: forgejo
+      FORGEJO__actions__ENABLED: "true"
+      FORGEJO__actions__DEFAULT_ACTIONS_URL: https://data.forgejo.org
+    volumes:
+      - data:/var/lib/gitea
+    networks:
+      - forgejo
+      - forgejo-edge
+    depends_on:
+      forgejo-postgres:
+        condition: service_healthy
+
+volumes:
+  postgres:
+    name: homelab-forgejo-postgres
+    labels:
+      homelab.application: forgejo
+  data:
+    name: homelab-forgejo-data
+    labels:
+      homelab.application: forgejo
+
+networks:
+  forgejo:
+    name: homelab-forgejo
+    external: true
+  forgejo-edge:
+    name: homelab-forgejo-edge
+    external: true

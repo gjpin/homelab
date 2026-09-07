@@ -1,0 +1,38 @@
+name: homelab-radicale
+
+services:
+  radicale:
+    image: ghcr.io/kozea/radicale:3.8.0@sha256:0d60d544710bda0fa83bfdea685db731b6cbf74e12d7f22b4997e9cff3a50468
+    container_name: radicale
+    user: "1000:1000"
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+    volumes:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/radicale/config:/etc/radicale/config:ro
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/radicale/users:/etc/radicale/users:ro
+      - collections:/var/lib/radicale
+    networks:
+      - radicale
+
+volumes:
+  collections:
+    name: homelab-radicale-collections
+    labels:
+      homelab.application: radicale
+
+networks:
+  radicale:
+    name: homelab-radicale
+    external: true

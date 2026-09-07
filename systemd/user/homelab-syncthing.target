@@ -1,4 +1,0 @@
-[Unit]
-Description=syncthing application stack
-Wants=syncthing.service
-After=homelab-secrets.service

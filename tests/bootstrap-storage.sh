@@ -230,7 +230,7 @@ if [[ $target == / || $target == /home ]]; then
   exit 0
 fi
 if [[ $target == "$TEST_STORAGE_PATH" && -e $TEST_MOUNTED_FLAG ]]; then
-  uuid=$(awk -v marker="# homelab-podman-storage" '
+  uuid=$(awk -v marker="# homelab-docker-storage" '
     $0 == marker { getline; sub(/^UUID=/, ""); print $1; exit }
   ' "$TEST_FSTAB" 2>/dev/null || true)
   case "$field" in
@@ -319,7 +319,7 @@ if [[ $1 == enable && $2 == *.automount ]]; then
   exit 1
 fi
 if [[ $1 == start && $2 == *.mount ]]; then
-  source=$(awk -v marker="# homelab-podman-storage" '
+  source=$(awk -v marker="# homelab-docker-storage" '
     $0 == marker { getline; print $2; exit }
   ' "$TEST_FSTAB")
   printf '%s\n' "$source" >"$TEST_MOUNTED_FLAG"
@@ -343,7 +343,7 @@ reset_state() {
   : >"$log"
   : >"$fstab"
   rm -f -- "$mounted_flag"
-  rm -rf -- "$home/.local" "$systemd_dir/user@"*
+  rm -rf -- "$home/.local" "$systemd_dir/docker.service.d"
   mkdir -p "$systemd_dir"
   printf '%s\t%s\txfs\n' "$dev/sdb1" "$data_uuid" >"$blkid_db"
   printf '%s\t%s\txfs\n' "$dev/sda2" "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" >>"$blkid_db"
@@ -417,10 +417,9 @@ assert_file_contains "$fstab" "UUID=$data_uuid $storage_path xfs $HOMELAB_STORAG
 assert_file_lacks "$fstab" 'nofail' 'fstab must not use nofail'
 assert_file_contains "$log" 'systemctl start .*automount' 'generated automount unit is started'
 assert_file_lacks "$log" 'systemctl enable' 'generated automount unit is not enabled'
-uid=$(id -u "$test_user")
-dropin="$systemd_dir/user@${uid}.service.d/homelab-storage.conf"
+dropin="$systemd_dir/docker.service.d/homelab-storage.conf"
 assert_file_contains "$dropin" "RequiresMountsFor=$storage_path" \
-  'user unit waits for the storage mount'
+  'docker unit waits for the storage mount'
 
 reset_state
 homelab_storage_apply "$dev/sdd1" false "$test_user"

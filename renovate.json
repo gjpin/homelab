@@ -6,32 +6,11 @@
   "customManagers": [
     {
       "customType": "regex",
-      "description": "Update digest-pinned images in Quadlet container units",
-      "managerFilePatterns": ["/^quadlet\\/applications\\/.*\\.container$/"],
-      "matchStrings": [
-        "Image=(?<depName>[^\\s]+?):(?<currentValue>[^\\s@]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
-      ],
-      "datasourceTemplate": "docker",
-      "versioningTemplate": "docker"
-    },
-    {
-      "customType": "regex",
       "description": "Update the self-hosted Renovate container version",
       "managerFilePatterns": ["/^\\.github\\/workflows\\/renovate\\.yml$/"],
       "matchStrings": [
         "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)\\s+renovate-version: (?<currentValue>[^\\s]+)"
       ],
-      "versioningTemplate": "docker"
-    },
-    {
-      "customType": "regex",
-      "description": "Update the Fedora validation container version and digest",
-      "managerFilePatterns": ["/^\\.github\\/workflows\\/validate\\.yml$/"],
-      "matchStrings": [
-        "fedora:(?<currentValue>[^\\s@]+)@(?<currentDigest>sha256:[0-9a-f]{64})"
-      ],
-      "datasourceTemplate": "docker",
-      "depNameTemplate": "docker.io/library/fedora",
       "versioningTemplate": "docker"
     },
     {
@@ -60,38 +39,15 @@
     },
     {
       "customType": "regex",
-      "description": "Update pinned Alpine packages in the Radicale image",
-      "managerFilePatterns": ["/^images\\/radicale\\/Containerfile$/"],
-      "matchStrings": [
-        "(?<depName>py3-bcrypt|radicale)=(?<currentValue>[^\\s\\\\]+)"
-      ],
-      "datasourceTemplate": "repology",
-      "packageNameTemplate": "alpine_3_24/{{{depName}}}",
-      "versioningTemplate": "loose"
-    },
-    {
-      "customType": "regex",
-      "description": "Update the SOPS host-tool release",
+      "description": "Update host-tool release tags",
       "managerFilePatterns": ["/^config\\/host-tools\\.env$/"],
       "matchStrings": [
-        "SOPS_RELEASE_TAG=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
+        "(?<checksumName>AGE|RESTIC|SOPS)_RELEASE_TAG=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)"
       ],
-      "autoReplaceStringTemplate": "SOPS_RELEASE_TAG={{{newValue}}}",
-      "depNameTemplate": "getsops/sops",
+      "autoReplaceStringTemplate": "{{{checksumName}}}_RELEASE_TAG={{{newValue}}}",
       "datasourceTemplate": "github-releases",
-      "versioningTemplate": "semver"
-    },
-    {
-      "customType": "regex",
-      "description": "Update architecture-specific SOPS host-tool checksums",
-      "managerFilePatterns": ["/^config\\/host-tools\\.env$/"],
-      "matchStrings": [
-        "# renovate: datasource=github-release-attachments depName=getsops/sops currentValue=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)\\n(?<checksumName>SOPS_(?:AMD64|ARM64)_(?:RPM|BINARY)_SHA256)=(?<currentDigest>[0-9a-f]{64})"
-      ],
-      "autoReplaceStringTemplate": "# renovate: datasource=github-release-attachments depName=getsops/sops currentValue={{{newValue}}}\n{{{checksumName}}}={{{newDigest}}}",
-      "depNameTemplate": "getsops/sops",
-      "datasourceTemplate": "github-release-attachments",
-      "versioningTemplate": "semver"
+      "versioningTemplate": "semver",
+      "depNameTemplate": "{{#if (equals checksumName 'AGE')}}FiloSottile/age{{else}}{{#if (equals checksumName 'RESTIC')}}restic/restic{{else}}getsops/sops{{/if}}{{/if}}"
     },
     {
       "customType": "regex",
@@ -105,6 +61,17 @@
       "packageNameTemplate": "https://code.forgejo.org/forgejo/runner",
       "registryUrlTemplate": "https://code.forgejo.org",
       "datasourceTemplate": "forgejo-releases",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "description": "Update architecture-specific host-tool checksums",
+      "managerFilePatterns": ["/^config\\/host-tools\\.env$/"],
+      "matchStrings": [
+        "# renovate: datasource=github-release-attachments depName=(?<depName>[^\\s]+) currentValue=(?<currentValue>v[0-9]+\\.[0-9]+\\.[0-9]+)\\n(?<checksumName>[A-Z0-9_]+)=(?<currentDigest>[0-9a-f]{64})"
+      ],
+      "autoReplaceStringTemplate": "# renovate: datasource=github-release-attachments depName={{{depName}}} currentValue={{{newValue}}}\n{{{checksumName}}}={{{newDigest}}}",
+      "datasourceTemplate": "github-release-attachments",
       "versioningTemplate": "semver"
     },
     {
@@ -148,34 +115,12 @@
       "groupName": "caddy"
     },
     {
-      "description": "Keep the Radicale base image and packages together",
-      "matchPackageNames": [
-        "docker.io/alpine",
-        "alpine_3_24/py3-bcrypt",
-        "alpine_3_24/radicale"
-      ],
-      "groupName": "radicale"
-    },
-    {
-      "description": "Keep the SOPS host-tool release and checksums together",
-      "matchPackageNames": ["getsops/sops"],
-      "groupName": "sops-host-tools",
+      "description": "Keep host-tool releases reviewed, never automerged",
+      "matchPackageNames": ["FiloSottile/age", "restic/restic", "getsops/sops", "forgejo/runner"],
+      "groupName": "host-tools",
       "ignoreUnstable": true,
       "minimumReleaseAge": "3 days",
       "automerge": false
-    },
-    {
-      "description": "Keep the Forgejo Runner host-tool release and checksums together",
-      "matchPackageNames": ["forgejo/runner"],
-      "groupName": "forgejo-runner-host-tools",
-      "ignoreUnstable": true,
-      "minimumReleaseAge": "3 days",
-      "automerge": false,
-      "postUpgradeTasks": {
-        "commands": ["./bin/update-forgejo-runner-checksums {{{newValue}}}"],
-        "fileFilters": ["config/host-tools.env"],
-        "executionMode": "update"
-      }
     }
   ]
 }

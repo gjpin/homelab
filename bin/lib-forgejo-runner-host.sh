@@ -4,14 +4,14 @@
 FORGEJO_RUNNER_STORAGE_BYTES=$((20 * 1024 * 1024 * 1024))
 FORGEJO_RUNNER_STORAGE_SIZE=20G
 FORGEJO_RUNNER_STORAGE_IMAGE=/var/lib/homelab/forgejo-runner-storage.xfs
-FORGEJO_RUNNER_STORAGE_MARKER='# forgejo-runner-podman-storage'
+FORGEJO_RUNNER_STORAGE_MARKER='# forgejo-runner-docker-storage'
 FORGEJO_RUNNER_MEMORY_MAX=16G
 FORGEJO_RUNNER_CPU_QUOTA=400%
 FORGEJO_RUNNER_TASKS_MAX=2048
 
 forgejo_runner_storage_path() {
   local runner_home=${1:-/home/forgejo-runner}
-  printf '%s\n' "$runner_home/.local/share/containers/storage"
+  printf '%s\n' "$runner_home/.local/share/docker"
 }
 
 forgejo_runner_configure_storage() {
@@ -36,7 +36,7 @@ forgejo_runner_configure_storage() {
 
   install -d -m 0700 -o "$runner_user" -g "$runner_user" \
     "$runner_home/.local" "$runner_home/.local/share" \
-    "$runner_home/.local/share/containers" "$storage_path"
+    "$runner_home/.local/share/docker" "$storage_path"
   if ! grep -Fxq "$FORGEJO_RUNNER_STORAGE_MARKER" /etc/fstab; then
     fstab_tmp=$(mktemp /etc/fstab.forgejo-runner.XXXXXX)
     cp --preserve=mode,ownership /etc/fstab "$fstab_tmp"
@@ -55,7 +55,7 @@ forgejo_runner_configure_storage() {
     die "Forgejo Runner storage is not mounted from its bounded image"
   chown "$runner_user:$runner_user" "$storage_path"
   chmod 0700 "$storage_path"
-  restorecon -RF "$runner_home/.local" >/dev/null 2>&1 || true
+
 }
 
 forgejo_runner_configure_user_slice() {

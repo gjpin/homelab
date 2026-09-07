@@ -1,0 +1,76 @@
+name: homelab-caddy
+
+services:
+  caddy:
+    image: localhost/homelab/caddy
+    container_name: caddy
+    user: caddy:caddy
+    restart: always
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    pids_limit: 1024
+    init: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: journald
+    env_file:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/site.env
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/secrets/caddy.env
+    ports:
+      - "443:443"
+    volumes:
+      - ${HOMELAB_RENDERED:-/home/homelab/.local/state/homelab/rendered}/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - data:/data/caddy
+      - config:/config/caddy
+      - bookmarks:/data/bookmarks
+    networks:
+      - forgejo-edge
+      - homeassistant-edge
+      - immich-edge
+      - radicale
+      - searxng-edge
+      - syncthing
+      - vaultwarden
+
+volumes:
+  data:
+    name: homelab-caddy-data
+    labels:
+      homelab.application: caddy
+  config:
+    name: homelab-caddy-config
+    labels:
+      homelab.application: caddy
+  bookmarks:
+    name: homelab-caddy-bookmarks
+    labels:
+      homelab.application: caddy
+
+networks:
+  forgejo-edge:
+    name: homelab-forgejo-edge
+    external: true
+  homeassistant-edge:
+    name: homelab-homeassistant-edge
+    external: true
+  immich-edge:
+    name: homelab-immich-edge
+    external: true
+  radicale:
+    name: homelab-radicale
+    external: true
+  searxng-edge:
+    name: homelab-searxng-edge
+    external: true
+  syncthing:
+    name: homelab-syncthing
+    external: true
+  vaultwarden:
+    name: homelab-vaultwarden
+    external: true

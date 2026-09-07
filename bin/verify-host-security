@@ -4,33 +4,50 @@ set -Eeuo pipefail
 # shellcheck source=/dev/null
 source "$(dirname -- "$0")/lib.sh"
 
-require_command getenforce
-require_command getsebool
-require_command selinuxenabled
-require_command fuse-overlayfs
-require_command newgidmap
-require_command newuidmap
-require_command pasta
+require_command apparmor_parser
+require_command docker
 arch=$(host_arch)
+# shellcheck disable=SC1091
+source /etc/os-release
+[[ ${ID:-} == debian || ${ID:-} == ubuntu ]] || \
+  die "unsupported host distribution: ${ID:-unknown}; this deployment requires Debian (Ubuntu is accepted for CI)"
+
+docker info >/dev/null 2>&1 || die "Docker is not available"
+rootless=$(docker info --format '{{.SecurityOptions}}' | rg -o 'name=rootless' || true)
+[[ -z $rootless ]] || die "production Docker must be rootful"
+
+if [[ -r /sys/kernel/security/apparmor/profiles ]]; then
+  grep -q . /sys/module/apparmor/parameters/enabled 2>/dev/null || true
+  aa_enabled=$(cat /sys/module/apparmor/parameters/enabled 2>/dev/null || printf 'N')
+  [[ $aa_enabled == Y ]] || die "AppArmor is not enabled"
+else
+  die "AppArmor LSM is not available"
+fi
+
+if rg -n --glob 'compose/*/compose.yaml' 'apparmor=unconfined' "$(repo_root)"; then
+  die "compose must not disable AppArmor"
+fi
+
 runtime_user=$(id -un)
-require_subordinate_id_range /etc/subuid "$runtime_user"
-require_subordinate_id_range /etc/subgid "$runtime_user"
-
-selinuxenabled || die "SELinux is disabled; refusing to start containers"
-[[ $(getenforce) == Enforcing ]] || die "SELinux is not enforcing; refusing to start containers"
-
-device_boolean=$(getsebool container_use_devices 2>/dev/null) || \
-  die "container_use_devices is unavailable; verify that container-selinux is installed"
-[[ $device_boolean == *' --> off' ]] || \
-  die "container_use_devices must be off; Zigbee2MQTT uses the scoped container_device_t domain"
+if [[ $runtime_user == homelab ]]; then
+  id -nG | rg -qw docker || die "homelab must be a member of the docker group"
+fi
+if id forgejo-runner >/dev/null 2>&1; then
+  runner_groups=$(id -Gn forgejo-runner)
+  for forbidden_group in docker sudo root adm; do
+    [[ " $runner_groups " != *" $forbidden_group "* ]] || \
+      die "forgejo-runner has forbidden group membership: $forbidden_group"
+  done
+fi
 
 if [[ $arch == arm64 ]]; then
-  require_command qemu-x86_64-static
-  binfmt_registration=/proc/sys/fs/binfmt_misc/qemu-x86_64
-  [[ -r $binfmt_registration ]] || \
-    die "ARM64 host qemu-x86_64 binfmt registration is unavailable"
-  grep -q '^enabled$' "$binfmt_registration" || \
-    die "ARM64 host qemu-x86_64 binfmt registration is disabled"
+  if command -v qemu-x86_64-static >/dev/null 2>&1; then
+    binfmt_registration=/proc/sys/fs/binfmt_misc/qemu-x86_64
+    [[ -r $binfmt_registration ]] || \
+      die "ARM64 host qemu-x86_64 binfmt registration is unavailable"
+    grep -q '^enabled$' "$binfmt_registration" || \
+      die "ARM64 host qemu-x86_64 binfmt registration is disabled"
+  fi
 fi
 
 info "host container security prerequisites passed"

@@ -1,3 +1,0 @@
-[Volume]
-VolumeName=homelab-caddy-bookmarks
-Label=io.containers.systemd.application=caddy

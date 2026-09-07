@@ -3,7 +3,7 @@ name: Validate
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [docker, main]
 
 permissions:
   contents: read
@@ -36,9 +36,9 @@ jobs:
               printf 'e2e_mode=all\n'
               printf 'e2e_workloads=\n'
               images=()
-              for file in quadlet/builds/*.build; do
-                [[ -e $file ]] || continue
-                images+=("$(basename -- "$file" .build)")
+              for dir in images/*; do
+                [[ -f $dir/Containerfile ]] || continue
+                images+=("$(basename -- "$dir")")
               done
               if ((${#images[@]} > 0)); then
                 IFS=,
@@ -63,13 +63,14 @@ jobs:
         if: needs.select.outputs.build_images != ''
         uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
 
-      - name: Validate repository and Quadlets
+      - name: Validate repository
         run: |
-          docker run --rm \
-            --volume "$GITHUB_WORKSPACE:/src:ro" \
-            --workdir /src \
-            fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
-            bash -lc 'dnf install -y git jq podman ripgrep ShellCheck checkpolicy policycoreutils >/dev/null && ./bin/validate && ./tests/static.sh && ./tests/e2e-selection.sh && ./tests/backup.sh && ./tests/bootstrap-storage.sh && ./tests/legacy-restore.sh && ./tests/postgres-migration.sh && ./tests/mariadb-migration.sh && ln -s /src /root/current && install -d /usr/local/bin /usr/local/libexec && ln -s /bin/true /usr/local/bin/forgejo-runner && ln -s /bin/true /usr/local/libexec/homelab-install-sops && ln -s /bin/true /usr/local/libexec/homelab-install-forgejo-runner && systemd-analyze verify systemd/user/homelab-backup.service systemd/user/homelab-backup.timer systemd/user/forgejo-runner.service systemd/user/forgejo-runner-prune.service systemd/user/forgejo-runner-prune.timer systemd/system/homelab-forgejo-runner-egress.service systemd/system/homelab-host-tools-update.service'
+          sudo apt-get update
+          sudo apt-get install --yes jq ripgrep shellcheck
+          ./bin/validate
+          ./tests/static.sh
+          ./tests/e2e-selection.sh
+          ./tests/architecture.sh
 
       - name: Build custom images
         if: needs.select.outputs.build_images != ''
@@ -81,10 +82,6 @@ jobs:
           for image in "${images[@]}"; do
             [[ $image =~ ^[a-z0-9]+$ ]] || {
               printf 'unexpected custom image: %s\n' "$image" >&2
-              exit 1
-            }
-            [[ -f images/$image/Containerfile ]] || {
-              printf 'missing Containerfile for %s\n' "$image" >&2
               exit 1
             }
             docker buildx build --pull --platform linux/amd64 \
@@ -115,12 +112,10 @@ jobs:
       - name: Test pinned host tools
         if: needs.select.outputs.host_tools == 'true'
         run: |
-          docker run --rm \
-            --platform linux/${{ matrix.architecture }} \
-            --volume "$GITHUB_WORKSPACE:/src:ro" \
-            --workdir /src \
-            fedora:44@sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80 \
-            bash -lc 'dnf install -y age curl diffutils >/dev/null && ./tests/host-tools.sh'
+          docker run --rm --platform linux/${{ matrix.architecture }} --user 0 \
+            --volume "$GITHUB_WORKSPACE:/src:ro" --workdir /src \
+            debian:trixie \
+            bash -lc 'apt-get update >/dev/null && apt-get install -y --no-install-recommends bzip2 ca-certificates curl jq tar >/dev/null && ./tests/host-tools.sh'
 
   e2e:
     needs: [select, validate]
@@ -133,32 +128,30 @@ jobs:
           E2E_WORKLOADS: ${{ needs.select.outputs.e2e_workloads }}
         run: |
           case "$E2E_MODE" in
-            all)
-              printf 'E2E scope: all workloads\n'
-              ;;
-            none)
-              printf 'E2E scope: no affected workloads\n'
-              ;;
-            *)
-              printf 'E2E scope: %s\n' "${E2E_WORKLOADS//,/ }"
-              ;;
+            all) printf 'E2E scope: all workloads\n' ;;
+            none) printf 'E2E scope: no affected workloads\n' ;;
+            *) printf 'E2E scope: %s\n' "${E2E_WORKLOADS//,/ }" ;;
           esac
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         if: needs.select.outputs.e2e_mode != 'none'
 
-      - name: Install Podman machine prerequisites
+      - name: Install E2E tools
         if: needs.select.outputs.e2e_mode != 'none'
         run: |
           sudo apt-get update
-          sudo apt-get install --yes gvproxy jq podman qemu-system-x86 qemu-utils virtiofsd
-          sudo mkdir -p /usr/libexec/podman
-          sudo ln -sf /usr/bin/gvproxy /usr/libexec/podman/gvproxy
-          sudo ln -sf /usr/libexec/virtiofsd /usr/libexec/podman/virtiofsd
-          sudo ln -sf /usr/libexec/virtiofsd /usr/bin/virtiofsd
-          [[ -e /dev/kvm ]] && sudo chmod 666 /dev/kvm || true
+          sudo apt-get install --yes jq ripgrep
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output /tmp/age.tgz \
+            https://github.com/FiloSottile/age/releases/download/v1.3.2/age-v1.3.2-linux-amd64.tar.gz
+          tar -xzf /tmp/age.tgz -C /tmp
+          sudo install -m 0755 /tmp/age/age /tmp/age/age-keygen /usr/local/bin/
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output /tmp/sops \
+            https://github.com/getsops/sops/releases/download/v3.13.3/sops-v3.13.3.linux.amd64
+          sudo install -m 0755 /tmp/sops /usr/local/bin/sops
 
-      - name: Run selected Podman E2E
+      - name: Run selected Docker E2E
         if: needs.select.outputs.e2e_mode != 'none'
         env:
           E2E_MODE: ${{ needs.select.outputs.e2e_mode }}
@@ -168,7 +161,6 @@ jobs:
             ./bin/e2e
             exit 0
           fi
-
           IFS=, read -r -a workloads <<<"$E2E_WORKLOADS"
           args=()
           for workload in "${workloads[@]}"; do

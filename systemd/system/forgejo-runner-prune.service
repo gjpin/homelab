@@ -1,0 +1,14 @@
+[Unit]
+Description=Prune disposable Forgejo Actions Docker resources
+After=forgejo-runner.service
+
+[Service]
+Type=oneshot
+User=forgejo-runner
+Group=forgejo-runner
+Environment=HOME=/home/forgejo-runner
+Environment=XDG_RUNTIME_DIR=/run/user/%U
+Environment=DOCKER_HOST=unix:///run/user/%U/docker.sock
+ExecStart=/usr/bin/docker system prune --force --filter until=168h
+NoNewPrivileges=true
+PrivateTmp=true

@@ -18,48 +18,35 @@ while (($#)); do
 done
 [[ $tag =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]] || die "backup tag is invalid"
 
+require_command docker
 require_command flock
 require_command jq
-require_command podman
-require_command systemctl
-runtime_dir=${XDG_RUNTIME_DIR:?XDG_RUNTIME_DIR is not set}
-state_dir=${HOMELAB_STATE_DIR:-$HOME/.local/state/homelab}
-lock_file="$runtime_dir/homelab-operation.lock"
+state_dir=$(homelab_state_dir)
+lock_file="${HOMELAB_LOCK_FILE:-$state_dir/operation.lock}"
 metadata_dir="$state_dir/backup-metadata"
-work_dir=$(mktemp -d "$runtime_dir/homelab-backup.XXXXXX")
+work_dir=$(mktemp -d "${TMPDIR:-/tmp}/homelab-backup.XXXXXX")
+install -d -m 0700 "$state_dir"
 exec 9>"$lock_file"
 flock --nonblock 9 || die "another homelab maintenance operation is running"
 
 apps=()
 active_apps=()
-master_was_active=false
-reconcile_timer_was_active=false
-backup_timer_was_active=false
 deployment_stopped=false
 snapshot_created=false
+mapfile -t apps < <(jq -r 'keys[]' "$root/manifests/applications.json")
 
-unit_is_active() {
-  systemctl --user is-active --quiet "$1"
+workload_is_up() {
+  local app=$1 name
+  while IFS= read -r name; do
+    docker inspect -f '{{.State.Running}}' "$name" 2>/dev/null | grep -qx true || return 1
+  done < <(jq -r --arg app "$app" '.[$app].containers[]' "$root/manifests/applications.json")
 }
 
-restart_deployment() {
+start_apps() {
   local app rc=0
-  if $master_was_active; then
-    systemctl --user start homelab.target || rc=1
-  else
-    for app in "${active_apps[@]}"; do
-      systemctl --user start "homelab-$app.target" || rc=1
-    done
-  fi
-  if $reconcile_timer_was_active; then
-    systemctl --user start homelab-reconcile.timer || rc=1
-  fi
-  if $backup_timer_was_active; then
-    systemctl --user start homelab-backup.timer || rc=1
-  fi
-  if ((rc == 0)); then
-    deployment_stopped=false
-  fi
+  for app in "${active_apps[@]}"; do
+    homelab_compose "$app" up -d --remove-orphans || rc=1
+  done
   return "$rc"
 }
 
@@ -70,11 +57,10 @@ cleanup() {
   rm -rf -- "$work_dir"
   if $deployment_stopped; then
     if $leave_stopped && $snapshot_created; then
-      systemctl --user disable homelab-reconcile.timer homelab-backup.timer >/dev/null 2>&1 || true
-      info "backup succeeded; applications and timers remain stopped for migration"
+      info "backup succeeded; applications remain stopped for migration"
     else
       set +e
-      restart_deployment
+      start_apps
       restart_rc=$?
       set -e
       if ((restart_rc != 0)); then
@@ -88,7 +74,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# All preflight checks happen before any service is stopped.
 "$root/bin/restic" cat config >/dev/null
 incomplete_marker="$state_dir/incomplete-backup-snapshot"
 if [[ -s $incomplete_marker ]]; then
@@ -98,25 +83,21 @@ if [[ -s $incomplete_marker ]]; then
   "$root/bin/restic" forget "$incomplete_snapshot"
   unlink "$incomplete_marker"
 fi
-mapfile -t apps < <(jq -r 'keys[]' "$root/manifests/applications.json")
-mapfile -t volume_files < <(find "$root/quadlet/volumes" -type f -name '*.volume' | sort)
-for volume_file in "${volume_files[@]}"; do
-  sed -n 's/^VolumeName=//p' "$volume_file"
-done | sort >"$work_dir/expected-volumes"
+
+mapfile -t expected_volumes < <(homelab_named_volumes "$root")
 : >"$work_dir/actual-volumes"
-while IFS= read -r app; do
-  podman volume ls \
-    --filter "label=io.containers.systemd.application=$app" \
-    --format '{{.Name}}' >>"$work_dir/actual-volumes"
-done < <(printf '%s\n' "${apps[@]}")
+for app in "${apps[@]}"; do
+  docker volume ls --filter "label=homelab.application=$app" --format '{{.Name}}' >>"$work_dir/actual-volumes"
+done
 sort -u -o "$work_dir/actual-volumes" "$work_dir/actual-volumes"
+printf '%s\n' "${expected_volumes[@]}" | sort >"$work_dir/expected-volumes"
 diff -u "$work_dir/expected-volumes" "$work_dir/actual-volumes" || \
-  die "declared and labeled Podman volume inventories differ"
+  die "declared and labeled Docker volume inventories differ"
 
 : >"$work_dir/paths"
 : >"$work_dir/volume-map.tsv"
 while IFS= read -r volume; do
-  mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$volume")
+  mountpoint=$(docker volume inspect --format '{{.Mountpoint}}' "$volume")
   [[ -d $mountpoint ]] || die "volume mountpoint is unavailable: $volume"
   printf '%s\0' "$mountpoint" >>"$work_dir/paths"
   printf '%s\t%s\n' "$volume" "$mountpoint" >>"$work_dir/volume-map.tsv"
@@ -130,34 +111,31 @@ for path in "${required_paths[@]}"; do
   [[ -f $path ]] || die "required backup input is missing: $path"
 done
 
-master_was_active=false
-unit_is_active homelab.target && master_was_active=true
-reconcile_timer_was_active=false
-unit_is_active homelab-reconcile.timer && reconcile_timer_was_active=true
-backup_timer_was_active=false
-unit_is_active homelab-backup.timer && backup_timer_was_active=true
 for app in "${apps[@]}"; do
-  if unit_is_active "homelab-$app.target"; then
+  if workload_is_up "$app"; then
     active_apps+=("$app")
   fi
 done
 
 deployment_stopped=true
-systemctl --user stop homelab-reconcile.timer homelab-backup.timer
-systemctl --user stop homelab.target
 for app in "${apps[@]}"; do
-  systemctl --user stop "homelab-$app.target"
+  homelab_compose "$app" stop >/dev/null || true
 done
-while IFS= read -r unit; do
-  systemctl --user stop "$unit" || true
-done < <(jq -r '.[] .units[] | select(endswith("-build.service") | not)' \
-  "$root/manifests/applications.json")
-podman stop --all >/dev/null || true
 deadline=$((SECONDS + 60))
-while [[ -n $(podman ps --quiet) ]]; do
+while [[ -n $(docker ps --filter label=com.docker.compose.project --quiet) ]]; do
+  leftover=$(docker ps --filter label=com.docker.compose.project --format '{{.Names}}' || true)
+  still=false
+  for app in "${apps[@]}"; do
+    while IFS= read -r name; do
+      if grep -Fxq "$name" <<<"$leftover"; then
+        still=true
+      fi
+    done < <(jq -r --arg app "$app" '.[$app].containers[]' "$root/manifests/applications.json")
+  done
+  $still || break
   if ((SECONDS >= deadline)); then
     printf 'still running:\n' >&2
-    podman ps --format '{{.Names}}\t{{.Status}}' >&2 || true
+    docker ps --format '{{.Names}}\t{{.Status}}' >&2 || true
     die "a container is still running; cold backup refused"
   fi
   sleep 1
@@ -174,7 +152,7 @@ done
 
 info "creating incremental encrypted restic snapshot"
 set +e
-podman unshare "$root/bin/restic" backup \
+"$root/bin/restic" backup \
   --files-from-raw "$work_dir/paths" \
   --tag homelab --tag "$tag" --json | tee "$work_dir/restic-backup.json"
 pipeline_status=("${PIPESTATUS[@]}")
@@ -199,7 +177,8 @@ snapshot_created=true
 printf '%s\n' "$snapshot_id" >"$state_dir/last-backup-snapshot"
 
 if ! $leave_stopped; then
-  restart_deployment
+  start_apps
+  deployment_stopped=false
 fi
 
 info "applying automatic snapshot retention"
@@ -214,9 +193,8 @@ info "applying automatic snapshot retention"
 info "backup completed: $snapshot_id"
 
 if $leave_stopped; then
-  systemctl --user disable homelab-reconcile.timer homelab-backup.timer >/dev/null
   deployment_stopped=false
-  info "applications and timers remain stopped for migration"
+  info "applications remain stopped for migration"
 fi
 rm -rf -- "$work_dir"
 trap - EXIT
