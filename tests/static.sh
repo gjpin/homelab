@@ -331,6 +331,14 @@ rg -q 'wait_for_unit_active' "$root/bin/reconcile" || {
   printf 'reconciliation must wait for Notify=healthy units after restart\n' >&2
   exit 1
 }
+rg -Fq 'cd -- "$runtime_home"' "$root/bin/reconcile" || {
+  printf 'reconciliation must not keep a cwd the homelab user cannot enter\n' >&2
+  exit 1
+}
+rg -Fq 'cd -- "${HOME:?HOME is not set}"' "$root/bin/status" || {
+  printf 'status must not keep a cwd the homelab user cannot enter\n' >&2
+  exit 1
+}
 rg -Fq 'fetch --prune origin "+refs/heads/${branch}:refs/remotes/origin/${branch}"' "$root/bin/reconcile" || {
   printf 'reconciliation must update origin/$branch through an explicit refspec\n' >&2
   exit 1

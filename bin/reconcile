@@ -14,6 +14,7 @@ require_command systemctl
 require_command tar
 
 runtime_home=${HOME:?HOME is not set}
+cd -- "$runtime_home"
 repo_dir=${HOMELAB_REPO_DIR:-$runtime_home/git/repository}
 releases_dir=${HOMELAB_RELEASES_DIR:-$runtime_home/releases}
 current_link=${HOMELAB_CURRENT_LINK:-$runtime_home/current}

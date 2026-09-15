@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+cd -- "${HOME:?HOME is not set}"
+
 printf '%-28s %s\n' UNIT STATE
 for target in homelab-{caddy,forgejo,homeassistant,immich,radicale,searxng,syncthing,vaultwarden}.target; do
   printf '%-28s %s\n' "$target" "$(systemctl --user is-active "$target" 2>/dev/null || true)"

@@ -481,6 +481,7 @@ uid=$(id -u homelab)
 sudo runuser -u homelab -- \
   env HOME=/home/homelab XDG_RUNTIME_DIR="/run/user/$uid" \
   bash -lc '
+    cd /home/homelab
     export GIT_SSH_COMMAND="ssh -i /home/homelab/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/home/homelab/.ssh/known_hosts"
     git -C /home/homelab/git/repository fetch --prune origin \
       +refs/heads/main:refs/remotes/origin/main
