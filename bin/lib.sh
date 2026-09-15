@@ -18,6 +18,15 @@ require_command() {
   command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
 }
 
+homelab_git_ssh_command() {
+  local runtime_home=${1:-${HOME:?HOME is not set}}
+  local key=$runtime_home/.ssh/id_ed25519
+  local known_hosts=$runtime_home/.ssh/known_hosts
+  [[ -f $key && -r $key && -f $known_hosts && -r $known_hosts ]] || return 1
+  printf 'ssh -i %s -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=%s' \
+    "$key" "$known_hosts"
+}
+
 unquote_env_value() {
   local value=$1
   case "$value" in

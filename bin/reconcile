@@ -28,9 +28,27 @@ flock --nonblock 9 || die "another reconciliation is running"
 [[ -d $repo_dir/.git ]] || die "Git checkout not found: $repo_dir"
 install -d -m 0700 "$releases_dir" "$state_dir"
 
+if git_ssh=$(homelab_git_ssh_command "$runtime_home"); then
+  export GIT_SSH_COMMAND="$git_ssh"
+fi
+
+wait_for_unit_active() {
+  local unit=$1
+  local timeout=${HOMELAB_UNIT_READY_TIMEOUT:-900}
+  local interval=${HOMELAB_UNIT_READY_INTERVAL:-2}
+  local deadline=$((SECONDS + timeout))
+  while true; do
+    if systemctl --user is-active --quiet "$unit"; then
+      return 0
+    fi
+    ((SECONDS < deadline)) || return 1
+    sleep "$interval"
+  done
+}
+
 info "fetching origin/$branch"
-git -C "$repo_dir" fetch --prune origin "$branch"
-target_commit=$(git -C "$repo_dir" rev-parse "origin/$branch")
+git -C "$repo_dir" fetch --prune origin "+refs/heads/${branch}:refs/remotes/origin/${branch}"
+target_commit=$(git -C "$repo_dir" rev-parse "refs/remotes/origin/${branch}")
 deployed_commit=
 [[ -r $state_dir/deployed-commit ]] && read -r deployed_commit <"$state_dir/deployed-commit"
 
@@ -54,6 +72,12 @@ if [[ $target_commit == "$deployed_commit" && -e $current_link ]]; then
     if $needs_restart; then
       info "repairing inactive $app application target"
       systemctl --user restart "homelab-$app.target"
+      while IFS= read -r unit; do
+        wait_for_unit_active "$unit" || \
+          die "repair of $app failed health/activation checks: $unit"
+      done < <(jq -r --arg app "$app" \
+        '.[$app].units[] | select(endswith("-build.service") | not)' \
+        "$current_link/manifests/applications.json")
     fi
   done < <(jq -r 'keys[]' "$current_link/manifests/applications.json")
   systemctl --user enable homelab-backup.timer >/dev/null
@@ -193,7 +217,7 @@ done
 
 for app in "${apps[@]}"; do
   while IFS= read -r unit; do
-    systemctl --user is-active --quiet "$unit" || \
+    wait_for_unit_active "$unit" || \
       restore_prior_release "$app unit failed health/activation checks: $unit. Named-volume major migrations already applied are not reversed."
   done < <(jq -r --arg app "$app" \
     '.[$app].units[] | select(endswith("-build.service") | not)' \

@@ -259,6 +259,13 @@ assert_ci 'static test change' \
   'e2e_mode=none' 'e2e_workloads=' 'build_images=' 'host_tools=false'
 reset_fixture
 
+printf 'reconcile tests\n' >"$fixture/tests/reconcile.sh"
+make_commit
+assert_scope none 'reconcile test change'
+assert_ci 'reconcile test change' \
+  'e2e_mode=none' 'e2e_workloads=' 'build_images=' 'host_tools=false'
+reset_fixture
+
 printf 'e2e harness\n' >"$fixture/tests/e2e.sh"
 make_commit
 assert_scope all 'e2e harness change'

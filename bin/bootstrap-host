@@ -263,8 +263,17 @@ recipient=$(runuser -u "$runtime_user" -- env HOME="$runtime_home" \
 require_pq_age_recipient "host identity recipient" "$recipient"
 
 git_ssh=
-if [[ -n $git_key ]]; then
-  git_ssh="ssh -i $runtime_home/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$runtime_home/.ssh/known_hosts"
+if git_ssh=$(homelab_git_ssh_command "$runtime_home"); then
+  ssh_config=$runtime_home/.ssh/config
+  cat >"$ssh_config" <<EOF
+Host github.com
+  IdentityFile $runtime_home/.ssh/id_ed25519
+  IdentitiesOnly yes
+  StrictHostKeyChecking yes
+  UserKnownHostsFile $runtime_home/.ssh/known_hosts
+EOF
+  chmod 0600 "$ssh_config"
+  chown "$runtime_user:$runtime_user" "$ssh_config"
 fi
 if [[ -d $runtime_home/git/repository/.git ]]; then
   if [[ -n $git_ssh ]]; then
@@ -282,6 +291,10 @@ else
     runuser -u "$runtime_user" -- env HOME="$runtime_home" \
       git clone --branch "$branch" "$repo_url" "$runtime_home/git/repository"
   fi
+fi
+if [[ -n $git_ssh ]]; then
+  runuser -u "$runtime_user" -- env HOME="$runtime_home" \
+    git -C "$runtime_home/git/repository" config core.sshCommand "$git_ssh"
 fi
 
 secrets_file="$runtime_home/git/repository/secrets/secrets.sops.yaml"

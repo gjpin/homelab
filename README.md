@@ -381,9 +381,13 @@ encrypted volume snapshot is required when restoring onto a new host.
 
 ## GitOps operation
 
-`homelab-reconcile.timer` fetches `origin/main` every five minutes. Each update
+`homelab-reconcile.timer` fetches `origin/main` every five minutes using the
+`homelab` deploy key (`~/.ssh/id_ed25519`, `IdentitiesOnly=yes`). Each update
 is staged as `/home/homelab/releases/<commit>` and validated before the
-`/home/homelab/current` symlink is switched.
+`/home/homelab/current` symlink is switched. The oneshot service has
+`TimeoutStartSec=infinity` so image pulls and `Notify=healthy` database units
+can finish; after a restart, reconcile waits for each declared unit to become
+active before recording the new deployed commit.
 
 An image update is a normal reviewed Git change:
 
@@ -466,6 +470,27 @@ database downgrade, and named-volume major migrations already applied by
 `migrate-databases` are not reversed. Runtime failures after a stateful
 service starts are also not automatically rolled back, because its database
 may already have migrated.
+
+The timer always executes `/home/homelab/current/bin/reconcile`. A bug in that
+already-deployed script cannot be fixed by waiting for the next timer tick:
+fetch and activate the new commit from the Git checkout once, then the timer
+keeps using the repaired release.
+
+```bash
+uid=$(id -u homelab)
+sudo runuser -u homelab -- \
+  env HOME=/home/homelab XDG_RUNTIME_DIR="/run/user/$uid" \
+  bash -lc '
+    export GIT_SSH_COMMAND="ssh -i /home/homelab/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/home/homelab/.ssh/known_hosts"
+    git -C /home/homelab/git/repository fetch --prune origin \
+      +refs/heads/main:refs/remotes/origin/main
+    git -C /home/homelab/git/repository reset --hard origin/main
+    /home/homelab/git/repository/bin/reconcile
+  '
+sudo runuser -u homelab -- \
+  env HOME=/home/homelab XDG_RUNTIME_DIR="/run/user/$uid" \
+  journalctl --user -u homelab-reconcile.service -n 50 --no-pager
+```
 
 ### Automated PostgreSQL and MariaDB major version updates
 

@@ -323,6 +323,35 @@ for fixture in isolation.yml forbidden-volume.yml; do
   [[ -f "$root/tests/fixtures/forgejo-runner/$fixture" ]] || { printf 'missing runner adversarial fixture: %s\n' "$fixture" >&2; exit 1; }
 done
 rg -q 'require_command rg' "$root/bin/reconcile" || { printf 'reconciliation rg preflight is missing\n' >&2; exit 1; }
+rg -q 'TimeoutStartSec=infinity' "$root/systemd/user/homelab-reconcile.service" || {
+  printf 'reconcile oneshot must not inherit the 90s default start timeout\n' >&2
+  exit 1
+}
+rg -q 'wait_for_unit_active' "$root/bin/reconcile" || {
+  printf 'reconciliation must wait for Notify=healthy units after restart\n' >&2
+  exit 1
+}
+rg -Fq 'fetch --prune origin "+refs/heads/${branch}:refs/remotes/origin/${branch}"' "$root/bin/reconcile" || {
+  printf 'reconciliation must update origin/$branch through an explicit refspec\n' >&2
+  exit 1
+}
+rg -q 'homelab_git_ssh_command' "$root/bin/reconcile" || {
+  printf 'reconciliation must fetch with the deploy key SSH command\n' >&2
+  exit 1
+}
+rg -q 'core.sshCommand' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap must persist the deploy-key SSH command on the Git checkout\n' >&2
+  exit 1
+}
+rg -q '^Host github.com$' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap must write an SSH config that pins the GitHub deploy key\n' >&2
+  exit 1
+}
+[[ -x "$root/tests/reconcile.sh" ]] || { printf 'missing executable reconcile tests\n' >&2; exit 1; }
+rg -q './tests/reconcile.sh' "$root/.github/workflows/validate.yml" || {
+  printf 'CI validate job does not run the reconcile tests\n' >&2
+  exit 1
+}
 for command in fuse-overlayfs newgidmap newuidmap pasta; do
   rg -q "require_command $command" "$root/bin/verify-host-security" || {
     printf 'runtime rootless preflight is missing: %s\n' "$command" >&2
@@ -634,8 +663,8 @@ rg -Fq 'tar -x -p -C "$release"' "$root/bin/reconcile" || {
   printf 'release extract must preserve Git file modes for non-root bind mounts\n' >&2
   exit 1
 }
-[[ $(rg -F --count '.[$app].units[] | select(endswith("-build.service") | not)' "$root/bin/reconcile") == 2 ]] || {
-  printf 'reconciliation must ignore oneshot image builds in repair and activation checks\n' >&2
+[[ $(rg -F --count '.[$app].units[] | select(endswith("-build.service") | not)' "$root/bin/reconcile") == 3 ]] || {
+  printf 'reconciliation must ignore oneshot image builds in repair, repair wait, and activation checks\n' >&2
   exit 1
 }
 rg -q '^Volume=%t/homelab/rendered/caddy/Caddyfile:' "$containers/caddy/caddy.container" || {

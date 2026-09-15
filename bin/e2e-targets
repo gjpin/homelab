@@ -327,6 +327,7 @@ for path in "${changed_paths[@]}"; do
       tests/architecture.sh|tests/bootstrap-storage.sh|\
       tests/postgres-migration.sh|tests/mariadb-migration.sh|\
       tests/legacy-restore.sh|tests/selinux-policy.sh|tests/zigbee-udev.sh|\
+      tests/reconcile.sh|\
       selinux/*|\
       .github/*|README.md|docs/*|incubator/*|AGENTS.md|renovate.json)
       ;;
