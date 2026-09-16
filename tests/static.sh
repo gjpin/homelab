@@ -340,7 +340,7 @@ rg -Fq 'cd -- "${HOME:?HOME is not set}"' "$root/bin/status" || {
   exit 1
 }
 rg -Fq 'fetch --prune origin "+refs/heads/${branch}:refs/remotes/origin/${branch}"' "$root/bin/reconcile" || {
-  printf 'reconciliation must update origin/$branch through an explicit refspec\n' >&2
+  printf "reconciliation must update origin/\$branch through an explicit refspec\n" >&2
   exit 1
 }
 rg -q 'homelab_git_ssh_command' "$root/bin/reconcile" || {
