@@ -5,7 +5,7 @@ Requires=homelab-secrets.service
 PartOf=homelab-supernote.target
 
 [Container]
-Image=docker.io/mariadb:12.3.3-noble@sha256:ab1c3dd381940233af12512b97d47b508fd3a0f17fbe3ba388739b7bc17cbc0b
+Image=docker.io/mariadb:12.3.3-noble@sha256:805c8e104bd563d5bfa24fadd3f31cd419ea859cb5277f32b5dbf2db714f9ed1
 Pull=missing
 ContainerName=supernote-mariadb
 User=mysql:mysql
