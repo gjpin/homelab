@@ -126,6 +126,7 @@ require_command newuidmap
 require_command nft
 require_command pasta
 require_command restic
+require_command systemd-analyze
 require_rpm_version() {
   local package=$1 minimum=$2 actual lowest
   actual=$(rpm -q --queryformat '%{VERSION}\n' "$package") || \

@@ -37,6 +37,10 @@ for package in \
     exit 1
   }
 done
+rg -q 'require_command systemd-analyze' "$root/bin/bootstrap-host" || {
+  printf 'bootstrap does not require systemd-analyze\n' >&2
+  exit 1
+}
 if rg -n '(^|/)(install-age|install-restic)$|install-age|install-restic' \
   --glob '!tests/static.sh' "$root/bin" "$root/README.md" "$root/docs"; then
   printf 'retired age/restic installers are still referenced\n' >&2
@@ -427,6 +431,15 @@ rg -qF 'sops --config /dev/null --age "$recipients"' "$root/bin/init-secrets" ||
 }
 rg -q 'fedora:44@sha256:[0-9a-f]{64}' "$root/.github/workflows/validate.yml" || {
   printf 'validation must use a digest-pinned Fedora 44 image\n' >&2
+  exit 1
+}
+rg -q 'dnf install -y git jq podman ripgrep ShellCheck checkpolicy policycoreutils systemd' \
+  "$root/.github/workflows/validate.yml" || {
+  printf 'CI validate job does not install systemd for systemd-analyze\n' >&2
+  exit 1
+}
+rg -q 'systemd-analyze verify' "$root/.github/workflows/validate.yml" || {
+  printf 'CI validate job does not verify systemd units\n' >&2
   exit 1
 }
 rg -q 'bin/e2e-targets --format=ci' "$root/.github/workflows/validate.yml" || {
