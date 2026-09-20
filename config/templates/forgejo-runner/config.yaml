@@ -4,7 +4,7 @@ runner:
   shutdown_timeout: 30m
 
   labels:
-    - "forgejo-ci:docker://docker.io/library/node:26-trixie@sha256:7b7b64c8662b720a84607d0c2bfff6ebc864813ef129b9fd9517ffe57b33caa5"
+    - "forgejo-ci:docker://docker.io/library/node:26-trixie@sha256:fa271c47a5d81dc321f4a45be01362f5b3de7559edc7e76b8c4089be1e50d866"
 
 container:
   network: ""
