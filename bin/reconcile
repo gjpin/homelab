@@ -216,7 +216,12 @@ for app in "${apps[@]}"; do
   systemctl --user restart "homelab-$app.target"
 done
 
-for app in "${apps[@]}"; do
+# Wait for every declared unit, not only the changed applications: the
+# homelab-secrets.service restart above propagates through Requires= to
+# most container units, so bin/security-audit must not run while units are
+# still returning from that bounce on changes that map to no application.
+mapfile -t manifest_apps < <(jq -r 'keys[]' "$release/manifests/applications.json")
+for app in "${manifest_apps[@]}"; do
   while IFS= read -r unit; do
     wait_for_unit_active "$unit" || \
       restore_prior_release "$app unit failed health/activation checks: $unit. Named-volume major migrations already applied are not reversed."

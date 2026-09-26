@@ -183,6 +183,31 @@ read -r deployed <"$state_dir/deployed-commit"
   exit 1
 }
 
+# A change that maps to no application (for example a CI workflow edit)
+# must still wait for every declared unit before the runtime security
+# audit: the homelab-secrets.service restart bounces units that
+# Requires= it even when no application target is restarted.
+ln -sfn "$old_release" "$current_link"
+printf 'oldcommit\n' >"$state_dir/deployed-commit"
+: >"$log"
+rm -f "$test_root"/is-active.*
+TEST_TARGET_COMMIT=$new_release_name \
+  TEST_CHANGED_PATH='.github/workflows/renovate.yml' \
+  TEST_ACTIVE_AFTER_CALLS=2 run_reconcile >/dev/null
+rg -q '^sleep 0$' "$log" || {
+  printf 'no-application change skipped waiting for declared units\n' >&2
+  exit 1
+}
+[[ $(readlink "$current_link") == "$releases_dir/$new_release_name" ]] || {
+  printf 'current symlink was not switched after a no-application change\n' >&2
+  exit 1
+}
+read -r deployed <"$state_dir/deployed-commit"
+[[ $deployed == "$new_release_name" ]] || {
+  printf 'deployed-commit was not updated after a no-application change\n' >&2
+  exit 1
+}
+
 ln -sfn "$old_release" "$current_link"
 printf 'oldcommit\n' >"$state_dir/deployed-commit"
 : >"$log"
