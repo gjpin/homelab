@@ -5,7 +5,7 @@ Requires=docs-mcp-worker.container
 PartOf=homelab-docs-mcp.target
 
 [Container]
-Image=ghcr.io/arabold/docs-mcp-server:3.2.0@sha256:689aa1384b2cefb43cfd3dbc0d047ccef959b4e0dd52d8367408d7b36e3e34db
+Image=ghcr.io/arabold/docs-mcp-server:3.2.1@sha256:f7423b05d1ce2cced618b1cd3d8734aff88f675d6a05ba198d4667970afd5757
 Pull=missing
 ContainerName=docs-mcp-web
 User=node:node
