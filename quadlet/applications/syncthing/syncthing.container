@@ -5,7 +5,7 @@ Requires=homelab-secrets.service
 PartOf=homelab-syncthing.target
 
 [Container]
-Image=docker.io/syncthing/syncthing:2.1.5@sha256:397aa00b92b48d65540ea3ae3cbf271b87bdccbe07a0b7bd7d2debc3a7b29138
+Image=docker.io/syncthing/syncthing:2.1.6@sha256:4d0281bdcb4ed9baf503d251d0544ddd856f49fce3f114056257ae172b7fb670
 Pull=missing
 ContainerName=syncthing
 User=1000:1000
