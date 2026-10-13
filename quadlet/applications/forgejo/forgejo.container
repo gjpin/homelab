@@ -5,7 +5,7 @@ Requires=forgejo-postgres.container
 PartOf=homelab-forgejo.target
 
 [Container]
-Image=codeberg.org/forgejo/forgejo:16.0.5-rootless@sha256:5effb7305584aca479b29fde6f9631a6dbe86ae798ae02eeea33a3666f0c0bf8
+Image=codeberg.org/forgejo/forgejo:16.0.6-rootless@sha256:51b47921660e1ec7127f094208fe06901ba57df4fe6d59fcccc3a2419514a77f
 Pull=missing
 ContainerName=forgejo
 User=1000:1000
