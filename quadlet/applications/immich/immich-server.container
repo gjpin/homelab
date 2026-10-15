@@ -5,7 +5,7 @@ Requires=immich-valkey.container immich-postgres.container
 PartOf=homelab-immich.target
 
 [Container]
-Image=ghcr.io/immich-app/immich-server:v3.2.4@sha256:d317916b28090c33eb36b308464ea391f8b7df1d850fcfea227a39ec879718c2
+Image=ghcr.io/immich-app/immich-server:v3.3.3@sha256:bae7664ff3aa4c2c1fcbdcdd86b40b105643c5f861f3e6a770fc760089f25862
 Pull=missing
 ContainerName=immich-server
 User=1000:1000
