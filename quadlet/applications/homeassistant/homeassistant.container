@@ -7,7 +7,7 @@ Requires=homeassistant-mosquitto.container
 PartOf=homelab-homeassistant.target
 
 [Container]
-Image=ghcr.io/home-assistant/home-assistant:2026.10.0@sha256:1b64d38f38d922bf9d59336451fd6453e1d614f934456af4ee3d2a51061be3a4
+Image=ghcr.io/home-assistant/home-assistant:2026.10.4@sha256:23f4dfbb69ce76315dbc4de7915504f1c2dcecd7ca2648113a493a385972e133
 Pull=missing
 ContainerName=homeassistant
 EnvironmentFile=%t/homelab/rendered/site.env
