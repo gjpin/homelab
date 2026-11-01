@@ -5,7 +5,7 @@ Requires=supernote-mariadb.container supernote-valkey.container
 PartOf=homelab-supernote.target
 
 [Container]
-Image=docker.io/supernote/supernote-service:26.06.04@sha256:7bb452e60c4f9196070a07716e609189c8ac910facf1f7976a0d528a502f5f05
+Image=docker.io/supernote/supernote-service:26.10.09@sha256:570018387243cec1fcbb1176dc8b878f063a7e55ba5d0b802cecf64a9588159e
 Pull=missing
 ContainerName=supernote-service
 Network=supernote.network
