@@ -311,7 +311,7 @@ authoritative detailed configuration.
 | `caddy` | Custom build; reverse-proxy entrypoint | All active edge networks; `*.BASE_DOMAIN`; loopback `127.0.0.1:8443` only | Caddy user; Cloudflare and bookmarks secrets; `NET_BIND_SERVICE`; never joins backend networks; host `systemd-socket-proxyd` SELinux module for TCP 443/`http_port_t` |
 | `forgejo` | Rootless Forgejo plus PostgreSQL; companion `forgejo-runner` host CI service | Backend plus Forgejo edge; `git` route; runner nftables policy permits configured DNS, public egress, and only the resolved Forgejo endpoint within private ranges | Rootless UIDs; Forgejo and PostgreSQL volumes; database secret; owner-scoped companion runner serves every repository under the selected Forgejo owner and runs under locked `forgejo-runner` account with separate Podman socket, 20 GiB bounded graphroot, account-wide cgroup limits, weekly runner-only cleanup, and no access to production state; readiness is proven by workflow-driven smoke and adversarial E2E |
 | `homeassistant` | Home Assistant, Mosquitto, and Zigbee2MQTT | Backend plus Home Assistant edge; `home` and `home-zigbee` routes | Zigbee device fixture and `container_device_t` exception plus host SELinux module adding `container_net_domain` so MQTT/DNS work; D-Bus read-only bind plus host SELinux module allowing socket write and stream connectto for Bluetooth adapter discovery; MQTT Podman secret plus `ZIGBEE2MQTT_CONFIG_*` GitOps env; writable Zigbee2MQTT data volume; `RunInit=false` on Home Assistant (s6 PID 1) and Zigbee2MQTT (non-root cannot exec `/run/podman-init`); host udev rule pins the coordinator to `dialout` `0660` and strips `uaccess` |
-| `immich` | Rootless server, PostgreSQL, Valkey, and ML service | Backend plus server edge; dedicated ML egress; `photos` route | Multiple durable volumes; database secret; ML outbound isolation |
+| `immich` | Rootless server, PostgreSQL, Valkey, and ML service | Backend plus server edge; dedicated ML egress; `photos` route | Multiple durable volumes; database secret; ML outbound isolation; PostgreSQL `/etc/postgresql` is a tmpfs because the entrypoint never overwrites an existing config (`cp -n`) |
 | `radicale` | Custom rootless image with rendered config | Internal Radicale network; `contacts` route; no Internet egress | Bcrypt htpasswd secret; custom build and rendered user/config files |
 | `searxng` | Rootless SearXNG plus Valkey | Backend plus SearXNG edge; `search` route | Rendered secret-key settings and cache volume; Valkey remains backend-only |
 | `syncthing` | Rootless single service | Internal Syncthing network; `syncthing` UI route; TCP/UDP `22000` direct; no Internet egress | Durable data volume; direct protocol exposure is documented and firewalled; Internet discovery/relay and outbound peer sessions are unavailable |
@@ -325,6 +325,67 @@ dependency ordering, a native health check, and multiple Caddy routes.
 Supernote demonstrates a multi-tier application stack with MariaDB, Valkey,
 and specialized network isolation. Before moving any bundle into the active
 deployment, apply this entire checklist and add a new inventory record.
+
+## Operating the live host
+
+Agents usually cannot reach the host, so diagnostics are run by the operator
+and pasted back. Write commands for the correct account and keep each block
+pasteable as is.
+
+- Log in as the administrative account (`ADMIN@HOST`, for example `pi`). It
+  has `sudo`; `homelab` and `forgejo-runner` are locked accounts without
+  `sudo` or a password login.
+- Become `homelab` for anything in the deployment (containers, user units,
+  reconcile, backups), then point the user manager at its runtime directory:
+
+  ```bash
+  sudo -iu homelab
+  export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+  ```
+
+  Enter the `sudo` password first, then paste the remaining commands. Pasting
+  a block that starts with `sudo -iu homelab` feeds the next line to the
+  password prompt. For a one-shot command, run it from the admin account:
+
+  ```bash
+  sudo -iu homelab bash -c 'export XDG_RUNTIME_DIR=/run/user/$(id -u); systemctl --user list-units --failed'
+  ```
+
+- Never use `sudo` inside the `homelab` shell; the account is not in sudoers.
+  `exit` back to the admin account first. Check the prompt
+  (`homelab@...` versus `pi@...`) before choosing commands.
+- Commands run as the admin account see an empty, unrelated Podman setup.
+  `podman ps` showing no containers there does not mean the deployment is down.
+- System units and host-level state need the admin account with `sudo`:
+  `caddy-https-proxy.socket`/`.service` (public TCP 443), the
+  `homelab-host-tools-update.timer`, `homelab-forgejo-runner-egress.service`,
+  `ss -ltnp`, SELinux AVCs (`sudo ausearch -m AVC -ts recent`), and kernel
+  console noise (`sudo dmesg -n 4`).
+- Inspect the CI runner as its own account, never through `homelab`:
+
+  ```bash
+  sudo runuser -u forgejo-runner -- env XDG_RUNTIME_DIR="/run/user/$(id -u forgejo-runner)" podman ps -a
+  ```
+
+Useful first checks as `homelab`:
+
+```bash
+~/current/bin/status
+systemctl --user list-units --failed
+journalctl --user -u homelab-reconcile.service -n 100 --no-pager
+cat ~/.local/state/homelab/deployed-commit; git -C ~/git/repository rev-parse origin/main
+podman network ls --format '{{.Name}} {{.NetworkInterface}}'
+journalctl --user -u CONTAINER_NAME.service -n 80 --no-pager -o cat
+journalctl --user -u caddy.service -n 30 --no-pager -o cat
+```
+
+The deployed release is `~/current`, the Git mirror is `~/git/repository`, and
+rendered configuration lives under `$XDG_RUNTIME_DIR/homelab`. Kernel lines
+such as `podmanN: port M entered disabled state` mean a container on that
+bridge is being recreated; map `podmanN` to its network with the
+`podman network ls` command above and read that workload's journals. Stop
+`homelab-reconcile.timer` while repairing by hand so the five-minute
+reconcile does not restart targets mid-fix, and start it again afterwards.
 
 ## Useful references
 
