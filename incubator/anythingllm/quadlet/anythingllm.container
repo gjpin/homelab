@@ -5,7 +5,7 @@ Requires=homelab-secrets.service
 PartOf=homelab-anythingllm.target
 
 [Container]
-Image=docker.io/mintplexlabs/anythingllm:1.17.0@sha256:f26f30df46916b6e953e3a47ca98f48817726e3df635e62d4bfdd133292ecfff
+Image=docker.io/mintplexlabs/anythingllm:1.19.0@sha256:daf5a6ae9d363ed578e7d41e2d0668c7eaa604bd90b0ff27435f893b0906833e
 Pull=missing
 ContainerName=anythingllm
 User=anythingllm:anythingllm
