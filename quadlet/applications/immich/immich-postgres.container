@@ -17,8 +17,12 @@ Environment=PGDATA=/var/lib/postgresql/data
 Environment=POSTGRES_INITDB_ARGS=--data-checksums
 Secret=immich-database-password,type=env,target=POSTGRES_PASSWORD
 Volume=immich-postgres.volume:/var/lib/postgresql/data:U
-Volume=immich-postgres-config.volume:/etc/postgresql:U
-HealthCmd=pg_isready -U immich -d immich
+# The entrypoint copies its config template here only when the file is absent
+# (cp -n), so this must be regenerated on every start rather than persisted.
+Tmpfs=/etc/postgresql:rw,noexec,nosuid,nodev,mode=1777
+# Probe the network listener: the local socket stays ready even when peers
+# cannot connect (for example listen_addresses=localhost).
+HealthCmd=pg_isready -h immich-postgres -U immich -d immich
 HealthInterval=10s
 HealthTimeout=5s
 HealthRetries=10

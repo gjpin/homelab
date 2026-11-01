@@ -122,6 +122,13 @@ printf 'podman %s\n' "$*" >>"$TEST_LOG"
 case "${1:-}" in
   image) exit 0 ;;
   pull) exit 0 ;;
+  volume)
+    case "${2:-}" in
+      exists) [[ ${TEST_RETIRED_VOLUME_EXISTS:-0} == 1 ]] ;;
+      rm) exit 0 ;;
+      *) exit 2 ;;
+    esac
+    ;;
   *) exit 2 ;;
 esac
 EOF
@@ -157,6 +164,7 @@ run_reconcile() {
     TEST_CHANGED_PATH="${TEST_CHANGED_PATH:-quadlet/applications/demo/demo.container}" \
     TEST_ACTIVE_AFTER_CALLS="${TEST_ACTIVE_AFTER_CALLS:-0}" \
     TEST_UNIT_FAIL="${TEST_UNIT_FAIL:-0}" \
+    TEST_RETIRED_VOLUME_EXISTS="${TEST_RETIRED_VOLUME_EXISTS:-0}" \
     "$fixture/bin/reconcile"
 }
 
@@ -180,6 +188,22 @@ rg -q '^sleep 0$' "$log" || {
 read -r deployed <"$state_dir/deployed-commit"
 [[ $deployed == "$new_release_name" ]] || {
   printf 'deployed-commit was not updated\n' >&2
+  exit 1
+}
+if rg -q '^podman volume rm ' "$log"; then
+  printf 'reconcile removed a retired volume that does not exist\n' >&2
+  exit 1
+fi
+
+# A leftover undeclared volume would make bin/backup refuse to run.
+ln -sfn "$old_release" "$current_link"
+printf 'oldcommit\n' >"$state_dir/deployed-commit"
+: >"$log"
+rm -f "$test_root"/is-active.*
+TEST_TARGET_COMMIT=$new_release_name TEST_RETIRED_VOLUME_EXISTS=1 \
+  run_reconcile >/dev/null 2>&1
+rg -Fxq 'podman volume rm homelab-immich-postgres-config' "$log" || {
+  printf 'reconcile did not remove the retired Immich PostgreSQL config volume\n' >&2
   exit 1
 }
 

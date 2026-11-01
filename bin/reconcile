@@ -229,6 +229,21 @@ for app in "${manifest_apps[@]}"; do
     '.[$app].units[] | select(endswith("-build.service") | not)' \
     "$release/manifests/applications.json")
 done
+
+# Disposable volumes that are no longer declared. bin/backup refuses to run
+# while a labeled volume is missing from quadlet/volumes, so remove them once
+# the units that mounted them have been replaced.
+retired_volumes=(
+  # Immich's generated /etc/postgresql is now a tmpfs; the persisted copy
+  # kept a truncated postgresql.conf that the entrypoint never replaced.
+  homelab-immich-postgres-config
+)
+for volume in "${retired_volumes[@]}"; do
+  if podman volume exists "$volume"; then
+    info "removing retired volume $volume"
+    podman volume rm "$volume" >/dev/null
+  fi
+done
 "$release/bin/security-audit"
 printf '%s\n' "$target_commit" >"$state_dir/deployed-commit"
 systemctl --user enable homelab.target homelab-reconcile.timer homelab-backup.timer >/dev/null

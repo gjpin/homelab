@@ -869,6 +869,25 @@ while IFS= read -r unit; do
   esac
 done < <(rg -l '^Image=.*(postgres|mariadb)' "$containers" --glob '*.container')
 
+# Immich's entrypoint never overwrites an existing postgresql.conf, so a
+# persisted /etc/postgresql can pin a stale or truncated config forever.
+rg -q '^Tmpfs=/etc/postgresql:' "$containers/immich/immich-postgres.container" || {
+  printf 'Immich PostgreSQL must regenerate /etc/postgresql on a tmpfs\n' >&2
+  exit 1
+}
+if rg -q '^Volume=.*:/etc/postgresql' "$containers" --glob '*.container'; then
+  printf '/etc/postgresql must not be a persistent volume\n' >&2
+  exit 1
+fi
+# A socket-only pg_isready stays healthy while peers cannot connect.
+while IFS= read -r unit; do
+  name=$(sed -n 's/^ContainerName=//p' "$unit")
+  rg -q "^HealthCmd=pg_isready -h ${name} " "$unit" || {
+    printf 'PostgreSQL health check must probe the network listener: %s\n' "$unit" >&2
+    exit 1
+  }
+done < <(rg -l '^Image=.*postgres' "$containers" --glob '*-postgres.container')
+
 rg -q '^Volume=homeassistant-config.volume:/config:U$' \
   "$containers/homeassistant/homeassistant.container" || {
   printf 'Home Assistant config volume must use :U\n' >&2

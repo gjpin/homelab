@@ -188,7 +188,7 @@ while IFS= read -r unit_path; do
   db_user=
   db_name=
   initdb_args=
-  config_volume_file_name=
+  config_tmpfs=
   root_secret=
   user_secret=
   case "$engine" in
@@ -201,7 +201,7 @@ while IFS= read -r unit_path; do
       [[ -n $db_name ]] || db_name=$workload
       initdb_args=$(sed -n 's/^Environment=POSTGRES_INITDB_ARGS=//p' "$unit_path")
       volume_file_name=$(sed -n "s|^Volume=\\([^:]*\\):${data_path}:U$|\\1|p" "$unit_path")
-      config_volume_file_name=$(sed -n 's/^Volume=\([^:]*\):\/etc\/postgresql:U$/\1/p' "$unit_path")
+      config_tmpfs=$(sed -n 's|^Tmpfs=\(/etc/postgresql:.*\)$|\1|p' "$unit_path")
       ;;
     mariadb)
       [[ -n $user ]] || user=mysql:mysql
@@ -221,11 +221,6 @@ while IFS= read -r unit_path; do
   [[ -f $volume_file ]] || die "missing volume unit: $volume_file"
   target_volume=$(sed -n 's/^VolumeName=//p' "$volume_file")
   [[ -n $target_volume ]] || die "missing VolumeName in $volume_file"
-
-  config_volume=
-  if [[ -n ${config_volume_file_name:-} && -f "$release/quadlet/volumes/$config_volume_file_name" ]]; then
-    config_volume=$(sed -n 's/^VolumeName=//p' "$release/quadlet/volumes/$config_volume_file_name")
-  fi
 
   if ! podman volume exists "$target_volume"; then
     continue
@@ -297,9 +292,6 @@ while IFS= read -r unit_path; do
   if volume_in_use "$target_volume"; then
     die "refusing to migrate $workload: volume $target_volume is still mounted by a container"
   fi
-  if [[ -n $config_volume ]] && volume_in_use "$config_volume"; then
-    die "refusing to migrate $workload: volume $config_volume is still mounted by a container"
-  fi
 
   work_dir=$(mktemp -d "$runtime_dir/homelab-${engine}-upgrade-${workload}.XXXXXX")
   backup_dir="$state_dir/${engine}-upgrades"
@@ -314,16 +306,11 @@ while IFS= read -r unit_path; do
       ;;
   esac
   raw_archive="$backup_dir/${workload}-${engine}${on_disk_version}-raw-${timestamp}.tar"
-  raw_config_archive=
-  if [[ -n $config_volume ]]; then
-    raw_config_archive="$backup_dir/${workload}-${engine}${on_disk_version}-config-raw-${timestamp}.tar"
-  fi
 
   old_container="homelab-migrate-old-${workload}-$$"
   new_container="homelab-migrate-new-${workload}-$$"
   dump_file="$work_dir/dump"
   raw_backup_tar="$work_dir/raw.tar"
-  raw_config_tar="$work_dir/raw-config.tar"
 
   # Invoked by the EXIT trap below.
   # shellcheck disable=SC2329
@@ -342,12 +329,6 @@ while IFS= read -r unit_path; do
     podman unshare find "$mountpoint" -mindepth 1 -delete
     podman unshare tar --acls --xattrs --selinux --numeric-owner \
       --directory "$mountpoint" --extract --file "$raw_archive"
-    if [[ -n $raw_config_archive && -n $config_volume ]]; then
-      config_mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$config_volume")
-      podman unshare find "$config_mountpoint" -mindepth 1 -delete
-      podman unshare tar --acls --xattrs --selinux --numeric-owner \
-        --directory "$config_mountpoint" --extract --file "$raw_config_archive"
-    fi
   }
 
   info "starting temporary container to dump $engine $on_disk_version for $workload"
@@ -374,8 +355,8 @@ while IFS= read -r unit_path; do
     old_run_args+=(--tmpfs "/run/mysqld:rw,noexec,nosuid,nodev")
   fi
   old_run_args+=(--env-file "$old_env_file" --volume "$target_volume:${data_path}:U")
-  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
-    old_run_args+=(--volume "$config_volume:/etc/postgresql:U")
+  if [[ -n $config_tmpfs ]]; then
+    old_run_args+=(--tmpfs "$config_tmpfs")
   fi
   if [[ $engine == mariadb ]]; then
     old_run_args+=(--secret "${root_secret},type=env,target=MYSQL_ROOT_PASSWORD")
@@ -427,19 +408,9 @@ while IFS= read -r unit_path; do
     --directory "$mountpoint" --create --file "$raw_backup_tar" .
   install -m 0600 "$dump_file" "$dump_archive"
   install -m 0600 "$raw_backup_tar" "$raw_archive"
-  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
-    config_mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$config_volume")
-    podman unshare tar --acls --xattrs --selinux --numeric-owner \
-      --directory "$config_mountpoint" --create --file "$raw_config_tar" .
-    install -m 0600 "$raw_config_tar" "$raw_config_archive"
-  fi
 
   info "preparing volume for $engine $target_version initialization"
   podman unshare find "$mountpoint" -mindepth 1 -delete
-  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
-    config_mountpoint=$(podman volume inspect --format '{{.Mountpoint}}' "$config_volume")
-    podman unshare find "$config_mountpoint" -mindepth 1 -delete
-  fi
 
   info "starting temporary container to initialize $engine $target_version for $workload"
   new_env_file="$work_dir/new.env"
@@ -468,8 +439,8 @@ while IFS= read -r unit_path; do
     new_run_args+=(--tmpfs "/run/mysqld:rw,noexec,nosuid,nodev")
   fi
   new_run_args+=(--env-file "$new_env_file" --volume "$target_volume:${data_path}:U")
-  if [[ -n $config_volume ]] && podman volume exists "$config_volume"; then
-    new_run_args+=(--volume "$config_volume:/etc/postgresql:U")
+  if [[ -n $config_tmpfs ]]; then
+    new_run_args+=(--tmpfs "$config_tmpfs")
   fi
   if [[ $engine == mariadb ]]; then
     new_run_args+=(--secret "${root_secret},type=env,target=MYSQL_ROOT_PASSWORD")
@@ -561,7 +532,6 @@ while IFS= read -r unit_path; do
   fi
 
   rm -f -- "$raw_archive"
-  [[ -z $raw_config_archive ]] || rm -f -- "$raw_config_archive"
   info "$engine migration completed for $workload ($on_disk_version -> $target_version)"
   info "migration dump retained at: $dump_archive"
 
