@@ -5,7 +5,7 @@ Requires=homelab-secrets.service
 PartOf=homelab-immich.target
 
 [Container]
-Image=ghcr.io/immich-app/postgres:18-vectorchord1.1.1-pgvector0.8.5@sha256:a20e21841b21b9c009daf572c844ffedfaef75fce51287bbf080edf171ef0834
+Image=ghcr.io/immich-app/postgres:18-vectorchord1.1.1-pgvector0.8.5@sha256:4c3a3696605d5e436ca35b703c4918c46fedf8ddd3597c5610ba91c1ee3b0dd1
 Pull=missing
 ContainerName=immich-postgres
 User=1000:1000
